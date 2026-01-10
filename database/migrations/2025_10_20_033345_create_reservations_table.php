@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('reservations', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
+            $table->unsignedBigInteger('order_id')->nullable();
+
             // Human-friendly code (e.g., BZV-000123)
             $table->string('code', 32)->unique();
 

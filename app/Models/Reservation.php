@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ class Reservation extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'order_id',
         'code',
         'trip_date',
         'from_location',
@@ -47,6 +49,11 @@ class Reservation extends Model
     /**
      * Relationships
      */
+
+     public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
 
     // Many reservation ↔ many buses
     public function buses(): BelongsToMany

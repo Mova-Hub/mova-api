@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Controllers\Api\ClientNotificationController;
+use App\Http\Controllers\Api\ClientOrderController;
+use App\Http\Controllers\Api\FcmController;
+use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderRequestController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReservationController;
@@ -10,6 +17,37 @@ use App\Http\Controllers\StaffController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+
+Route::prefix('app/v1')->group(function () {
+
+    // Guest Routes
+    Route::post('/register', [ClientAuthController::class, 'register']);
+    Route::post('/login', [ClientAuthController::class, 'login']);
+    Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [ClientAuthController::class, 'resetPassword']);
+
+    // Protected Routes
+    // Note: Sanctum automatically determines if the token belongs to a Client or User
+    // But we add 'abilities' or middleware checks if we want to be strict.
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/me', [ClientAuthController::class, 'me']);
+        Route::post('/update-profile', [ClientAuthController::class, 'updateProfile']);
+        Route::post('/logout', [ClientAuthController::class, 'logout']);
+        Route::post('/fcm/token', [FcmController::class, 'store']);
+
+        // Client sends the order from app
+        Route::post('/orders/request', [OrderRequestController::class, 'store']);
+        // History
+        Route::get('/orders/history', [ClientOrderController::class, 'history']);
+
+        // Notifications
+        Route::get('/notifications', [ClientNotificationController::class, 'index']);
+        Route::post('/notifications/read', [ClientNotificationController::class, 'markAsRead']);
+    });
+});
+
+
+// Internal Routes
 
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class,'register']);
@@ -44,6 +82,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/buses/{bus}/set-operator',   [BusController::class, 'setOperator']);
     Route::post('/buses/bulk-status',          [BusController::class, 'bulkStatus']);
 
+    // Client Management
+    Route::get('/clients', [ClientController::class, 'index']);
+    Route::get('/clients/{id}', [ClientController::class, 'show']);
+
+    // Order/Lead Management
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::patch('/orders/{id}', [OrderController::class, 'update']);
+
+    // The Conversion Action
+    Route::post('/orders/{id}/convert', [OrderController::class, 'convertToReservation']);
+
     // Reservations management
     Route::apiResource('/reservations', ReservationController::class);
 
@@ -59,6 +109,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Quote endpoint(Pricing engine)
     Route::post('/quote', QuoteController::class);
+
+
 
     // Dashboard
     Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
