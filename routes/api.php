@@ -14,6 +14,7 @@ use App\Http\Controllers\PersonController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\StaffController;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,23 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/update-profile', [ClientAuthController::class, 'updateProfile']);
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         Route::post('/fcm/token', [FcmController::class, 'store']);
+
+        Route::get('/test-notification/{id}', function ($id) {
+            $order = Order::find($id);
+            if (!$order) return 'Order not found';
+
+            // Force a status change for testing
+            $order->status = 'converted';
+            $order->save();
+
+            // Trigger the notification manually
+            $order->client->notify(new \App\Notifications\OrderStatusUpdated(
+                $order,
+                "TEST: Votre commande #{$order->id} a été validée !"
+            ));
+
+            return 'Notification Sent to ' . $order->client->name;
+        });
 
         // Client sends the order from app
         Route::post('/orders/request', [OrderRequestController::class, 'store']);

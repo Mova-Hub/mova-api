@@ -7,8 +7,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\DatabaseMessage;
-use NotificationChannels\Fcm\FcmChannel; // Import this
-use NotificationChannels\Fcm\FcmMessage; // Import this
+use NotificationChannels\Fcm\FcmChannel;
+use NotificationChannels\Fcm\FcmMessage;
 use NotificationChannels\Fcm\Resources\Notification as FcmNotificationResource;
 
 class OrderStatusUpdated extends Notification implements ShouldQueue
