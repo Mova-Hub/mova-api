@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ClientResource;
 use App\Models\Client;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,8 @@ class ClientController extends Controller
                   ->orWhere('phone', 'like', "%{$search}%");
         }
 
-        return response()->json($query->paginate(20));
+        // return response()->json($query->paginate(20));
+        return ClientResource::collection($query->paginate(20));
     }
 
     // Show specific client history
