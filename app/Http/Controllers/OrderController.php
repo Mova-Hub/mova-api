@@ -66,73 +66,72 @@ class OrderController extends Controller
     }
 
     /**
-     * Action: Convert Order to Reservation.
-     * This is the "Magic" button on your dashboard.
+     * Convert Order to Reservation with full details.
      */
     public function convertToReservation(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
+        $order = Order::with('client')->findOrFail($id);
 
-        if ($order->status === 'converted' || $order->reservation()->exists()) {
-            return response()->json(['message' => 'Order already converted.'], 400);
+        if ($order->status === 'converted') {
+            return response()->json(['message' => 'Cette demande est déjà convertie.'], 400);
         }
 
-        // 1. Validate Admin Inputs
-        // The client requested "2 Coasters", but the Admin must assign SPECIFIC buses now.
+        // Comprehensive validation matching the Reservation requirements
         $data = $request->validate([
-            'price_total' => 'required|numeric|min:0',
-            'bus_ids'     => 'required|array|min:1',
-            'bus_ids.*'   => 'exists:buses,id', // Ensure real buses
-            'notes'       => 'nullable|string'
+            'trip_date'      => 'required|date',
+            'from_location'  => 'required|string',
+            'to_location'    => 'required|string',
+            'passenger_name' => 'required|string',
+            'passenger_phone'=> 'required|string',
+            'passenger_email'=> 'nullable|email',
+            'price_total'    => 'required|numeric|min:0',
+            'bus_ids'        => 'required|array|min:1',
+            'bus_ids.*'      => 'exists:buses,id',
+            'waypoints'      => 'nullable|array',
+            'distance_km'    => 'nullable|numeric',
+            'event'          => 'nullable|string',
+            'internal_notes' => 'nullable|string'
         ]);
 
         return DB::transaction(function () use ($order, $data) {
-
-            // 2. Prepare Date/Time
-            // Merge date and time string into a Carbon instance
-            $tripDateTime = Carbon::parse($order->pickup_date->format('Y-m-d') . ' ' . $order->pickup_time);
-
-            // 3. Create the Reservation
+            // 1. Create the Reservation
             $reservation = Reservation::create([
-                'order_id'        => $order->id, // The Link!
-                'trip_date'       => $tripDateTime,
-
-                // Map Location
-                'from_location'   => $order->origin,
-                'to_location'     => $order->destination,
-
-                // Map Passenger
-                'passenger_name'  => $order->contact_name,
-                'passenger_phone' => $order->contact_phone,
-                'passenger_email' => $order->client->email ?? null, // Fallback to client profile email
-
-                // Map Details
-                'event'           => $order->event_type,
-                'seats'           => 0, // You might calculate this based on assigned buses or order fleet
+                'order_id'        => $order->id,
+                'trip_date'       => $data['trip_date'],
+                'from_location'   => $data['from_location'],
+                'to_location'     => $data['to_location'],
+                'passenger_name'  => $data['passenger_name'],
+                'passenger_phone' => $data['passenger_phone'],
+                'passenger_email' => $data['passenger_email'],
                 'price_total'     => $data['price_total'],
-                'status'          => 'confirmed', // Immediately confirmed
+                'status'          => 'confirmed',
+                'event'           => $data['event'] ?? $order->event_type,
+                'waypoints'       => $data['waypoints'],
+                'distance_km'     => $data['distance_km'],
+                'seats'           => 0, // Pivot logic handles actual capacity
             ]);
 
-            // 4. Assign the specific Buses selected by Admin
-            if (!empty($data['bus_ids'])) {
-                $reservation->buses()->sync($data['bus_ids']);
-            }
+            // 2. Sync specific Buses
+            $reservation->buses()->sync($data['bus_ids']);
 
-            // 5. Update Order Status
+            // 3. Update Order Status
             $order->update([
                 'status' => 'converted',
-                'internal_notes' => $order->internal_notes . "\n[System]: Converted to Reservation #{$reservation->code}"
+                'internal_notes' => ($order->internal_notes ? $order->internal_notes . "\n" : "") .
+                                    "[System]: Converti en réservation #" . $reservation->code
             ]);
 
-            // 6. Trigger Notification
-            $order->client->notify(new OrderStatusUpdated(
-                $order,
-                "Votre devis est prêt : " . number_format($data['price_total']) . " FCFA. Cliquez pour voir les détails."
-            ));
+            // 4. Notify Client
+            if ($order->client) {
+                $order->client->notify(new OrderStatusUpdated(
+                    $order,
+                    "Bonne nouvelle ! Votre réservation pour le trajet {$data['from_location']} → {$data['to_location']} est confirmée (Code: {$reservation->code})."
+                ));
+            }
 
             return response()->json([
                 'status' => true,
-                'message' => 'Order converted successfully',
+                'message' => 'Demande convertie avec succès en réservation #' . $reservation->code,
                 'data' => [
                     'reservation_id' => $reservation->id,
                     'reservation_code' => $reservation->code
