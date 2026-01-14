@@ -30,6 +30,7 @@ class ReservationResource extends JsonResource
             'seats'           => (int) $this->seats,
             'price_total'     => $this->price_total !== null ? (float) $this->price_total : null,
             'status'          => $this->status,
+            'payment_status'  => $this->payment_status,
 
             'waypoints'       => $this->waypoints, // array or null
             'distance_km'     => $this->distance_km !== null ? (float) $this->distance_km : null,
