@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('reservation_id')->nullable();
+            $table->string('reservation_id');
             $table->decimal('amount', 10, 2);
             $table->enum('method', ['cash', 'mobile_money', 'bank_transfer', 'check'])->default('mobile_money');
             $table->string('reference')->nullable();  // External ID (M-Pesa code, Check number, etc.)
