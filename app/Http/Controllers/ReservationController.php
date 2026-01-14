@@ -121,10 +121,22 @@ class ReservationController extends Controller
     public function setStatus(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['pending','confirmed','cancelled'])],
+            'status' => ['required', Rule::in(['pending', 'confirmed', 'cancelled'])],
         ]);
-        $reservation->update(['status' => $validated['status']]);
-        return new ReservationResource($reservation);
+
+        DB::transaction(function () use ($reservation, $validated) {
+            $reservation->update([
+                'status' => $validated['status'],
+            ]);
+
+            if ($validated['status'] === 'cancelled' && $reservation->order) {
+                $reservation->order->update([
+                    'status' => 'cancelled',
+                ]);
+            }
+        });
+
+        return new ReservationResource($reservation->fresh(['order']));
     }
 
     public function syncBuses(Request $request, Reservation $reservation)

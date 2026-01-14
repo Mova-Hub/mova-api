@@ -21,6 +21,11 @@ class Order extends Model
         'pickup_date' => 'date',
     ];
 
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('status', '!=', 'cancelled');
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);

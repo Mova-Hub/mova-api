@@ -22,7 +22,7 @@ class DashboardController extends Controller
         $prevEnd   = (clone $start)->subSecond();
         $prevStart = (clone $prevEnd)->subDays($days);
 
-        // --- 1. CASH FLOW (Actual Money vs Booked) ---
+        // 1. CASH FLOW (Actual Money vs Booked)
         // Collected: Sum of completed transactions in window
         $collected = Transaction::where('status', 'completed')
             ->whereBetween('created_at', [$start, $end])
@@ -38,7 +38,7 @@ class DashboardController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->sum('price_total');
 
-        // --- 2. PIPELINE (Orders -> Reservations) ---
+        // 2. PIPELINE (Orders -> Reservations)
         $newLeads = Order::whereBetween('created_at', [$start, $end])->count();
         $prevLeads = Order::whereBetween('created_at', [$prevStart, $prevEnd])->count();
 
@@ -51,7 +51,7 @@ class DashboardController extends Controller
         $prevConverted = Order::whereBetween('created_at', [$prevStart, $prevEnd])->where('status', 'converted')->count();
         $prevConvRate = $prevLeads > 0 ? ($prevConverted / $prevLeads) * 100 : 0;
 
-        // --- 3. FLEET DEMAND (Based on Orders JSON) ---
+        // 3. FLEET DEMAND (Based on Orders JSON)
         // We look at raw demand from Orders to see what clients want most
         // This is a rough aggregation of the JSON keys
         $hiaceDemand = Order::whereBetween('created_at', [$start, $end])
