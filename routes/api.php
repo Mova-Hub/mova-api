@@ -124,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reservations/{reservation}/attach-bus',  [ReservationController::class, 'attachBus']);
     Route::post('/reservations/{reservation}/detach-bus',  [ReservationController::class, 'detachBus']);
     Route::post('/reservations/bulk-status',               [ReservationController::class, 'bulkStatus']);
+    Route::post('/reservations/{reservation}/payment',      [ReservationController::class, 'payment']);
 
     // Quote endpoint(Pricing engine)
     Route::post('/quote', QuoteController::class);

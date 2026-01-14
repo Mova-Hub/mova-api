@@ -30,6 +30,7 @@ class Reservation extends Model
         'seats',
         'price_total',
         'status',
+        'payment_status',
         'waypoints',
         'distance_km',
         'event',

@@ -41,6 +41,9 @@ return new class extends Migration
             // Status aligned with UI
             $table->enum('status', ['pending', 'confirmed', 'cancelled', 'processing'])->default('pending')->index();
 
+            // Payment status
+            $table->enum('payment_status', ['pending', 'paid', 'failed', 'refunded'])->default('pending')->index();
+
             // Map / routing
             // Array of { lat: number, lng: number, label: string }
             $table->json('waypoints')->nullable();
