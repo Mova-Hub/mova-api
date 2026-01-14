@@ -133,7 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard
     Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
-    Route::get('/dash/series', [DashboardController::class, 'series']);  // time series
+    Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
 
 });
 

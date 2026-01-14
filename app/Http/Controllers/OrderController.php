@@ -97,6 +97,7 @@ class OrderController extends Controller
             // 1. Create the Reservation
             $reservation = Reservation::create([
                 'order_id'        => $order->id,
+                'client_id'       => $order->client_id,
                 'trip_date'       => $data['trip_date'],
                 'from_location'   => $data['from_location'],
                 'to_location'     => $data['to_location'],

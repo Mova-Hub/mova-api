@@ -20,6 +20,7 @@ class Reservation extends Model
 
     protected $fillable = [
         'order_id',
+        'client_id',
         'code',
         'trip_date',
         'from_location',
@@ -55,6 +56,11 @@ class Reservation extends Model
      public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     // Many reservation ↔ many buses

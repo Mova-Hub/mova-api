@@ -4,155 +4,143 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\Reservation;
+use App\Models\Order;
+use App\Models\Transaction;
 
 class DashboardController extends Controller
 {
     public function cards(Request $req)
     {
-        // range: 7d|30d|90d
-        $range = in_array($req->get('range'), ['7d','30d','90d']) ? $req->get('range') : '30d';
+        $range = in_array($req->get('range'), ['7d', '30d', '90d']) ? $req->get('range') : '30d';
         $days  = (int) rtrim($range, 'd');
 
-        $end   = Carbon::now();                 // set app timezone to Africa/Nairobi in config/app.php
-        $start = (clone $end)->subDays($days);
+        $end   = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays($days)->startOfDay();
 
-        $prevEnd   = (clone $start);
+        $prevEnd   = (clone $start)->subSecond();
         $prevStart = (clone $prevEnd)->subDays($days);
 
-        // totals (window based on trip_date for business relevance)
-        $currTotal = Reservation::whereNull('deleted_at')
-            ->whereBetween('trip_date', [$start, $end])
-            ->count();
+        // --- 1. CASH FLOW (Actual Money vs Booked) ---
+        // Collected: Sum of completed transactions in window
+        $collected = Transaction::where('status', 'completed')
+            ->whereBetween('created_at', [$start, $end])
+            ->sum('amount');
 
-        $prevTotal = Reservation::whereNull('deleted_at')
-            ->whereBetween('trip_date', [$prevStart, $prevEnd])
-            ->count();
+        $prevCollected = Transaction::where('status', 'completed')
+            ->whereBetween('created_at', [$prevStart, $prevEnd])
+            ->sum('amount');
 
-        $totalDeltaPct = $this->pctDelta($currTotal, $prevTotal);
-
-        // planned (from today forward)
-        $today = Carbon::today();
-        $planned = Reservation::whereNull('deleted_at')
-            ->where('trip_date', '>=', $today)
-            ->count();
-
-        $prevPlanned = Reservation::whereNull('deleted_at')
-            ->whereBetween('trip_date', [$today->copy()->subDays($days), $today])
-            ->count();
-
-        $plannedDelta = $this->pctDelta($planned, $prevPlanned);
-
-        // gross revenue (sum price_total in window)
-        $gross = (float) Reservation::whereNull('deleted_at')
-            ->whereBetween('trip_date', [$start, $end])
+        // Booked: Sum of price_total of CONFIRMED reservations in window
+        $booked = Reservation::whereNull('deleted_at')
+            ->where('status', 'confirmed')
+            ->whereBetween('created_at', [$start, $end])
             ->sum('price_total');
 
-        $prevGross = (float) Reservation::whereNull('deleted_at')
-            ->whereBetween('trip_date', [$prevStart, $prevEnd])
-            ->sum('price_total');
+        // --- 2. PIPELINE (Orders -> Reservations) ---
+        $newLeads = Order::whereBetween('created_at', [$start, $end])->count();
+        $prevLeads = Order::whereBetween('created_at', [$prevStart, $prevEnd])->count();
 
-        $grossDelta = $this->pctDelta($gross, $prevGross);
+        $converted = Order::whereBetween('created_at', [$start, $end])
+            ->where('status', 'converted')
+            ->count();
 
-        // partners & payouts due
-        // Uses reservation_buses pivot; confirmed trips in window
-        // due formula ≈ clientRounded* (1 - commission) * (1 + busMM)
-        $commission = (float) config('pricing.commission_percent', 0.13);
-        $busMM      = (float) config('pricing.mobile_money_bus_percent', 0.035);
+        // Conversion Rate
+        $convRate = $newLeads > 0 ? ($converted / $newLeads) * 100 : 0;
+        $prevConverted = Order::whereBetween('created_at', [$prevStart, $prevEnd])->where('status', 'converted')->count();
+        $prevConvRate = $prevLeads > 0 ? ($prevConverted / $prevLeads) * 100 : 0;
 
-        $hasOperator = Schema::hasColumn('buses', 'operator_id');
+        // --- 3. FLEET DEMAND (Based on Orders JSON) ---
+        // We look at raw demand from Orders to see what clients want most
+        // This is a rough aggregation of the JSON keys
+        $hiaceDemand = Order::whereBetween('created_at', [$start, $end])
+            ->whereJsonContains('fleet_requirements', ['hiace' => 1]) // Simplified check, usually requires raw SQL for accurate sum
+            ->orWhereRaw("JSON_EXTRACT(fleet_requirements, '$.hiace') > 0")
+            ->count();
 
-        $selectGroup = $hasOperator
-            ? 'b.operator_id'
-            : 'rb.bus_id'; // fallback: group by bus if no operators yet
+        $coasterDemand = Order::whereBetween('created_at', [$start, $end])
+            ->orWhereRaw("JSON_EXTRACT(fleet_requirements, '$.coaster') > 0")
+            ->count();
 
-        $dueRows = DB::table('reservations as r')
-            ->join('reservation_buses as rb', 'rb.reservation_id', '=', 'r.id')
-            ->join('buses as b', 'b.id', '=', 'rb.bus_id')
-            ->whereNull('r.deleted_at')
-            ->where('r.status', 'confirmed')
-            ->whereBetween('r.trip_date', [$start, $end])
-            ->selectRaw("
-                {$selectGroup} as grp,
-                SUM( (COALESCE(r.price_total,0) * (1 - ?)) * (1 + ?) ) as due_amount
-            ", [$commission, $busMM])
-            ->groupBy('grp')
-            ->get();
-
-        // operators count = distinct non-null operator_id (or distinct buses if no operator column)
-        $operatorsCount = $hasOperator
-            ? $dueRows->filter(fn($r) => !is_null($r->grp))->count()
-            : $dueRows->count();
-
-        $dueTotal = (float) $dueRows->sum('due_amount');
+        $topVehicle = $coasterDemand > $hiaceDemand ? 'Coaster' : 'Hiace';
 
         return response()->json([
             'range' => $range,
-            'totals' => [
-                'reservations' => [
-                    'value'     => $this->int($currTotal),
-                    'delta_pct' => $totalDeltaPct,
+            'cards' => [
+                'revenue' => [
+                    'label' => 'Trésorerie Encaissée',
+                    'value' => $collected,
+                    'format' => 'money',
+                    'delta_pct' => $this->pctDelta($collected, $prevCollected),
+                    'subtext' => "Sur " . number_format($booked, 0) . " FCFA facturés"
                 ],
-                'planned' => [
-                    'value'     => $this->int($planned),
-                    'delta_pct' => $plannedDelta,
+                'leads' => [
+                    'label' => 'Nouveaux Leads',
+                    'value' => $newLeads,
+                    'format' => 'number',
+                    'delta_pct' => $this->pctDelta($newLeads, $prevLeads),
+                    'subtext' => "Demandes reçues"
                 ],
-                'gross_revenue' => [
-                    'value'     => round($gross, 0),
-                    'delta_pct' => $grossDelta,
-                    'currency'  => config('pricing.currency', 'XAF'),
+                'conversion' => [
+                    'label' => 'Taux de Conversion',
+                    'value' => $convRate,
+                    'format' => 'percent',
+                    'delta_pct' => ($convRate - $prevConvRate), // Absolute diff for rates
+                    'subtext' => "Commandes converties"
                 ],
-                'partners_due' => [
-                    'operators'  => $operatorsCount,
-                    'due_amount' => round($dueTotal, 0),
-                    'currency'   => config('pricing.currency', 'XAF'),
-                    // simple illustrative trend (vs previous window – here omitted for simplicity)
-                    'delta_pct'  => $this->pctDelta($dueTotal, 0),
-                ],
-            ],
+                'demand' => [
+                    'label' => 'Véhicule Tendance',
+                    'value' => $topVehicle,
+                    'format' => 'text',
+                    'delta_pct' => 0, // N/A
+                    'subtext' => $coasterDemand + $hiaceDemand . " demandes totales"
+                ]
+            ]
         ]);
     }
 
-    public function series(Request $req)
+    public function charts(Request $req)
     {
-        $range = in_array($req->get('range'), ['7d','30d','90d']) ? $req->get('range') : '30d';
+        $range = in_array($req->get('range'), ['7d', '30d', '90d']) ? $req->get('range') : '30d';
         $days  = (int) rtrim($range, 'd');
 
-        $end   = Carbon::now();
-        $start = (clone $end)->subDays($days - 1)->startOfDay();
+        $end   = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays($days - 1)->startOfDay();
 
-        // bucket by DATE(trip_date)
-        $rows = DB::table('reservations')
-            ->whereNull('deleted_at')
-            ->whereBetween('trip_date', [$start, $end])
-            ->selectRaw("
-                DATE(trip_date) as d,
-                COUNT(*) as reservations,
-                SUM(CASE WHEN status='confirmed' THEN 1 ELSE 0 END) as confirmed
-            ")
-            ->groupBy('d')
-            ->orderBy('d')
+        // 1. Daily Revenue (Booked vs Collected)
+        // Group Transactions by Day
+        $collections = Transaction::selectRaw('DATE(created_at) as date, SUM(amount) as total')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('date')
             ->get()
-            ->keyBy('d');
+            ->pluck('total', 'date');
+
+        // Group Reservations (Booked Revenue) by Day
+        $bookings = Reservation::selectRaw('DATE(created_at) as date, SUM(price_total) as total')
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'cancelled')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('date')
+            ->get()
+            ->pluck('total', 'date');
 
         $data = [];
         $cursor = $start->copy();
         while ($cursor <= $end) {
-            $key = $cursor->toDateString();
-            $row = $rows->get($key);
+            $dateKey = $cursor->toDateString();
             $data[] = [
-                'date'          => $key,
-                'reservations'  => (int) ($row->reservations ?? 0),
-                'confirmées'    => (int) ($row->confirmed ?? 0),
+                'date' => $dateKey,
+                'booked' => (float) ($bookings[$dateKey] ?? 0),
+                'collected' => (float) ($collections[$dateKey] ?? 0),
             ];
             $cursor->addDay();
         }
 
         return response()->json([
             'range' => $range,
-            'data'  => $data,
+            'chart_data' => $data
         ]);
     }
 
@@ -163,6 +151,4 @@ class DashboardController extends Controller
         if ($p == 0.0) return $c > 0 ? 100.0 : 0.0;
         return round((($c - $p) / $p) * 100, 1);
     }
-
-    private function int($v): int { return (int) round((float) $v); }
 }

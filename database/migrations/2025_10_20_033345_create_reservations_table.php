@@ -15,6 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
 
             $table->unsignedBigInteger('order_id')->nullable();
+            $table->unsignedBigInteger('client_id')->nullable();
 
             // Human-friendly code (e.g., BZV-000123)
             $table->string('code', 32)->unique();
