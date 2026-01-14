@@ -49,6 +49,7 @@ return new class extends Migration
 
             // Optional: if you later associate to a Trip model, add a nullable FK
             // $table->uuid('trip_id')->nullable()->index();
+            $table->text('internal_notes')->nullable();
 
             // Auditing / housekeeping
             $table->timestamps();

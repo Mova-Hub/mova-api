@@ -33,6 +33,7 @@ class Reservation extends Model
         'waypoints',
         'distance_km',
         'event',
+        'internal_notes',
         // 'trip_id', // uncomment if/when you add a trips table
     ];
 
