@@ -169,6 +169,22 @@ class ClientAuthController extends Controller
         ]);
     }
 
+    public function updateFcmToken(Request $request): JsonResponse
+    {
+        $request->validate([
+            'fcm_token' => 'required|string',
+            'device_name' => 'nullable|string',
+        ]);
+
+        // Utilise ton helper privé existant
+        $this->syncFcmToken($request->user(), $request->fcm_token, $request->device_name);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'FCM Token updated successfully.'
+        ]);
+    }
+
     /**
      * REQUEST PASSWORD RESET (OTP VERSION)
      * Replaces the email-based logic since we are using Phone.
