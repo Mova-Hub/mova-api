@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Client;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -124,10 +125,15 @@ class OrderController extends Controller
 
             // 4. Notify Client
             if ($order->client) {
+                // Log for debugging
+                Log::info("Sending notification to Client ID: " . $order->client_id);
+
                 $order->client->notify(new OrderStatusUpdated(
                     $order,
-                    "Bonne nouvelle ! Votre réservation pour le trajet {$data['from_location']} → {$data['to_location']} est confirmée (Code: {$reservation->code})."
+                    "Bonne nouvelle ! Votre réservation pour {$data['from_location']} -> {$data['to_location']} est confirmée."
                 ));
+            } else {
+                Log::warning("Order converted but no client attached. Order ID: " . $order->id);
             }
 
             return response()->json([

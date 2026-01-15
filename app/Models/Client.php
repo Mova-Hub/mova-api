@@ -46,7 +46,9 @@ class Client extends Authenticatable implements CanResetPassword
     // REQUIRED by laravel-notification-channels/fcm
     public function routeNotificationForFcm()
     {
-        // Return array of all active tokens for this user
-        return $this->fcmTokens()->pluck('fcm_token')->toArray();
+        // Must return an array of token strings.
+        // If empty, the channel simply won't send, but won't crash.
+        $tokens = $this->fcmTokens()->pluck('fcm_token')->toArray();
+        return !empty($tokens) ? $tokens : [];
     }
 }

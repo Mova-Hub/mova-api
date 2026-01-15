@@ -6,10 +6,9 @@ use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\DatabaseMessage;
 use NotificationChannels\Fcm\FcmChannel;
 use NotificationChannels\Fcm\FcmMessage;
-use NotificationChannels\Fcm\Resources\Notification as FcmNotificationResource;
+use NotificationChannels\Fcm\Resources\Notification as FcmNotification;
 
 class OrderStatusUpdated extends Notification implements ShouldQueue
 {
@@ -31,51 +30,75 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
 
     public function toArray($notifiable): array
     {
-        // Define logic for title/color based on status
         $status = $this->order->status;
-        $title = 'Mise à jour de commande';
-        $type = 'info'; // info, success, warning, danger
-
-        if ($status === 'pending') {
-            $title = 'Demande Reçue';
-            $type = 'info'; // or a new type 'pending'
-        } elseif ($status === 'converted' || $status === 'confirmed') {
-            $title = 'Devis Prêt !';
-            $type = 'quote_ready';
-        } elseif ($status === 'cancelled') {
-            $title = 'Commande Annulée';
-            $type = 'cancelled';
-        } elseif ($status === 'contacted') {
-            $title = 'Dossier en cours';
-            $type = 'driver_assigned';
-        }
+        $title = $this->getTitle($status);
+        $type = $this->getType($status);
 
         return [
             'order_id' => $this->order->id,
             'title' => $title,
-            'message' => $this->customMessage ?? "Le statut de votre commande pour {$this->order->destination} a changé : " . ucfirst($status),
+            'message' => $this->customMessage ?? "Statut : " . ucfirst($status),
             'trip_name' => $this->order->destination,
             'type' => $type,
             'status_color' => $this->getColor($type),
-            'icon' => $this->getIcon($type),
         ];
     }
 
-    public function toFcm($notifiable)
+    public function toFcm($notifiable): FcmMessage
     {
-        // Reuse data logic from toArray
         $data = $this->toArray($notifiable);
 
-        return FcmMessage::create()
-            ->setData([
+        return (new FcmMessage(notification: new FcmNotification(
+                title: $data['title'],
+                body: $data['message'],
+            )))
+            ->data([
+                // React Native Data Payload
                 'order_id' => (string) $this->order->id,
-                'type' => 'order_update'
+                'status' => (string) $this->order->status,
+                'type' => 'order_update',
+
+                // Helper for React Native Navigation
+                'screen' => 'MyProfile',
             ])
-            ->setNotification(
-                FcmNotificationResource::create()
-                    ->setTitle($data['title'])
-                    ->setBody($data['message'])
-            );
+            ->custom([
+                'android' => [
+                    'notification' => [
+                        'color' => $data['status_color'],
+                        'icon' => 'ic_notification', // Ensure this icon exists in android/app/src/main/res/drawable
+                        'channel_id' => 'orders_channel', // Important for Android 8+
+                    ],
+                    'priority' => 'high',
+                ],
+                'apns' => [
+                    'payload' => [
+                        'aps' => [
+                            'sound' => 'default',
+                            'content-available' => 1, // Important for background updates
+                        ],
+                    ],
+                ],
+            ]);
+    }
+
+    private function getTitle($status) {
+        return match($status) {
+            'pending' => 'Demande Reçue',
+            'converted', 'confirmed' => 'Devis Prêt !',
+            'cancelled' => 'Commande Annulée',
+            'contacted' => 'Dossier en cours',
+            default => 'Mise à jour de commande',
+        };
+    }
+
+    private function getType($status) {
+        return match($status) {
+            'pending' => 'info',
+            'converted', 'confirmed' => 'quote_ready',
+            'cancelled' => 'cancelled',
+            'contacted' => 'driver_assigned',
+            default => 'info',
+        };
     }
 
     private function getColor($type) {
@@ -84,15 +107,6 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             'cancelled' => '#EF4444', // Red
             'driver_assigned' => '#3B82F6', // Blue
             default => '#64748B', // Grey
-        };
-    }
-
-    private function getIcon($type) {
-        return match($type) {
-            'quote_ready' => 'file-text',
-            'cancelled' => 'x-circle',
-            'driver_assigned' => 'user-check',
-            default => 'bell',
         };
     }
 }
