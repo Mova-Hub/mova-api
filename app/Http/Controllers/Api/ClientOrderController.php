@@ -17,9 +17,9 @@ class ClientOrderController extends Controller
         // Eager load the 'reservation' relationship to get price/status details
         // Also load 'reservation.buses' if you want vehicle info
         $orders = Order::where('client_id', $client->id)
-            ->with(['reservation.buses'])
+        ->with(['reservation.buses.driver'])
             ->latest()
-            ->get();
+                ->get();
 
         return OrderHistoryResource::collection($orders);
     }
