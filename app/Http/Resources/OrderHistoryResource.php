@@ -17,6 +17,7 @@ class OrderHistoryResource extends JsonResource
             'event_type' => $this->event_type,
             'status' => $this->status,
             'reservation_status' => $res ? $res->status : $this->status,  // Use reservation status if converted for better tracking
+            'payment_status' => $res?->payment_status,
             'itinerary' => [
                 'from' => $this->origin,
                 'to' => $this->destination,
