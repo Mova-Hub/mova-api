@@ -33,17 +33,21 @@ return new class extends Migration
             $table->string('passenger_email', 190)->nullable();
 
             // Event
-            $table->enum('event', ['school_trip', 'university_trip', 'educational_tour', 'student_transport', 'wedding', 'funeral', 'birthday', 'baptism', 'family_meeting', 'conference', 'seminar', 'company_trip', 'business_mission', 'staff_shuttle', 'football_match', 'sports_tournament', 'concert', 'festival', 'school_competition', 'tourist_trip', 'group_excursion', 'pilgrimage', 'site_visit', 'airport_transfer', 'election_campaign', 'administrative_mission', 'official_trip', 'private_transport', 'special_event', 'simple_rental'])->nullable();
+            $table->string('event')->nullable();
 
             // Seats & pricing
             $table->unsignedSmallInteger('seats')->default(1);
             $table->decimal('price_total', 12, 2)->default(0);
 
             // Status aligned with UI
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'processing'])->default('pending')->index();
+            $table->enum('status', ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'])->default('pending')->index();
 
             // Payment status
             $table->enum('payment_status', ['pending', 'paid', 'failed', 'refunded'])->default('pending')->index();
+
+            // Trip track
+            $table->dateTime('started_at')->nullable()->index();
+            $table->dateTime('completed_at')->nullable()->index();
 
             // Map / routing
             // Array of { lat: number, lng: number, label: string }

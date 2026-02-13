@@ -16,6 +16,7 @@ class OrderHistoryResource extends JsonResource
             'code' => $res?->code,
             'event_type' => $this->event_type,
             'status' => $this->status,
+            'reservation_status' => $res ? $res->status : $this->status,  // Use reservation status if converted for better tracking
             'itinerary' => [
                 'from' => $this->origin,
                 'to' => $this->destination,
@@ -30,7 +31,7 @@ class OrderHistoryResource extends JsonResource
                 // Gestion Pro du Driver (User Model)
                 'driver' => $bus->driver ? [
                     'name' => $bus->driver->name,
-                    'phone' => $bus->driver->phone,
+                    // 'phone' => $bus->driver->phone,
                     'avatar' => $bus->driver->avatar_url ?? null,
                     'license' => $bus->driver->license_no,
                 ] : null,
@@ -39,6 +40,9 @@ class OrderHistoryResource extends JsonResource
                 'total' => $res ? (float) $res->price_total : 0,
                 'is_paid' => $res?->payment_status === 'paid',
             ],
+            'started_at' => $res?->started_at,
+            'completed_at' => $res?->completed_at,
+            'internal_notes' => $this->internal_notes,
         ];
     }
 }

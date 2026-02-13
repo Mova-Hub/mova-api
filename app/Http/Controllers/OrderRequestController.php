@@ -39,7 +39,7 @@ class OrderRequestController extends Controller
             'status'             => 'pending'
         ]);
 
-        // Optional: Send Email Notification to Admin here
+        // Todo: Send Email Notification to Admin here
 
         // 2. Send Notification to Client
         // We pass a custom message to confirm receipt immediately.

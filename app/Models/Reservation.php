@@ -36,6 +36,8 @@ class Reservation extends Model
         'distance_km',
         'event',
         'internal_notes',
+        'started_at',
+        'completed_at',
         // 'trip_id', // uncomment if/when you add a trips table
     ];
 
@@ -45,8 +47,14 @@ class Reservation extends Model
         'price_total'    => 'decimal:2',
         'distance_km'    => 'decimal:2',
         'deleted_at'     => 'datetime',
-        // 'created_at'    => 'datetime', // Eloquent already casts timestamps
-        // 'updated_at'    => 'datetime',
+        'started_at'     => 'datetime',
+        'completed_at'   => 'datetime',
+    ];
+
+    // Default status
+    protected $attributes = [
+        'status' => 'pending',
+        'payment_status' => 'pending',
     ];
 
     /**

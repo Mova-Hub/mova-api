@@ -20,7 +20,6 @@ class ReservationController extends Controller
     // GET /api/reservations?search=...
     public function index(Request $request)
     {
-        // ... existing index code ...
         $q = Reservation::query();
         $trashed = $request->query('trashed');
         if ($trashed === 'with')      $q->withTrashed();
@@ -67,7 +66,6 @@ class ReservationController extends Controller
 
     public function store(StoreReservationRequest $request)
     {
-        // ... existing store code ...
         $data = $request->validated();
         Log::info('StoreReservation validated data', ['data' => $data]);
         $busIds = $data['bus_ids'] ?? null;
@@ -88,7 +86,6 @@ class ReservationController extends Controller
 
     public function update(UpdateReservationRequest $request, Reservation $reservation)
     {
-        // ... existing update code ...
         $data   = $request->validated();
         Log::info('UpdateReservation validated data', ['data' => $data]);
         $busIds = array_key_exists('bus_ids', $data) ? ($data['bus_ids'] ?? null) : null;
@@ -121,18 +118,34 @@ class ReservationController extends Controller
     public function setStatus(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['pending', 'confirmed', 'cancelled'])],
+            'status' => ['required', Rule::in(['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'])],
         ]);
 
-        DB::transaction(function () use ($reservation, $validated) {
-            $reservation->update([
-                'status' => $validated['status'],
-            ]);
+        $newStatus = $validated['status'];
 
-            if ($validated['status'] === 'cancelled' && $reservation->order) {
-                $reservation->order->update([
-                    'status' => 'cancelled',
-                ]);
+        // Optional: Basic state transition guards (expand as needed)
+        if ($newStatus === 'in_progress' && $reservation->status !== 'confirmed') {
+            return response()->json(['error' => 'La réservation doit être confirmée avant de démarrer.'], 422);
+        }
+        if ($newStatus === 'completed' && $reservation->status !== 'in_progress') {
+            return response()->json(['error' => 'La réservation doit être en cours avant de terminer.'], 422);
+        }
+
+        DB::transaction(function () use ($reservation, $newStatus) {
+            $updates = ['status' => $newStatus];
+
+            if ($newStatus === 'in_progress' && $reservation->started_at === null) {
+                $updates['started_at'] = now();
+            }
+
+            if ($newStatus === 'completed' && $reservation->completed_at === null) {
+                $updates['completed_at'] = now();
+            }
+
+            $reservation->update($updates);
+
+            if ($newStatus === 'cancelled' && $reservation->order) {
+                $reservation->order->update(['status' => 'cancelled']);
             }
         });
 
@@ -231,4 +244,7 @@ class ReservationController extends Controller
 
         return new ReservationResource($reservation->refresh());
     }
+
+
+
 }
