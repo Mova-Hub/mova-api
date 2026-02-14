@@ -33,22 +33,25 @@ class Client extends Authenticatable implements CanResetPassword
         'last_login_at' => 'datetime',
     ];
 
-    public function fcmTokens()
-    {
-        return $this->hasMany(ClientFcmToken::class);
-    }
 
     public function orders()
     {
         return $this->hasMany(Order::class);
     }
 
-    // REQUIRED by laravel-notification-channels/fcm
+/**
+     * Get the client's FCM tokens for notifications.
+     *
+     * @return array
+     */
     public function routeNotificationForFcm()
     {
-        // Must return an array of token strings.
-        // If empty, the channel simply won't send, but won't crash.
-        $tokens = $this->fcmTokens()->pluck('fcm_token')->toArray();
-        return !empty($tokens) ? $tokens : [];
+        return $this->fcmTokens()->pluck('fcm_token')->toArray();
+    }
+
+    // Assuming your relationship is defined like this (if not, add it)
+    public function fcmTokens()
+    {
+        return $this->hasMany(ClientFcmToken::class);
     }
 }

@@ -8,11 +8,12 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Log;
-use NotificationChannels\Fcm\FcmChannel;
-use NotificationChannels\Fcm\FcmMessage;
-use NotificationChannels\Fcm\Resources\Notification as FcmNotification;
+use App\Channels\FcmChannel;
 use Throwable;
 
+/**
+ * @method array toFcm($notifiable)
+ */
 class OrderStatusUpdated extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -75,31 +76,29 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
         ];
     }
 
-    public function toFcm($notifiable): FcmMessage
+    public function toFcm($notifiable): array
     {
         $data = $this->toArray($notifiable);
 
-        return (new FcmMessage(notification: new FcmNotification(
-                title: $data['title'],
-                body: $data['message'],
-            )))
-            ->data([
+        return [
+            'title' => $data['title'],
+            'body' => $data['message'],
+            'data' => [
                 'order_id' => (string) $this->order->id,
                 'status' => (string) $this->order->status,
                 'screen' => 'MyProfile', // Helper for React Native
-            ])
-            ->custom([
-                'android' => [
-                    'notification' => [
-                        'color' => $data['status_color'],
-                        'channel_id' => 'orders_channel',
-                    ],
-                    'priority' => 'high',
+            ],
+            'android' => [
+                'notification' => [
+                    'color' => $data['status_color'],
+                    'channel_id' => 'orders_channel',
                 ],
-                'apns' => [
-                    'payload' => ['aps' => ['sound' => 'default', 'content-available' => 1]],
-                ],
-            ]);
+                'priority' => 'high',
+            ],
+            'apns' => [
+                'payload' => ['aps' => ['sound' => 'default', 'content-available' => 1]],
+            ],
+        ];
     }
 
     public function failed(Throwable $exception): void

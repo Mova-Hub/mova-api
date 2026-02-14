@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'firebase' => [
+        'credentials' => base_path('firebase-credentials.json'),
+    ],
+
 ];
