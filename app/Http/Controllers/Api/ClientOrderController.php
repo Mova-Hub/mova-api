@@ -23,4 +23,16 @@ class ClientOrderController extends Controller
 
         return OrderHistoryResource::collection($orders);
     }
+
+    public function show(Request $request, $id)
+    {
+        $client = $request->user();
+
+        // Ensure the client can only view their own orders
+        $order = Order::where('client_id', $client->id)
+            ->with(['reservation.buses.driver'])
+            ->findOrFail($id);
+
+        return new OrderHistoryResource($order);
+    }
 }

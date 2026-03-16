@@ -58,6 +58,7 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/orders/request', [OrderRequestController::class, 'store']);
         // History
         Route::get('/orders/history', [ClientOrderController::class, 'history']);
+        Route::get('/orders/{id}', [ClientOrderController::class, 'show']);
 
         // Notifications
         Route::get('/notifications', [ClientNotificationController::class, 'index']);

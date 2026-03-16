@@ -54,4 +54,5 @@ class Client extends Authenticatable implements CanResetPassword
     {
         return $this->hasMany(ClientFcmToken::class);
     }
+
 }
