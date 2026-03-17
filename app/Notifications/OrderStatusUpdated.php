@@ -5,13 +5,13 @@ namespace App\Notifications;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-// use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Log;
 use App\Channels\FcmChannel;
 use Throwable;
 
-class OrderStatusUpdated extends Notification //
+class OrderStatusUpdated extends Notification implements ShouldQueue
 {
     use Queueable;
 

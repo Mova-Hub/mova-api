@@ -3,7 +3,6 @@
 namespace App\Channels;
 
 use Illuminate\Notifications\Notification;
-use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FcmNotification;
 use Kreait\Firebase\Messaging\AndroidConfig;
@@ -12,13 +11,6 @@ use Illuminate\Support\Facades\Log;
 
 class FcmChannel
 {
-    protected $messaging;
-
-    public function __construct(Messaging $messaging)
-    {
-        $this->messaging = $messaging;
-    }
-
     /**
      * Send the given notification.
      */
@@ -37,6 +29,9 @@ class FcmChannel
         }
 
         try {
+            // Grab Messaging via the App Container to avoid DI crashes
+            $messaging = app('firebase.messaging');
+
             $fcmMessage = CloudMessage::new()
                 ->withNotification(FcmNotification::create($message['title'], $message['body']));
 
@@ -54,16 +49,16 @@ class FcmChannel
                 $fcmMessage = $fcmMessage->withApnsConfig($apnsConfig);
             }
 
-            $report = $this->messaging->sendMulticast($fcmMessage, $tokens);
+            $report = $messaging->sendMulticast($fcmMessage, $tokens);
 
             if ($report->hasFailures()) {
                 foreach ($report->failures()->getItems() as $failure) {
                     Log::error('FCM send failed for token ' . $failure->target()->value() . ': ' . $failure->error()->getMessage());
-                    // Optionally, delete invalid tokens from your database
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('FCM notification failed: ' . $e->getMessage());
+            // This ensures your API doesn't crash with a 500 if Firebase fails
+            Log::error('FCM Notification FATAL Error: ' . $e->getMessage());
         }
     }
 }
