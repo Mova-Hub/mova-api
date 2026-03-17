@@ -5,20 +5,16 @@ namespace App\Notifications;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Queue\ShouldQueue;
+// use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Log;
 use App\Channels\FcmChannel;
 use Throwable;
 
-/**
- * @method array toFcm($notifiable)
- */
-class OrderStatusUpdated extends Notification implements ShouldQueue
+class OrderStatusUpdated extends Notification //
 {
     use Queueable;
 
-    // Retry settings for Production/cPanel
     public $tries = 3;
     public $backoff = [60, 300, 600];
 
@@ -35,14 +31,16 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
     {
         $channels = ['database'];
 
-        // 1. Email check: Use the 'email' field from your Client model
         if (!empty($notifiable->email)) {
             $channels[] = 'mail';
         }
 
-        // 2. FCM check: Your routeNotificationForFcm() handles the token array
-        if (count($notifiable->routeNotificationForFcm()) > 0) {
-            $channels[] = FcmChannel::class;
+        // SAFELY check for tokens to prevent count(null) fatal errors in PHP 8
+        if (method_exists($notifiable, 'routeNotificationForFcm')) {
+            $tokens = $notifiable->routeNotificationForFcm();
+            if (!empty($tokens)) {
+                $channels[] = FcmChannel::class;
+            }
         }
 
         return $channels;
@@ -84,9 +82,9 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             'title' => $data['title'],
             'body' => $data['message'],
             'data' => [
-                'order_id' => (string) $this->order->id,
-                'status' => (string) $this->order->status,
-                'screen' => 'MyProfile', // Helper for React Native
+                'order_id' => (string) $this->order->id, // Must be string!
+                'status' => (string) $this->order->status, // Must be string!
+                'screen' => 'MyProfile',
             ],
             'android' => [
                 'notification' => [
@@ -103,7 +101,6 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        // Log the error in storage/logs/laravel.log
         Log::error("Notification Error (Order #{$this->order->id}): " . $exception->getMessage());
     }
 
