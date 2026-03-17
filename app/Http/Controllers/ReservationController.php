@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateReservationRequest;
 use App\Http\Resources\ReservationResource;
 use App\Models\Reservation;
 use App\Models\Transaction; // Imported
+use App\Notifications\ReservationStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Imported for transactions
 use Illuminate\Support\Facades\Log;
@@ -123,7 +124,6 @@ class ReservationController extends Controller
 
         $newStatus = $validated['status'];
 
-        // Optional: Basic state transition guards (expand as needed)
         if ($newStatus === 'in_progress' && $reservation->status !== 'confirmed') {
             return response()->json(['error' => 'La réservation doit être confirmée avant de démarrer.'], 422);
         }
@@ -148,6 +148,20 @@ class ReservationController extends Controller
                 $reservation->order->update(['status' => 'cancelled']);
             }
         });
+
+        // TRIGGER NOTIFICATION AFTER TRANSACTION
+        // We load the client relationship if it's not already loaded
+        $reservation->loadMissing('client');
+        if ($reservation->client) {
+            $message = match($newStatus) {
+                'in_progress' => "Votre trajet vers {$reservation->to_location} vient de commencer. Bonne route !",
+                'completed' => "Vous êtes arrivé à destination ({$reservation->to_location}). Merci d'avoir voyagé avec nous !",
+                'cancelled' => "Votre réservation pour {$reservation->to_location} a été annulée.",
+                default => "Le statut de votre réservation pour {$reservation->to_location} a été mis à jour."
+            };
+
+            $reservation->client->notify(new ReservationStatusUpdated($reservation, $message));
+        }
 
         return new ReservationResource($reservation->fresh(['order']));
     }
@@ -203,44 +217,42 @@ class ReservationController extends Controller
             'amount'    => ['required', 'numeric', 'min:1'],
             'method'    => ['required', 'string', Rule::in(['cash', 'mobile_money', 'bank_transfer', 'check'])],
             'note'      => ['nullable', 'string'],
-            // Reference required unless paying by cash
             'reference' => ['required_unless:method,cash', 'nullable', 'string', 'max:255'],
         ]);
 
         DB::transaction(function () use ($reservation, $validated) {
-            // 1. Create Transaction
             Transaction::create([
                 'reservation_id' => $reservation->id,
                 'amount'         => $validated['amount'],
                 'method'         => $validated['method'],
                 'reference'      => $validated['reference'] ?? null,
                 'note'           => $validated['note'] ?? null,
-                'status'         => 'completed', // Assuming manual entry is always completed
+                'status'         => 'completed',
             ]);
-
-            // 2. Update Reservation Payment Status
-            // Logic: If total paid >= price_total, mark as paid.
-            // For now, simpler logic: manual entry usually implies full or significant payment.
-            // We'll verify against the total.
 
             $totalPaid = Transaction::where('reservation_id', $reservation->id)
                 ->where('status', 'completed')
-                ->sum('amount'); // Add the current one? No, transaction created above is included if committed.
-
-            // Re-query sum including the new one
-            // Note: DB::transaction ensures this reads correctly inside transaction in most engines,
-            // but for safety we can just add $validated['amount'] to previous sum if needed.
-            // Here, created record is visible.
+                ->sum('amount');
 
             $status = 'pending';
             if ($totalPaid >= $reservation->price_total) {
                 $status = 'paid';
             } elseif ($totalPaid > 0) {
-                $status = 'pending'; // or 'partial' if you add that status later
+                $status = 'pending';
             }
 
             $reservation->update(['payment_status' => $status]);
         });
+
+        // TRIGGER PAYMENT NOTIFICATION
+        $reservation->loadMissing('client');
+        if ($reservation->client) {
+            $formattedAmount = number_format($validated['amount'], 0, ',', ' ');
+            $message = "Nous avons bien reçu votre paiement de {$formattedAmount} FCFA pour votre réservation vers {$reservation->to_location}.";
+
+            // Re-use the status updated notification, but pass the payment message
+            $reservation->client->notify(new ReservationStatusUpdated($reservation, $message));
+        }
 
         return new ReservationResource($reservation->refresh());
     }

@@ -8,6 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderRequestController;
 use App\Http\Controllers\PersonController;
@@ -131,7 +132,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Quote endpoint(Pricing engine)
     Route::post('/quote', QuoteController::class);
 
-
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Dashboard
     Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs

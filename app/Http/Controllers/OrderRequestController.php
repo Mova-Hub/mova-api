@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\User; // <-- Import the User model
 use App\Notifications\OrderStatusUpdated;
+use App\Notifications\NewOrderAdminNotification;
 use Illuminate\Http\Request;
 use App\Models\Client;
+use Illuminate\Support\Facades\Notification;
 
 class OrderRequestController extends Controller
 {
@@ -15,19 +18,18 @@ class OrderRequestController extends Controller
         $client = $request->user();
 
         $data = $request->validate([
-            'event_type' => 'required|string',
-            'from_city'  => 'required|string',
-            'to_city'    => 'required|string',
-            'date'       => 'required|date',
-            'time'       => 'required|string',
-            // Validate that fleet is an array (e.g., ["coaster" => 2])
-            'fleet'      => 'required|array',
+            'event_type'   => 'required|string',
+            'from_city'    => 'required|string',
+            'to_city'      => 'required|string',
+            'date'         => 'required|date',
+            'time'         => 'required|string',
+            'fleet'        => 'required|array',
             'contact_name' => 'required|string',
-            'phone'      => 'required|string',
+            'phone'        => 'required|string',
         ]);
 
         $order = Order::create([
-            'client_id'          => $client->id, // Auth User
+            'client_id'          => $client->id,
             'event_type'         => $data['event_type'],
             'origin'             => $data['from_city'],
             'destination'        => $data['to_city'],
@@ -39,10 +41,28 @@ class OrderRequestController extends Controller
             'status'             => 'pending'
         ]);
 
-        // Todo: Send Email Notification to Admin here
 
-        // 2. Send Notification to Client
-        // We pass a custom message to confirm receipt immediately.
+        // 1. SECURE ADMIN & AGENT NOTIFICATION
+
+        // Fetch all staff members who are admins or agents AND are currently active
+        $staffMembers = User::whereIn('role', ['admin', 'agent'])
+            ->where('status', 'active')
+            ->get();
+
+        if ($staffMembers->isNotEmpty()) {
+            // Notification::send() automatically loops through the collection
+            // sending both the email and saving a database record for EACH user securely.
+            Notification::send($staffMembers, new NewOrderAdminNotification($order));
+        } else {
+            // Fallback Security: If for some reason there are 0 active admins in the DB,
+            // we still send the lead to the master email so it doesn't get lost.
+            Notification::route('mail', 'reservation@mova-mobility.com')
+                ->notify(new NewOrderAdminNotification($order));
+        }
+
+
+        // 2. CLIENT NOTIFICATION
+
         $client->notify(new OrderStatusUpdated(
             $order,
             "Nous avons bien reçu votre demande pour {$data['to_city']}. Notre équipe va l'analyser et vous recontacter très vite."
