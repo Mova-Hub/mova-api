@@ -84,7 +84,7 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             'data' => [
                 'order_id' => (string) $this->order->id, // Must be string!
                 'status' => (string) $this->order->status, // Must be string!
-                'screen' => 'MyProfile',
+                'screen' => 'MyReservations',
             ],
             'android' => [
                 'notification' => [
