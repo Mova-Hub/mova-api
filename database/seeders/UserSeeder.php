@@ -19,19 +19,19 @@ class UserSeeder extends Seeder
                 'role' => 'admin',
                 'name' => 'Van Christ',
                 'phone' => '+242067000111',
-                'email' => 'van.christ@mova-mobility.com',
+                'email' => 'van.bouetoumoussa@mova-mobility.com',
             ],
             [
                 'role' => 'admin',
                 'name' => 'Switch Aime',
                 'phone' => '+242067000222',
-                'email' => 'switch.aime@mova-mobility.com',
+                'email' => 'swith.aime@mova-mobility.com',
             ],
             [
                 'role' => 'admin',
                 'name' => 'Arden BOUET',
                 'phone' => '+242064074926',
-                'email' => 'arden.bouet@mova-mobility.com',
+                'email' => 'laudbouetoumoussa@mova-mobility.com',
             ],
 
             // Agents
