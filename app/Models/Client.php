@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Client extends Authenticatable implements CanResetPassword
 {
@@ -53,6 +54,11 @@ class Client extends Authenticatable implements CanResetPassword
     public function fcmTokens()
     {
         return $this->hasMany(ClientFcmToken::class);
+    }
+
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(Wallet::class);
     }
 
 }

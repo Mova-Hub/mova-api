@@ -8,7 +8,9 @@ use App\Http\Resources\ReservationResource;
 use App\Models\Reservation;
 use App\Models\Transaction; // Imported
 use App\Notifications\ReservationStatusUpdated;
+use App\Services\Payment\PaymentOrchestrator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Imported for transactions
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -210,51 +212,114 @@ class ReservationController extends Controller
     // NEW: PAYMENT ENDPOINT
     // -------------------------------------------------------------------------
 
-    // POST /api/reservations/{reservation}/payment
+// POST /api/reservations/{reservation}/payment
     public function payment(Request $request, Reservation $reservation)
     {
+        // 1. Validation adaptée aux nouvelles méthodes de paiement
         $validated = $request->validate([
-            'amount'    => ['required', 'numeric', 'min:1'],
-            'method'    => ['required', 'string', Rule::in(['cash', 'mobile_money', 'bank_transfer', 'check'])],
-            'note'      => ['nullable', 'string'],
-            'reference' => ['required_unless:method,cash', 'nullable', 'string', 'max:255'],
+            // On s'assure que c'reçu comme un entier (pour éviter les problèmes de décimales en base)
+            'amount' => ['required', 'integer', 'min:1'],
+            'method' => ['required', 'string', Rule::in(['cash', 'mova_wallet', 'mtn_cg', 'airtel_cg'])],
+            // Le téléphone est requis UNIQUEMENT si on déclenche un paiement Mobile Money
+            'phone'  => ['required_if:method,mtn_cg,airtel_cg', 'nullable', 'string'],
+            'note'   => ['nullable', 'string'],
         ]);
 
-        DB::transaction(function () use ($reservation, $validated) {
-            Transaction::create([
-                'reservation_id' => $reservation->id,
-                'amount'         => $validated['amount'],
-                'method'         => $validated['method'],
-                'reference'      => $validated['reference'] ?? null,
-                'note'           => $validated['note'] ?? null,
-                'status'         => 'completed',
-            ]);
+        $amount = $validated['amount'];
+        $method = $validated['method'];
 
-            $totalPaid = Transaction::where('reservation_id', $reservation->id)
-                ->where('status', 'completed')
-                ->sum('amount');
+        // 2. Création de la transaction en statut "pending"
+        $transaction = new Transaction([
+            // auth()->id() si c'est le client qui paie sur l'app, ou l'ID du client si c'est un guichetier
+            'user_id'        => Auth::user()->id ?? $reservation->client_id,
+            'type'           => 'reservation_payment',
+            'payment_method' => $method,
+            'amount'         => $amount,
+            'currency'       => 'XAF',
+            'status'         => $method === 'cash' ? 'successful' : 'pending', // Le cash est immédiat
+        ]);
 
-            $status = 'pending';
-            if ($totalPaid >= $reservation->price_total) {
-                $status = 'paid';
-            } elseif ($totalPaid > 0) {
-                $status = 'pending';
-            }
+        // Magie Polymorphique : On lie la transaction à cette réservation spécifique
+        // Cela remplit automatiquement payable_type et payable_id !
+        $reservation->transactions()->save($transaction);
 
-            $reservation->update(['payment_status' => $status]);
-        });
+        // 3. Traitement selon la méthode
+        if ($method === 'cash') {
+            // Paiement manuel au guichet : tout est fini
+            $this->updateReservationPaymentStatus($reservation);
+            $this->sendPaymentNotification($reservation, $amount);
 
-        // TRIGGER PAYMENT NOTIFICATION
-        $reservation->loadMissing('client');
-        if ($reservation->client) {
-            $formattedAmount = number_format($validated['amount'], 0, ',', ' ');
-            $message = "Nous avons bien reçu votre paiement de {$formattedAmount} FCFA pour votre réservation vers {$reservation->to_location}.";
-
-            // Re-use the status updated notification, but pass the payment message
-            $reservation->client->notify(new ReservationStatusUpdated($reservation, $message));
+            return new ReservationResource($reservation->fresh());
         }
 
-        return new ReservationResource($reservation->refresh());
+        // 4. Paiement Numérique : On fait appel à l'Orchestrateur
+        $gateway = (new PaymentOrchestrator())->resolve($method);
+
+        $description = "Paiement réservation Mova : " . ($reservation->code ?? 'N/A');
+
+        try {
+            // Déclenche l'USSD ou déduit le Wallet
+            $result = $gateway->charge($amount, $transaction->id, $description, [
+                'phone' => $validated['phone'] ?? null
+            ]);
+
+            // Si c'est le Mova Wallet, l'adaptateur l'a peut-être déjà passé en "successful"
+            if ($method === 'mova_wallet' && $result['success']) {
+                $transaction->update(['status' => 'successful']);
+                $this->updateReservationPaymentStatus($reservation);
+                $this->sendPaymentNotification($reservation, $amount);
+
+                return new ReservationResource($reservation->fresh());
+            }
+
+            // Si c'est MTN/Airtel, on renvoie un message "En attente de confirmation sur le téléphone"
+            return response()->json([
+                'message' => 'Veuillez valider le paiement sur votre téléphone.',
+                'transaction_id' => $transaction->id,
+                'status' => 'pending'
+            ]);
+
+        } catch (\Exception $e) {
+            $transaction->update(['status' => 'failed']);
+            Log::error("Erreur de paiement pour réservation {$reservation->id}: " . $e->getMessage());
+
+            return response()->json(['error' => 'Le paiement a échoué. Veuillez réessayer.'], 400);
+        }
+    }
+
+    /**
+     * Helper : Recalcule le statut de paiement de la réservation.
+     * (Isolé ici car tes Webhooks devront aussi appeler cette méthode)
+     */
+    protected function updateReservationPaymentStatus(Reservation $reservation)
+    {
+        // On additionne toutes les transactions réussies liées à cette réservation
+        $totalPaid = $reservation->transactions()
+            ->where('status', 'successful')
+            ->sum('amount');
+
+        $status = 'pending';
+        if ($totalPaid >= $reservation->price_total) {
+            $status = 'paid';
+        } elseif ($totalPaid > 0) {
+            $status = 'partial';
+        }
+
+        $reservation->update(['payment_status' => $status]);
+    }
+
+    /**
+     * Helper : Envoie la notification de paiement
+     */
+    protected function sendPaymentNotification(Reservation $reservation, int $amount)
+    {
+        $reservation->loadMissing('client');
+        if ($reservation->client) {
+            $formattedAmount = number_format($amount, 0, ',', ' ');
+            $message = "Nous avons bien reçu votre paiement de {$formattedAmount} FCFA pour votre réservation vers {$reservation->to_location}.";
+
+            $reservation->client->notify(new ReservationStatusUpdated($reservation, $message));
+        }
     }
 
 

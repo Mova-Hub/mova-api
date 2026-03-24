@@ -24,7 +24,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'name'      => ['required', 'string', 'max:80'],
-            'email'     => ['required', 'email', 'max:255', 'unique:clients,email'],
+            'email'     => ['nullable', 'email', 'max:255', 'unique:clients,email'],
             'phone'     => ['required', 'string', 'max:13', 'unique:clients,phone'],
             'password'  => ['required', Password::min(8)->mixedCase()->numbers()->uncompromised()],
             'device_name' => ['nullable', 'string', 'max:100'],
