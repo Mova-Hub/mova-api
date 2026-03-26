@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
+use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmploiController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderRequestController;
@@ -137,6 +139,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+
+    // Jobs
+    Route::post('/jobs/bulk-status', [EmploiController::class, 'bulkStatus']);
+    Route::apiResource('jobs', EmploiController::class)->parameters([
+        'jobs' => 'emploi' // Indique à Laravel de l'appeler $emploi dans le contrôleur
+    ]);
+
+    Route::post('/candidates/bulk-status', [CandidateController::class, 'bulkStatus']);
+
+    // Candidates
+    Route::apiResource('candidates', CandidateController::class)->except(['store']);
 
     // Dashboard
     Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
