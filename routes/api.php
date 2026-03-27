@@ -79,6 +79,17 @@ Route::prefix('auth')->group(function () {
     Route::get('me',        [AuthController::class,'me'])->middleware('auth:sanctum');
 });
 
+
+// ---------------------------------------------------------
+// Public Routes
+// ---------------------------------------------------------
+// 1. Les candidats peuvent voir les offres ouvertes
+Route::get('/jobs/public', [EmploiController::class, 'publicIndex']);
+
+// 2. Les candidats postulent et uploadent leur CV
+Route::post('/candidates', [CandidateController::class, 'store']);
+
+
 Route::middleware('auth:sanctum')->group(function () {
 
     // Staff management (admin only)
@@ -156,14 +167,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
 
 });
-
-// ---------------------------------------------------------
-// Public Routes
-// ---------------------------------------------------------
-// 1. Les candidats peuvent voir les offres ouvertes
-Route::get('/jobs/public', [EmploiController::class, 'publicIndex']);
-// 2. Les candidats postulent et uploadent leur CV
-Route::post('/candidates', [CandidateController::class, 'store']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();
