@@ -157,7 +157,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
 });
 
-
+// ---------------------------------------------------------
+// Public Routes
+// ---------------------------------------------------------
+// 1. Les candidats peuvent voir les offres ouvertes
+Route::get('/jobs/public', [EmploiController::class, 'publicIndex']);
+// 2. Les candidats postulent et uploadent leur CV
+Route::post('/candidates', [CandidateController::class, 'store']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();

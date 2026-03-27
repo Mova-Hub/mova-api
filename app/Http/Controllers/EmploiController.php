@@ -38,6 +38,35 @@ class EmploiController extends Controller
         return EmploiResource::collection($query->paginate($perPage));
     }
 
+    public function publicIndex(Request $request)
+    {
+        $query = Emploi::query();
+
+        // 1. Recherche globale (Titre, département, lieu)
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('department', 'like', "%{$search}%")
+                  ->orWhere('location', 'like', "%{$search}%");
+            });
+        }
+
+        // 2. Filtres stricts
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+        if ($department = $request->query('department')) {
+            $query->where('department', $department);
+        }
+
+        // 3. Tri (Du plus récent au plus ancien)
+        $query->orderBy('created_at', 'desc');
+
+        $perPage = max((int) $request->query('per_page', 15), 1);
+
+        return EmploiResource::collection($query->paginate($perPage));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
