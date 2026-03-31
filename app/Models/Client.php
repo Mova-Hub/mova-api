@@ -40,17 +40,29 @@ class Client extends Authenticatable implements CanResetPassword
         return $this->hasMany(Order::class);
     }
 
-/**
+    /**
      * Get the client's FCM tokens for notifications.
      *
      * @return array
      */
+
     public function routeNotificationForFcm()
     {
-        return $this->fcmTokens()->pluck('fcm_token')->toArray();
+        return $this->fcmTokens()
+            ->where('type', 'fcm')
+            ->pluck('fcm_token')
+            ->toArray();
     }
 
-    // Assuming your relationship is defined like this (if not, add it)
+    public function routeNotificationForExpo()
+    {
+        return $this->fcmTokens()
+            ->where('type', 'expo')
+            ->pluck('fcm_token')
+            ->toArray();
+    }
+
+    // Define the relationship with FCM tokens
     public function fcmTokens()
     {
         return $this->hasMany(ClientFcmToken::class);

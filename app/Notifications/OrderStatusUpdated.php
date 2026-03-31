@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\ExpoChannel;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
@@ -35,13 +36,22 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             $channels[] = 'mail';
         }
 
-        // SAFELY check for tokens to prevent count(null) fatal errors in PHP 8
+        // FCM: only add if the method exists AND there are tokens
         if (method_exists($notifiable, 'routeNotificationForFcm')) {
-            $tokens = $notifiable->routeNotificationForFcm();
-            if (!empty($tokens)) {
+            $fcmTokens = $notifiable->routeNotificationForFcm();
+            if (!empty($fcmTokens)) {
                 $channels[] = FcmChannel::class;
             }
         }
+
+        // Expo: only add if the method exists AND there are tokens
+        if (method_exists($notifiable, 'routeNotificationForExpo')) {
+            $expoTokens = $notifiable->routeNotificationForExpo();
+            if (!empty($expoTokens)) {
+                $channels[] = ExpoChannel::class;
+            }
+        }
+
 
         return $channels;
     }
@@ -96,6 +106,22 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
             'apns' => [
                 'payload' => ['aps' => ['sound' => 'default', 'content-available' => 1]],
             ],
+        ];
+    }
+
+    public function toExpo($notifiable): array
+    {
+        $data = $this->toArray($notifiable);
+
+        return [
+            'title' => $data['title'],
+            'body'  => $data['message'],
+            'data'  => [
+                'order_id' => (string) $this->order->id,
+                'status' => (string) $this->order->status,
+                'screen' => 'MyReservations',
+            ],
+            'sound' => 'default',
         ];
     }
 

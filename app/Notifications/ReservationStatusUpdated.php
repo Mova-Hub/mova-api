@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\ExpoChannel;
 use App\Models\Reservation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
@@ -39,6 +40,22 @@ class ReservationStatusUpdated extends Notification implements ShouldQueue
             $tokens = $notifiable->routeNotificationForFcm();
             if (!empty($tokens)) {
                 $channels[] = FcmChannel::class;
+            }
+        }
+
+        // FCM: only add if the method exists AND there are tokens
+        if (method_exists($notifiable, 'routeNotificationForFcm')) {
+            $fcmTokens = $notifiable->routeNotificationForFcm();
+            if (!empty($fcmTokens)) {
+                $channels[] = FcmChannel::class;
+            }
+        }
+
+        // Expo: only add if the method exists AND there are tokens
+        if (method_exists($notifiable, 'routeNotificationForExpo')) {
+            $expoTokens = $notifiable->routeNotificationForExpo();
+            if (!empty($expoTokens)) {
+                $channels[] = ExpoChannel::class;
             }
         }
 
@@ -87,13 +104,29 @@ class ReservationStatusUpdated extends Notification implements ShouldQueue
             'android' => [
                 'notification' => [
                     'color' => $data['status_color'],
-                    'channel_id' => 'orders_channel',
+                    'channel_id' => 'reservations_channel',
                 ],
                 'priority' => 'high',
             ],
             'apns' => [
                 'payload' => ['aps' => ['sound' => 'default', 'content-available' => 1]],
             ],
+        ];
+    }
+
+    public function toExpo($notifiable): array
+    {
+        $data = $this->toArray($notifiable);
+
+        return [
+            'title' => $data['title'],
+            'body' => $data['message'],
+            'data' => [
+                'reservation_id' => (string) $this->reservation->id,
+                'status' => (string) $this->reservation->status,
+                'screen' => 'ReservationDetails',
+            ],
+            'sound' => 'default',
         ];
     }
 

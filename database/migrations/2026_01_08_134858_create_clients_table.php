@@ -34,13 +34,15 @@ return new class extends Migration
         });
 
         Schema::create('client_fcm_tokens', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('client_id')->constrained()->onDelete('cascade');
-        $table->string('fcm_token', 255)->unique(); // Ensure token is unique globally
-        $table->string('device_name')->nullable();
-        $table->timestamp('last_used_at')->useCurrent();
-        $table->timestamps();
-    });
+            $table->id();
+            $table->foreignId('client_id')->constrained()->onDelete('cascade');
+            $table->string('fcm_token', 255)->unique(); // Ensure token is unique globally
+            $table->string('type')->default('fcm'); // fcm | expo
+            $table->string('device_name')->nullable();
+            $table->timestamp('last_used_at')->useCurrent();
+            $table->timestamps();
+        });
+
     }
 
     /**

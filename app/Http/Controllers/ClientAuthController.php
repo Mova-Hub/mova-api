@@ -31,6 +31,9 @@ class ClientAuthController extends Controller
 
         // 1. Remove this token if it belongs to ANY other user
         // (e.g. user switched accounts on same device)
+        $type = str_starts_with($token, 'ExponentPushToken') ? 'expo' : 'fcm';
+
+        // Remove from other users
         ClientFcmToken::where('fcm_token', $token)
             ->where('client_id', '!=', $client->id)
             ->delete();
@@ -39,6 +42,7 @@ class ClientAuthController extends Controller
         $client->fcmTokens()->updateOrCreate(
             ['fcm_token' => $token],
             [
+                'type' => $type,
                 'device_name' => $device ?? 'mobile',
                 'last_used_at' => now()
             ]
