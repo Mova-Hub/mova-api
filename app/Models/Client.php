@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Client extends Authenticatable implements CanResetPassword
@@ -34,6 +35,10 @@ class Client extends Authenticatable implements CanResetPassword
         'password' => 'hashed',
         'is_2fa_enabled' => 'boolean',
         'last_login_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'avatar_url',
     ];
 
 
@@ -73,6 +78,16 @@ class Client extends Authenticatable implements CanResetPassword
     public function wallet(): HasOne
     {
         return $this->hasOne(Wallet::class);
+    }
+
+    /**
+     * Get the full URL for the user's avatar.
+     */
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->avatar ? asset('storage/' . $this->avatar) : null,
+        );
     }
 
 }
