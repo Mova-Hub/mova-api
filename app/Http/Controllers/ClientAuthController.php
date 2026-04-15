@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Twilio\Rest\Client as TwilioClient;
 
 class ClientAuthController extends Controller
 {
@@ -319,6 +320,110 @@ class ClientAuthController extends Controller
         return response()->json([
             'status'  => true,
             'message' => 'Password has been reset successfully.'
+        ]);
+    }
+
+    // Phone verification
+    /**
+     * Helper: Send SMS via Twilio
+     */
+    private function sendSms(string $to, string $message): bool
+    {
+        try {
+            $sid = env('TWILIO_SID');
+            $token = env('TWILIO_AUTH_TOKEN');
+            $from = env('TWILIO_FROM');
+
+            if (!$sid || !$token || !$from) {
+                Log::warning('Twilio credentials missing in .env');
+                return false;
+            }
+
+            $twilio = new TwilioClient($sid, $token);
+            $twilio->messages->create($to, [
+                'from' => $from,
+                'body' => $message
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Twilio SMS Error for {$to}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * REQUEST PHONE UPDATE (Send 6-digit OTP)
+     */
+    public function requestPhoneUpdate(Request $request): JsonResponse
+    {
+        // 1. Validate the new phone number
+        $request->validate([
+            'phone' => 'required|string|unique:clients,phone', // Ensure it belongs to no one else
+        ]);
+
+        $phone = $request->phone;
+        $user = $request->user();
+
+        // 2. Generate 6-digit OTP
+        $otp = rand(100000, 999999);
+
+        // 3. Cache it for 10 mins. We bind it to the User ID to prevent edge-case exploits
+        Cache::put('phone_update_' . $user->id, ['phone' => $phone, 'otp' => $otp], 600);
+
+        // 4. Send SMS
+        $message = "Mova: Votre code de vérification est {$otp}. Il est valable 10 minutes.";
+        $smsSent = $this->sendSms($phone, $message);
+
+        // If SMS fails in production, return an error
+        if (!$smsSent && !app()->isLocal()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier le format du numéro.'
+            ], 500);
+        }
+
+        Log::info("PHONE UPDATE OTP for {$phone}: {$otp}");
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Code de vérification envoyé par SMS.',
+            'debug_otp' => app()->isLocal() ? $otp : null
+        ]);
+    }
+
+    /**
+     * VERIFY PHONE UPDATE (Check OTP & Save)
+     */
+    public function verifyPhoneUpdate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'otp' => 'required|numeric',
+        ]);
+
+        $user = $request->user();
+        $cachedData = Cache::get('phone_update_' . $user->id);
+
+        // 1. Verify OTP
+        if (!$cachedData || (int)$cachedData['otp'] !== (int)$request->otp) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Code invalide ou expiré.'
+            ], 400);
+        }
+
+        // 2. Update the phone number
+        $user->forceFill([
+            'phone' => $cachedData['phone']
+        ])->save();
+
+        // 3. Clear Cache
+        Cache::forget('phone_update_' . $user->id);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Votre numéro de téléphone a été mis à jour avec succès.',
+            'data'    => new ClientResource($user)
         ]);
     }
 }

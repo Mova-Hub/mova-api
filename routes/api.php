@@ -39,6 +39,10 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/update-password', [ClientAuthController::class, 'updatePassword']);
         Route::post('/two-factor', [ClientAuthController::class, 'toggle2FA']);
 
+        // Phone update flow
+        Route::post('/request-phone-update', [ClientAuthController::class, 'requestPhoneUpdate']);
+        Route::post('/verify-phone-update', [ClientAuthController::class, 'verifyPhoneUpdate']);
+
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         // Route::post('/fcm/token', [FcmController::class, 'store']);
         Route::post('/fcm/token', [ClientAuthController::class, 'updateFcmToken']);
