@@ -426,4 +426,34 @@ class ClientAuthController extends Controller
             'data'    => new ClientResource($user)
         ]);
     }
+
+    /**
+     * DELETE ACCOUNT
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        /** @var Client $client */
+        $client = $request->user();
+
+        // 1. Delete avatar from storage if it exists to free up space
+        if ($client->avatar && Storage::disk('public')->exists($client->avatar)) {
+            Storage::disk('public')->delete($client->avatar);
+        }
+
+        // 2. Revoke all Sanctum access tokens
+        $client->tokens()->delete();
+
+        // 3. Remove any linked FCM tokens
+        $client->fcmTokens()->delete();
+
+        // 4. Delete the user record from the database
+        // Note: If you use SoftDeletes on the Client model, this will just set deleted_at.
+        // Otherwise, it permanently removes the row.
+        $client->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Votre compte et vos données ont été supprimés avec succès.'
+        ]);
+    }
 }

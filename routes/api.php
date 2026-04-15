@@ -47,6 +47,9 @@ Route::prefix('app/v1')->group(function () {
         // Route::post('/fcm/token', [FcmController::class, 'store']);
         Route::post('/fcm/token', [ClientAuthController::class, 'updateFcmToken']);
 
+        // Delete Account
+        Route::delete('/account', [ClientAuthController::class, 'deleteAccount']);
+
         Route::get('/test-notification/{id}', function ($id) {
             $order = Order::find($id);
             if (!$order) return 'Order not found';
