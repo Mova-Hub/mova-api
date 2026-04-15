@@ -144,6 +144,43 @@ class ClientAuthController extends Controller
         ]);
     }
 
+    /**
+     * UPDATE PASSWORD
+     */
+    public function updatePassword(Request $request): JsonResponse
+    {
+        // 1. Validate the incoming request
+        $request->validate([
+            'current_password' => 'required|string',
+            // Enforcing the same strong password rules used in resetPassword
+            'new_password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()],
+        ]);
+
+        /** @var Client $client */
+        $client = $request->user();
+
+        // 2. Check if the provided current password matches the one in the database
+        if (! Hash::check($request->current_password, $client->password)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Le mot de passe actuel est incorrect.'
+            ], 400);
+        }
+
+        // 3. Hash the new password and save it
+        $client->forceFill([
+            'password' => Hash::make($request->new_password)
+        ])->save();
+
+        // Optional: Revoke other tokens if you want to force sign-out on other devices
+        // $client->tokens()->where('id', '!=', $client->currentAccessToken()->id)->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Votre mot de passe a été mis à jour avec succès.'
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user(); // This returns a Client instance due to auth:sanctum

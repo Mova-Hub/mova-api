@@ -36,6 +36,7 @@ Route::prefix('app/v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [ClientAuthController::class, 'me']);
         Route::post('/update-profile', [ClientAuthController::class, 'updateProfile']);
+        Route::post('/update-password', [ClientAuthController::class, 'updatePassword']);
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         // Route::post('/fcm/token', [FcmController::class, 'store']);
         Route::post('/fcm/token', [ClientAuthController::class, 'updateFcmToken']);
