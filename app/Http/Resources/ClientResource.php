@@ -19,6 +19,7 @@ class ClientResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            '2fa_enabled' => $this->is_2fa_enabled,
             'avatar_url' => $this->avatar ? asset('storage/' . $this->avatar) : null,
             'created_at' => $this->created_at->toIso8601String(),
             // Don't send password or internal flags

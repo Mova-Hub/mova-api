@@ -181,6 +181,36 @@ class ClientAuthController extends Controller
         ]);
     }
 
+    /**
+     * Toogle 2FA
+     */
+    public function toggle2FA(Request $request): JsonResponse
+    {
+        // 1. Validate the incoming boolean
+        $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        /** @var Client $client */
+        $client = $request->user();
+
+        // 2. Update the user's 2FA status
+        $client->forceFill([
+            'is_2fa_enabled' => $request->enabled
+        ])->save();
+
+        // 3. Return a success response
+        return response()->json([
+            'status'  => true,
+            'message' => $request->enabled
+                ? 'L\'authentification à deux facteurs a été activée.'
+                : 'L\'authentification à deux facteurs a été désactivée.',
+            'data' => [
+                'is_2fa_enabled' => $client->is_2fa_enabled
+            ]
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user(); // This returns a Client instance due to auth:sanctum

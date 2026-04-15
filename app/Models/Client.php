@@ -18,6 +18,7 @@ class Client extends Authenticatable implements CanResetPassword
         'email',
         'phone',
         'password',
+        'is_2fa_enabled',
         'last_login_at',
         'avatar'
     ];
@@ -31,6 +32,7 @@ class Client extends Authenticatable implements CanResetPassword
         'phone_verified_at' => 'datetime',
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_2fa_enabled' => 'boolean',
         'last_login_at' => 'datetime',
     ];
 
