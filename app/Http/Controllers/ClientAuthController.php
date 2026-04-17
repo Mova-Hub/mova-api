@@ -87,7 +87,7 @@ class ClientAuthController extends Controller
         $client = Client::where('phone', $data['phone'])->first();
 
         if (! $client || ! Hash::check($data['password'], $client->password)) {
-            return response()->json(['status' => false, 'message' => 'Invalid credentials.'], 401);
+            return response()->json(['status' => false, 'message' => 'Identifiants incorrects.'], 401);
         }
 
         $client->forceFill(['last_login_at' => now()])->save();
