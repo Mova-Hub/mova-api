@@ -270,15 +270,23 @@ class ClientAuthController extends Controller
         $request->validate(['phone' => 'required|string|exists:clients,phone']);
 
         $phone = $request->phone;
-
-        // Generate 4-digit OTP
         $otp = rand(1000, 9999);
 
-        // Store in Cache for 10 minutes
+        // 1. Cache the OTP
         Cache::put('password_reset_' . $phone, $otp, 600);
 
-        // Send the OTP via our new service
-        $this->smsService->sendOtp($phone, $otp);
+        // 2. Attempt to send
+        $smsSent = $this->smsService->sendOtp($phone, $otp);
+
+        // 3. Handle failure safely
+        if (!$smsSent && !app()->isLocal()) {
+            Cache::forget('password_reset_' . $phone); // Clean up the cache
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier que le numéro inclut l\'indicatif du pays (ex: +242...).'
+            ], 500);
+        }
 
         Log::info("PASSWORD RESET OTP for {$phone}: {$otp}");
 
@@ -344,16 +352,19 @@ class ClientAuthController extends Controller
 
         $otp = rand(100000, 999999);
 
+        // 1. Cache the data
         Cache::put('phone_update_' . $user->id, ['phone' => $phone, 'otp' => $otp], 600);
 
-        // Use the injected service
+        // 2. Attempt to send
         $smsSent = $this->smsService->sendOtp($phone, $otp);
 
+        // 3. Handle failure safely
         if (!$smsSent && !app()->isLocal()) {
-            Log::error("Failed to send phone update OTP to {$phone}");
+            Cache::forget('phone_update_' . $user->id); // Clean up the cache
+
             return response()->json([
                 'status' => false,
-                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier le format du numéro.'
+                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier que le numéro inclut l\'indicatif du pays (ex: +242...).'
             ], 500);
         }
 
