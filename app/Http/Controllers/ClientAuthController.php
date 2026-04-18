@@ -350,6 +350,7 @@ class ClientAuthController extends Controller
         $smsSent = $this->smsService->sendOtp($phone, $otp);
 
         if (!$smsSent && !app()->isLocal()) {
+            Log::error("Failed to send phone update OTP to {$phone}");
             return response()->json([
                 'status' => false,
                 'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier le format du numéro.'
