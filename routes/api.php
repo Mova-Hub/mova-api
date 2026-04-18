@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ClientNotificationController;
 use App\Http\Controllers\Api\ClientOrderController;
 use App\Http\Controllers\Api\FcmController;
+use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
@@ -99,6 +100,11 @@ Route::get('/jobs/public', [EmploiController::class, 'publicIndex']);
 // 2. Les candidats postulent et uploadent leur CV
 Route::post('/candidates', [CandidateController::class, 'store']);
 
+Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::get('/autocomplete', [LocationController::class, 'autocomplete']);
+    Route::get('/details/{placeId}', [LocationController::class, 'details']);
+    Route::get('/reverse-geocode', [LocationController::class, 'reverseGeocode']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
 

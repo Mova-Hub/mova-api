@@ -16,11 +16,14 @@ class OrderHistoryResource extends JsonResource
             'code' => $res?->code,
             'event_type' => $this->event_type,
             'status' => $this->status,
-            'reservation_status' => $res ? $res->status : $this->status,  // Use reservation status if converted for better tracking
+            'reservation_status' => $res ? $res->status : $this->status,  // Use reservation status if converted
             'payment_status' => $res?->payment_status,
             'itinerary' => [
                 'from' => $this->origin,
                 'to' => $this->destination,
+                // Prioritize the finalized Reservation data, fallback to the original Order data
+                'waypoints' => $res ? $res->waypoints : $this->waypoints,
+                'distance_km' => $res ? (float) $res->distance_km : (float) $this->distance_km,
                 'date' => $this->pickup_date?->translatedFormat('d F Y'), // "15 Janvier 2026"
                 'time' => $this->pickup_time,
             ],

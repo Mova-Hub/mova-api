@@ -39,4 +39,8 @@ return [
         'credentials' => base_path(env('FIREBASE_CREDENTIALS', 'firebase_credentials.json')),
     ],
 
+    'google' => [
+        'places_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];
