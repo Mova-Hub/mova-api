@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\ClientResource;
 use App\Models\Client;
 use App\Models\ClientFcmToken;
+use App\Services\SmsService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,10 @@ use Twilio\Rest\Client as TwilioClient;
 
 class ClientAuthController extends Controller
 {
+    public function __construct(protected SmsService $smsService)
+    {
+    }
+
     /**
      * Helper: Sync FCM Token
      * Prevents duplicate tokens across different accounts on the same device.
@@ -259,7 +264,6 @@ class ClientAuthController extends Controller
 
     /**
      * REQUEST PASSWORD RESET (OTP VERSION)
-     * Replaces the email-based logic since we are using Phone.
      */
     public function forgotPassword(Request $request): JsonResponse
     {
@@ -273,8 +277,9 @@ class ClientAuthController extends Controller
         // Store in Cache for 10 minutes
         Cache::put('password_reset_' . $phone, $otp, 600);
 
-        // TODO: Send SMS via Gateway (Twilio/Infobip/etc)
-        // For development, we return it in debug_otp
+        // Send the OTP via our new service
+        $this->smsService->sendOtp($phone, $otp);
+
         Log::info("PASSWORD RESET OTP for {$phone}: {$otp}");
 
         return response()->json([
@@ -324,58 +329,26 @@ class ClientAuthController extends Controller
     }
 
     // Phone verification
-    /**
-     * Helper: Send SMS via Twilio
-     */
-    private function sendSms(string $to, string $message): bool
-    {
-        try {
-            $sid = env('TWILIO_SID');
-            $token = env('TWILIO_AUTH_TOKEN');
-            $from = env('TWILIO_FROM');
-
-            if (!$sid || !$token || !$from) {
-                Log::warning('Twilio credentials missing in .env');
-                return false;
-            }
-
-            $twilio = new TwilioClient($sid, $token);
-            $twilio->messages->create($to, [
-                'from' => $from,
-                'body' => $message
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error("Twilio SMS Error for {$to}: " . $e->getMessage());
-            return false;
-        }
-    }
 
     /**
      * REQUEST PHONE UPDATE (Send 6-digit OTP)
      */
     public function requestPhoneUpdate(Request $request): JsonResponse
     {
-        // 1. Validate the new phone number
         $request->validate([
-            'phone' => 'required|string|unique:clients,phone', // Ensure it belongs to no one else
+            'phone' => 'required|string|unique:clients,phone',
         ]);
 
         $phone = $request->phone;
         $user = $request->user();
 
-        // 2. Generate 6-digit OTP
         $otp = rand(100000, 999999);
 
-        // 3. Cache it for 10 mins. We bind it to the User ID to prevent edge-case exploits
         Cache::put('phone_update_' . $user->id, ['phone' => $phone, 'otp' => $otp], 600);
 
-        // 4. Send SMS
-        $message = "Mova: Votre code de vérification est {$otp}. Il est valable 10 minutes.";
-        $smsSent = $this->sendSms($phone, $message);
+        // Use the injected service
+        $smsSent = $this->smsService->sendOtp($phone, $otp);
 
-        // If SMS fails in production, return an error
         if (!$smsSent && !app()->isLocal()) {
             return response()->json([
                 'status' => false,
