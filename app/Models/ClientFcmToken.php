@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClientFcmToken extends Model
 {
-    protected $fillable = ['client_id', 'fcm_token', 'device_name', 'last_used_at'];
+    protected $fillable = ['client_id', 'fcm_token', 'type', 'device_name', 'last_used_at'];
 
     public function client()
     {

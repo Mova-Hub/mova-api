@@ -2,6 +2,7 @@
 
 namespace App\Channels;
 
+use App\Models\ClientFcmToken;
 use Illuminate\Notifications\Notification;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FcmNotification;
@@ -53,7 +54,18 @@ class FcmChannel
 
             if ($report->hasFailures()) {
                 foreach ($report->failures()->getItems() as $failure) {
-                    Log::error('FCM send failed for token ' . $failure->target()->value() . ': ' . $failure->error()->getMessage());
+                    $errorMsg = $failure->error()->getMessage();
+                    $badToken = $failure->target()->value();
+
+                    Log::error("FCM send failed for token {$badToken}: {$errorMsg}");
+
+                    // Auto-delete dead tokens to keep the database clean
+                    if (str_contains($errorMsg, 'Requested entity was not found') ||
+                        str_contains($errorMsg, 'NotRegistered')) {
+
+                        ClientFcmToken::where('fcm_token', $badToken)->delete();
+                        Log::info("Deleted dead FCM token: {$badToken}");
+                    }
                 }
             }
         } catch (\Throwable $e) {
