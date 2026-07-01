@@ -74,7 +74,7 @@ class OrderRequestController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Order received',
+            'message' => 'Demande reçue.',
             'id' => $order->id
         ], 201);
     }

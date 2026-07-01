@@ -63,7 +63,7 @@ class OrderController extends Controller
 
         $order->update($data);
 
-        return response()->json(['message' => 'Order updated', 'order' => $order]);
+        return response()->json(['message' => 'Commande mise à jour.', 'order' => $order]);
     }
 
     /**
@@ -126,14 +126,14 @@ class OrderController extends Controller
             // 4. Notify Client
             if ($order->client) {
                 // Log for debugging
-                Log::info("Sending notification to Client ID: " . $order->client_id);
+                Log::info("Envoi de notification au client ID : " . $order->client_id);
 
                 $order->client->notify(new OrderStatusUpdated(
                     $order,
                     "Bonne nouvelle ! Votre réservation pour {$data['from_location']} -> {$data['to_location']} est confirmée."
                 ));
             } else {
-                Log::warning("Order converted but no client attached. Order ID: " . $order->id);
+                Log::warning("Commande convertie sans client associé. ID commande : " . $order->id);
             }
 
             return response()->json([

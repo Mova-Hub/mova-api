@@ -76,7 +76,7 @@ class ClientAuthController extends Controller
 
             return response()->json([
                 'status'  => true,
-                'message' => 'Account created successfully.',
+                'message' => 'Compte créé avec succès.',
                 'data'    => [
                     'user'  => new ClientResource($client),
                     'token' => $token,
@@ -105,7 +105,7 @@ class ClientAuthController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Logged in successfully.',
+            'message' => 'Connexion réussie.',
             'data'    => [
                 'user'  => new ClientResource($client),
                 'token' => $token,
@@ -231,7 +231,7 @@ class ClientAuthController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Logged out successfully.'
+            'message' => 'Déconnexion réussie.'
         ]);
     }
 
@@ -258,7 +258,7 @@ class ClientAuthController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'FCM Token updated successfully.'
+            'message' => 'Jeton FCM mis à jour avec succès.'
         ]);
     }
 
@@ -292,7 +292,7 @@ class ClientAuthController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'OTP sent to your phone.',
+            'message' => 'Code OTP envoyé sur votre téléphone.',
             'debug_otp' => app()->isLocal() ? $otp : null
         ]);
     }
@@ -314,7 +314,7 @@ class ClientAuthController extends Controller
         if (! $cachedOtp || (int)$cachedOtp !== (int)$request->otp) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Invalid or expired OTP.'
+                'message' => 'Code OTP invalide ou expiré.'
             ], 400);
         }
 
@@ -332,7 +332,7 @@ class ClientAuthController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Password has been reset successfully.'
+            'message' => 'Mot de passe réinitialisé avec succès.'
         ]);
     }
 

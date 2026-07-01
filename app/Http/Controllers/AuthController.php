@@ -44,7 +44,7 @@ class AuthController extends Controller
         $user = User::where('email', $credentials['email'])->first();
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 422);
+            return response()->json(['message' => 'Identifiants incorrects.'], 422);
         }
 
         // revoke old tokens for this device name if you want single-session per device
@@ -69,6 +69,6 @@ class AuthController extends Controller
     {
         // revoke current token
         $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out']);
+        return response()->json(['message' => 'Déconnecté avec succès.']);
     }
 }
