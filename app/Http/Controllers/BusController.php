@@ -7,7 +7,6 @@ use App\Http\Requests\UpdateBusRequest;
 use App\Http\Resources\BusResource;
 use App\Models\Bus;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class BusController extends Controller
@@ -177,5 +176,60 @@ class BusController extends Controller
             ->update(['status' => $validated['status']]);
 
         return response()->json(['updated' => $count]);
+    }
+
+    // POST /api/buses/bulk-destroy  { ids: [uuid,...] }
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids'   => ['required','array','min:1'],
+            'ids.*' => ['uuid','exists:buses,id'],
+        ]);
+
+        $count = Bus::whereIn('id', $validated['ids'])->count();
+        Bus::whereIn('id', $validated['ids'])->delete();
+
+        return response()->json(['deleted' => $count]);
+    }
+
+    // GET /api/buses/{bus}/stats
+    public function stats(Bus $bus)
+    {
+        $reservations = $bus->reservations;
+
+        $byStatus = $reservations->groupBy('status')
+            ->map(fn($g) => $g->count())
+            ->toArray();
+
+        $byEvent = $reservations->groupBy('event')
+            ->filter(fn($g, $k) => !is_null($k) && $k !== '')
+            ->map(fn($g) => $g->count())
+            ->toArray();
+
+        $recent = $bus->reservations()
+            ->orderByDesc('trip_date')
+            ->limit(5)
+            ->get()
+            ->map(fn($r) => [
+                'id'             => $r->id,
+                'code'           => $r->code ?? null,
+                'status'         => $r->status,
+                'trip_date'      => $r->trip_date instanceof \Carbon\Carbon
+                    ? $r->trip_date->toIso8601String()
+                    : $r->trip_date,
+                'price_total'    => (float) ($r->price_total ?? 0),
+                'passenger_name' => is_array($r->passenger)
+                    ? ($r->passenger['name'] ?? '—')
+                    : (is_string($r->passenger) ? $r->passenger : '—'),
+            ]);
+
+        return response()->json([
+            'total_reservations' => $reservations->count(),
+            'total_distance_km'  => (float) $reservations->sum('distance_km'),
+            'total_revenue'      => (float) $reservations->sum('price_total'),
+            'by_status'          => $byStatus,
+            'by_event'           => $byEvent,
+            'recent'             => $recent,
+        ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
+use App\Http\Controllers\BusDocumentController;
 use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
@@ -88,11 +89,12 @@ Route::prefix('auth')->group(function () {
     Route::post('login',    [AuthController::class, 'login']);
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::post('logout',          [AuthController::class, 'logout']);
-        Route::get('me',               [AuthController::class, 'me']);
-        Route::put('me',               [AuthController::class, 'updateMe']);
-        Route::post('change-password', [AuthController::class, 'changePassword']);
-        Route::put('toggle-2fa',       [AuthController::class, 'toggleTwoFA']);
+        Route::post('logout',           [AuthController::class, 'logout']);
+        Route::get('me',                [AuthController::class, 'me']);
+        Route::put('me',                [AuthController::class, 'updateMe']);
+        Route::post('change-password',  [AuthController::class, 'changePassword']);
+        Route::put('toggle-2fa',        [AuthController::class, 'toggleTwoFA']);
+        Route::post('verify-password',  [AuthController::class, 'verifyPassword']);
     });
 });
 
@@ -129,14 +131,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/person/role',        [PersonController::class, 'setRole']); // promote/demote
 
     // Bus management
+    Route::post('/buses/bulk-status',           [BusController::class, 'bulkStatus']);
+    Route::post('/buses/bulk-destroy',          [BusController::class, 'bulkDestroy']);
     Route::apiResource('buses', BusController::class);
 
-    // actions
-    Route::post('/buses/{bus}/status',         [BusController::class, 'setStatus']);
-    Route::post('/buses/{bus}/assign-driver',  [BusController::class, 'assignDriver']);
-    Route::post('/buses/{bus}/assign-conductor',  [BusController::class, 'assignConductor']);
-    Route::post('/buses/{bus}/set-operator',   [BusController::class, 'setOperator']);
-    Route::post('/buses/bulk-status',          [BusController::class, 'bulkStatus']);
+    // Bus actions
+    Route::get('/buses/{bus}/stats',            [BusController::class, 'stats']);
+    Route::post('/buses/{bus}/status',          [BusController::class, 'setStatus']);
+    Route::post('/buses/{bus}/assign-driver',   [BusController::class, 'assignDriver']);
+    Route::post('/buses/{bus}/assign-conductor',[BusController::class, 'assignConductor']);
+    Route::post('/buses/{bus}/set-operator',    [BusController::class, 'setOperator']);
+
+    // Bus documents
+    Route::get('/buses/{bus}/documents',                        [BusDocumentController::class, 'index']);
+    Route::post('/buses/{bus}/documents',                       [BusDocumentController::class, 'store']);
+    Route::delete('/buses/{bus}/documents/{document}',          [BusDocumentController::class, 'destroy']);
 
     // Client Management
     Route::get('/clients', [ClientController::class, 'index']);

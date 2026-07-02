@@ -14,12 +14,16 @@ class Bus extends Model
 
     protected $fillable = [
         'plate',
+        'brand',
         'capacity',
         'name',
         'type',
         'status',
         'model',
         'year',
+        'energy_type',
+        'first_registration_year',
+        'chassis_number',
         'mileage_km',
         'last_service_date',
         'insurance_provider',
@@ -71,13 +75,10 @@ class Bus extends Model
                 ->withTimestamps();
     }
 
-    /**
-     * Trips that this bus has
-     */
-    // public function trips(): HasMany
-    // {
-    //     return $this->hasMany(Trip::class);
-    // }
+    public function documents(): HasMany
+    {
+        return $this->hasMany(BusDocument::class, 'bus_id');
+    }
 
     // -------------------------------
     // Scopes

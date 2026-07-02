@@ -120,6 +120,14 @@ class AuthController extends Controller
         ]);
     }
 
+    // POST /api/auth/verify-password  { password: "..." }
+    public function verifyPassword(Request $request)
+    {
+        $data = $request->validate(['password' => ['required', 'string']]);
+        $valid = Hash::check($data['password'], $request->user()->password);
+        return response()->json(['valid' => $valid], $valid ? 200 : 422);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
