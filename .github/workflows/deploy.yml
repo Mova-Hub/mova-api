@@ -1,0 +1,23 @@
+# name: Déploiement Production
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   deploy:
+#     name: Déployer sur le serveur
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Connexion SSH et mise à jour
+#         uses: appleboy/ssh-action@v1.0.3
+#         with:
+#           host: ${{ secrets.SSH_HOST }}
+#           username: ${{ secrets.SSH_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           port: ${{ secrets.SSH_PORT }}
+#           script: |
+#             cd ${{ secrets.APP_PATH }}
+#             bash deploy.sh

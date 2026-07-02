@@ -23,13 +23,10 @@ class ClientController extends Controller
         return ClientResource::collection($query->paginate(20));
     }
 
-    // Show specific client history
-    public function show($id)
+    // Show specific client
+    public function show(int|string $id)
     {
-        $client = Client::with(['orders' => function($q) {
-            $q->latest();
-        }])->findOrFail($id);
-
-        return response()->json($client);
+        $client = Client::withCount('orders')->findOrFail($id);
+        return new ClientResource($client);
     }
 }

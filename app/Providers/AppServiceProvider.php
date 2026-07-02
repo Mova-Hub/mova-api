@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Domain\Pricing\Services\PricingEngine;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Remove the {"data":{...}} envelope from single-resource responses.
+        // Paginated collections keep their own "data" array (from the paginator).
+        JsonResource::withoutWrapping();
+
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
         // OPTION 1: Deep Link (Opens app directly if installed)
         // return "myapp://reset-password?token={$token}&email={$notifiable->getEmailForPasswordReset()}";
