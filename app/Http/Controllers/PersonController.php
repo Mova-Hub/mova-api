@@ -50,7 +50,7 @@ class PersonController extends Controller
         }
 
         // default status
-        $data['status'] = $data['status'] ?? 'active';
+        $data['status'] = $data['status'] ?? 'inactive';
 
         $person = User::create($data);
 

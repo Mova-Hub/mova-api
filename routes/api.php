@@ -84,10 +84,16 @@ Route::prefix('app/v1')->group(function () {
 // Internal Routes
 
 Route::prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class,'register']);
-    Route::post('login',    [AuthController::class,'login']);
-    Route::post('logout',   [AuthController::class,'logout'])->middleware('auth:sanctum');
-    Route::get('me',        [AuthController::class,'me'])->middleware('auth:sanctum');
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login',    [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout',          [AuthController::class, 'logout']);
+        Route::get('me',               [AuthController::class, 'me']);
+        Route::put('me',               [AuthController::class, 'updateMe']);
+        Route::post('change-password', [AuthController::class, 'changePassword']);
+        Route::put('toggle-2fa',       [AuthController::class, 'toggleTwoFA']);
+    });
 });
 
 
