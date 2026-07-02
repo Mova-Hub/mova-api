@@ -175,7 +175,7 @@ class PersonController extends Controller
         $this->assertStaff($person);
 
         $request->validate([
-            'avatar' => ['required', 'image', 'max:4096'], // 4 MB max
+            'avatar' => ['nullable', 'image', 'max:4096'],
         ]);
 
         // Delete old avatar if stored locally
