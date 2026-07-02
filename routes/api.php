@@ -127,8 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('person', PersonController::class);
 
     // extras
-    Route::post('/person/bulk-status', [PersonController::class, 'bulkStatus']);
-    Route::post('/person/role',        [PersonController::class, 'setRole']); // promote/demote
+    Route::post('/person/bulk-status',        [PersonController::class, 'bulkStatus']);
+    Route::post('/person/role',               [PersonController::class, 'setRole']);
+    Route::post('/person/{person}/avatar',    [PersonController::class, 'uploadAvatar']);
 
     // Bus management
     Route::post('/buses/bulk-status',           [BusController::class, 'bulkStatus']);
