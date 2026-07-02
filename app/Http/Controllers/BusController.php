@@ -163,12 +163,12 @@ class BusController extends Controller
         return new BusResource($bus->load('operator'));
     }
 
-    // POST /api/buses/bulk-status  { ids: [uuid,...], status: active|maintenance|inactive }
+    // POST /api/buses/bulk-status  { ids: [integer,...], status: active|maintenance|inactive }
     public function bulkStatus(Request $request)
     {
         $validated = $request->validate([
             'ids'    => ['required','array','min:1'],
-            'ids.*'  => ['uuid','exists:buses,id'],
+            'ids.*'  => ['integer','exists:buses,id'],
             'status' => ['required', Rule::in(['active','maintenance','inactive'])],
         ]);
 
@@ -178,12 +178,12 @@ class BusController extends Controller
         return response()->json(['updated' => $count]);
     }
 
-    // POST /api/buses/bulk-destroy  { ids: [uuid,...] }
+    // POST /api/buses/bulk-destroy  { ids: [integer,...] }
     public function bulkDestroy(Request $request)
     {
         $validated = $request->validate([
             'ids'   => ['required','array','min:1'],
-            'ids.*' => ['uuid','exists:buses,id'],
+            'ids.*' => ['integer','exists:buses,id'],
         ]);
 
         $count = Bus::whereIn('id', $validated['ids'])->count();

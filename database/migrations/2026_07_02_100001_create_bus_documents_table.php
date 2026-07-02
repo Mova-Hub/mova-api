@@ -10,8 +10,7 @@ return new class extends Migration
     {
         Schema::create('bus_documents', function (Blueprint $table) {
             $table->id();
-            $table->uuid('bus_id');
-            $table->foreign('bus_id')->references('id')->on('buses')->cascadeOnDelete();
+            $table->foreignId('bus_id')->constrained('buses')->cascadeOnDelete();
             $table->string('name');
             $table->string('type')->nullable(); // carte_grise | assurance | visite_technique | permis | autre
             $table->string('file_path');
