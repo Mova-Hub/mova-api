@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ClientNotificationController;
 use App\Http\Controllers\Api\ClientOrderController;
 use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
@@ -31,6 +32,11 @@ Route::prefix('app/v1')->group(function () {
     Route::post('/login', [ClientAuthController::class, 'login']);
     Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [ClientAuthController::class, 'resetPassword']);
+
+    // Social sign-in (Google / Apple). Rate-limited: the endpoint performs an
+    // outbound verification call per request, so it must not be a free amplifier.
+    Route::post('/auth/social', [SocialAuthController::class, 'store'])
+        ->middleware('throttle:20,1');
 
     // Protected Routes
     // Note: Sanctum automatically determines if the token belongs to a Client or User

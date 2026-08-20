@@ -21,7 +21,12 @@ class Client extends Authenticatable implements CanResetPassword
         'password',
         'is_2fa_enabled',
         'last_login_at',
-        'avatar'
+        'avatar',
+        // Social sign-in (Google / Apple). `provider_id` is the provider's
+        // subject claim — never the email, which users can change.
+        'provider',
+        'provider_id',
+        'email_verified_at',
     ];
 
     protected $hidden = [

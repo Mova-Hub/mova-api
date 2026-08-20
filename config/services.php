@@ -41,6 +41,27 @@ return [
 
     'google' => [
         'places_key' => env('GOOGLE_MAPS_API_KEY'),
+
+        /**
+         * MUST be the WEB client id, not the iOS one.
+         *
+         * Socialite's Google driver verifies the identity token's `aud` claim
+         * against this single value, and the mobile SDK requests its idToken
+         * against the web client id on BOTH platforms (that is what
+         * `webClientId` does). Putting the iOS id here rejects every sign-in.
+         */
+        'client_id'     => env('GOOGLE_WEB_CLIENT_ID'),
+        // Unused by the native flow — Socialite requires the keys to exist.
+        'client_secret' => env('GOOGLE_CLIENT_SECRET', ''),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', ''),
+    ],
+
+    'apple' => [
+        // For NATIVE Sign in with Apple the audience is the iOS bundle
+        // identifier, not a services id (services ids are for web flows).
+        'client_id'     => env('APPLE_CLIENT_ID', 'com.busaccess.client'),
+        'client_secret' => env('APPLE_CLIENT_SECRET', ''),
+        'redirect'      => env('APPLE_REDIRECT_URI', ''),
     ],
 
     'twilio' => [

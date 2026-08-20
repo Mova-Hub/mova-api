@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Domain\Pricing\Services\PricingEngine;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Apple is not a first-party Socialite driver — SocialiteProviders adds
+        // it through this event rather than a service provider entry.
+        Event::listen(function (SocialiteWasCalled $event) {
+            $event->extendSocialite('apple', \SocialiteProviders\Apple\Provider::class);
+        });
+
         // Remove the {"data":{...}} envelope from single-resource responses.
         // Paginated collections keep their own "data" array (from the paginator).
         JsonResource::withoutWrapping();
