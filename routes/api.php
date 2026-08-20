@@ -37,6 +37,8 @@ Route::prefix('app/v1')->group(function () {
     // outbound verification call per request, so it must not be a free amplifier.
     Route::post('/auth/social', [SocialAuthController::class, 'store'])
         ->middleware('throttle:20,1');
+    Route::post('/auth/social/nonce', [SocialAuthController::class, 'nonce'])
+        ->middleware('throttle:20,1');
 
     // Protected Routes
     // Note: Sanctum automatically determines if the token belongs to a Client or User
