@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ClientNotificationController;
 use App\Http\Controllers\Api\ClientOrderController;
 use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
@@ -88,6 +89,13 @@ Route::prefix('app/v1')->group(function () {
         // History
         Route::get('/orders/history', [ClientOrderController::class, 'history']);
         Route::get('/orders/{id}', [ClientOrderController::class, 'show']);
+
+        // Saved addresses (Domicile / Travail / École + custom).
+        // Always scoped to the authenticated client inside the controller.
+        Route::get('/addresses', [SavedAddressController::class, 'index']);
+        Route::post('/addresses', [SavedAddressController::class, 'store']);
+        Route::put('/addresses/{id}', [SavedAddressController::class, 'update']);
+        Route::delete('/addresses/{id}', [SavedAddressController::class, 'destroy']);
 
         // Notifications
         Route::get('/notifications', [ClientNotificationController::class, 'index']);

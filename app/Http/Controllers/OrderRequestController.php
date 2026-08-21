@@ -25,9 +25,15 @@ class OrderRequestController extends Controller
             'distance_km'  => 'nullable|numeric',
             'date'         => 'required|date',
             'time'         => 'required|string',
+            // Optional return leg. `after_or_equal` rather than `after` so a
+            // same-day round trip (school outing, morning-to-evening) is valid.
+            'return_date'  => 'nullable|date|after_or_equal:date',
+            'return_time'  => 'nullable|string',
             'fleet'        => 'required|array',
             'contact_name' => 'required|string',
             'phone'        => 'required|string',
+        ], [
+            'return_date.after_or_equal' => 'La date de retour ne peut pas précéder la date de départ.',
         ]);
 
         $order = Order::create([
@@ -39,6 +45,8 @@ class OrderRequestController extends Controller
             'distance_km'        => $data['distance_km'] ?? null,
             'pickup_date'        => $data['date'],
             'pickup_time'        => $data['time'],
+            'return_date'        => $data['return_date'] ?? null,
+            'return_time'        => $data['return_time'] ?? null,
             'fleet_requirements' => $data['fleet'],
             'contact_name'       => $data['contact_name'],
             'contact_phone'      => $data['phone'],

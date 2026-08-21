@@ -53,6 +53,15 @@ class Client extends Authenticatable implements CanResetPassword
     }
 
     /**
+     * Home / work / school shortcuts, plus any custom places.
+     * Cascade-deletes with the client — see the migration.
+     */
+    public function savedAddresses()
+    {
+        return $this->hasMany(SavedAddress::class);
+    }
+
+    /**
      * Get the client's FCM tokens for notifications.
      *
      * @return array

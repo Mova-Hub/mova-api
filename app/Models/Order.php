@@ -11,6 +11,7 @@ class Order extends Model
     protected $fillable = [
         'client_id', 'status', 'event_type',
         'origin', 'destination', 'waypoints', 'distance_km', 'pickup_date', 'pickup_time',
+        'return_date', 'return_time',
         'fleet_requirements', 'contact_name', 'contact_phone',
         'internal_notes'
     ];
@@ -19,6 +20,7 @@ class Order extends Model
     protected $casts = [
         'fleet_requirements' => 'array',
         'pickup_date' => 'date',
+        'return_date' => 'date',
         'waypoints' => 'array',
         'distance_km' => 'decimal:2',
     ];
