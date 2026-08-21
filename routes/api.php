@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
+use App\Http\Controllers\Api\V2\Payment\InvoiceController;
+use App\Http\Controllers\Api\V2\Payment\PaymentController;
 use App\Http\Controllers\Api\V2\Pass\ControlController as PassControlController;
 use App\Http\Controllers\Api\V2\Pass\PlanController as PassPlanController;
 use App\Http\Controllers\Api\V2\Pass\SubscriptionController as PassSubscriptionController;
@@ -103,7 +105,32 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/orders/request', [OrderRequestController::class, 'store']);
         // History
         Route::get('/orders/history', [ClientOrderController::class, 'history']);
-        Route::get('/orders/{id}', [ClientOrderController::class, 'show']);
+        Route::get('/orders/{id}', [ClientOrderController::class, 'show'])->whereNumber('id');
+
+        /*
+         * ── Paying for an order ───────────────────────────────────────────
+         *
+         * Every handler scopes to $request->user(); an order id in the URL is a
+         * claim, not an authorisation. The AMOUNT is never accepted from the
+         * request — see App\Domain\Payment\PaymentService.
+         */
+        Route::get('/orders/{id}/payment-options', [PaymentController::class, 'options'])
+            ->whereNumber('id');
+        Route::get('/orders/{id}/payments', [PaymentController::class, 'index'])
+            ->whereNumber('id');
+        // Throttled: each attempt pushes a prompt to a real handset, so an
+        // unbounded endpoint is a way to spam someone's phone.
+        Route::post('/orders/{id}/payments', [PaymentController::class, 'store'])
+            ->whereNumber('id')
+            ->middleware('throttle:10,1');
+        Route::get('/orders/{id}/payments/{uuid}', [PaymentController::class, 'show'])
+            ->whereNumber('id');
+
+        // Mints a short-lived SIGNED url the system browser can open — a
+        // browser carries no bearer token. The document itself is public
+        // route + signature, never a guessable id.
+        Route::get('/orders/{id}/invoice-link', [InvoiceController::class, 'link'])
+            ->whereNumber('id');
 
         // Saved addresses (Domicile / Travail / École + custom).
         // Always scoped to the authenticated client inside the controller.

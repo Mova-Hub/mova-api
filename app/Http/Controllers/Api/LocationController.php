@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Booking\BusTravelTime;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\GoogleMapsService;
@@ -43,6 +44,24 @@ class LocationController extends Controller
         ]);
 
         $route = $this->maps->directions($data['waypoints']);
+
+        if ($route !== null) {
+            /*
+             * Google's duration is a CAR. The app shows this figure next to a
+             * bus booking, so it is adjusted before it leaves the server —
+             * see App\Domain\Booking\BusTravelTime for the model.
+             *
+             * Both numbers are returned, named for what they are. Overwriting
+             * `duration_s` in place would leave no way to tell later whether a
+             * stored figure had been adjusted once, twice, or not at all.
+             */
+            $route['bus_duration_s'] = BusTravelTime::fromCarSeconds(
+                $route['duration_s'],
+                // Everything between origin and destination is a pickup that
+                // costs dwell time.
+                max(0, count($data['waypoints']) - 2),
+            );
+        }
 
         return response()->json([
             'status' => true,

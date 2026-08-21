@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Domain\Booking\BusTravelTime;
 use App\Domain\Pricing\DTOs\QuoteRequest;
 use App\Domain\Pricing\Services\PricingEngine;
 use Illuminate\Support\Facades\Cache;
@@ -50,9 +51,16 @@ class TripQuoteService
 
         if ($route !== null && $route['distance_m'] > 0) {
             return [
-                'distance_km'      => round($route['distance_m'] / 1000, 1),
-                'duration_minutes' => (int) round($route['duration_s'] / 60),
-                'measured'         => true,
+                'distance_km' => round($route['distance_m'] / 1000, 1),
+                // Google's duration is a car. This is a bus, and it stops to
+                // pick people up — see App\Domain\Booking\BusTravelTime.
+                'duration_minutes' => (int) round(
+                    BusTravelTime::fromCarSeconds(
+                        $route['duration_s'],
+                        max(0, count($waypoints) - 2),
+                    ) / 60
+                ),
+                'measured' => true,
             ];
         }
 

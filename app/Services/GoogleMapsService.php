@@ -11,56 +11,53 @@ class GoogleMapsService
     protected string $apiKey;
     protected string $baseUrl = 'https://maps.googleapis.com/maps/api';
 
+    /** Statuses that represent a real answer, not a failure. */
+    private const OK_STATUSES = ['OK', 'ZERO_RESULTS'];
+
     public function __construct()
     {
-        $this->apiKey = env('GOOGLE_MAPS_API_KEY', '');
+        /*
+         * `config()`, NOT `env()`.
+         *
+         * This is a real bug, not a style preference. `php artisan config:cache`
+         * is standard on any production deploy, and once the config is cached
+         * Laravel stops loading `.env` at all — every `env()` call outside a
+         * config file then returns its default. This constructor would have
+         * silently taken `''` as the key, and every Places, geocode and
+         * Directions call would come back REQUEST_DENIED with no exception to
+         * notice: autocomplete returns no suggestions, routes fall back to
+         * straight lines, and nothing in the logs says why.
+         *
+         * `config/services.php` already read the same variable into
+         * `google.places_key`, so this was reading it the one way that breaks.
+         */
+        $this->apiKey = (string) config('services.google.places_key', '');
     }
 
     public function autocomplete(string $query)
     {
-        // Cache autocomplete queries for 1 hour to save API costs
-        $cacheKey = 'maps_autocomplete_' . md5($query);
-
-        return Cache::remember($cacheKey, 3600, function () use ($query) {
-            $response = Http::get("{$this->baseUrl}/place/autocomplete/json", [
-                'input' => $query,
-                'components' => 'country:cg', // Locked to Congo
-                'language' => 'fr',
-                'key' => $this->apiKey,
-            ]);
-
-            return $response->json();
-        });
+        return $this->cached('maps_autocomplete_' . md5($query), 3600, fn () => $this->get('/place/autocomplete/json', [
+            'input' => $query,
+            'components' => 'country:cg', // Locked to Congo
+            'language' => 'fr',
+        ]));
     }
 
     public function placeDetails(string $placeId)
     {
-        // Cache place details (Lat/Lng rarely change) for 24 hours
-        return Cache::remember('maps_details_' . $placeId, 86400, function () use ($placeId) {
-            $response = Http::get("{$this->baseUrl}/place/details/json", [
-                'place_id' => $placeId,
-                'fields' => 'geometry',
-                'key' => $this->apiKey,
-            ]);
-
-            return $response->json();
-        });
+        // Lat/lng for a place does not change, so a day is conservative.
+        return $this->cached('maps_details_' . $placeId, 86400, fn () => $this->get('/place/details/json', [
+            'place_id' => $placeId,
+            'fields' => 'geometry',
+        ]));
     }
 
     public function reverseGeocode(float $lat, float $lng)
     {
-        // Cache reverse geocoding for 24 hours
-        $cacheKey = "maps_rev_geo_{$lat}_{$lng}";
-
-        return Cache::remember($cacheKey, 86400, function () use ($lat, $lng) {
-            $response = Http::get("{$this->baseUrl}/geocode/json", [
-                'latlng' => "{$lat},{$lng}",
-                'language' => 'fr',
-                'key' => $this->apiKey,
-            ]);
-
-            return $response->json();
-        });
+        return $this->cached("maps_rev_geo_{$lat}_{$lng}", 86400, fn () => $this->get('/geocode/json', [
+            'latlng' => "{$lat},{$lng}",
+            'language' => 'fr',
+        ]));
     }
 
     /**
@@ -68,9 +65,9 @@ class GoogleMapsService
      *
      * Returns the road-following geometry, the real driven distance, and the
      * typical duration — or null when Google cannot route it (no road link,
-     * quota exhausted, key misconfigured). Null rather than an exception:
-     * a missing route degrades to a straight line on the map and to the
-     * client's own distance estimate for pricing, neither of which is fatal.
+     * quota exhausted, key misconfigured). Null rather than an exception: a
+     * missing route degrades to a straight line on the map and to the client's
+     * own distance estimate for pricing, neither of which is fatal.
      *
      * @param  array<int, array{lat: float, lng: float}>  $points  origin … destination, in travel order
      * @return array{distance_m: int, duration_s: int, polyline: string}|null
@@ -99,7 +96,6 @@ class GoogleMapsService
             'mode'        => 'driving',
             'language'    => 'fr',
             'region'      => 'cg',
-            'key'         => $this->apiKey,
         ];
 
         if ($waypoints !== []) {
@@ -111,18 +107,10 @@ class GoogleMapsService
         // networks do not change hourly; 24h is generous and cheap.
         $cacheKey = 'maps_directions_' . md5(json_encode($query));
 
-        return Cache::remember($cacheKey, 86400, function () use ($query) {
-            try {
-                $response = Http::timeout(8)->get("{$this->baseUrl}/directions/json", $query);
-            } catch (\Throwable $e) {
-                Log::warning('Directions request failed', ['error' => $e->getMessage()]);
-                return null;
-            }
-
-            $json = $response->json();
+        return $this->cached($cacheKey, 86400, function () use ($query) {
+            $json = $this->get('/directions/json', $query);
 
             if (($json['status'] ?? null) !== 'OK' || empty($json['routes'][0])) {
-                Log::info('Directions returned no route', ['status' => $json['status'] ?? 'unknown']);
                 return null;
             }
 
@@ -141,5 +129,88 @@ class GoogleMapsService
                 'polyline'   => $route['overview_polyline']['points'] ?? '',
             ];
         });
+    }
+
+    /**
+     * One request, with the key attached and failures reported.
+     *
+     * Google answers a bad key with HTTP 200 and `status: REQUEST_DENIED`, so
+     * nothing throws and nothing appears in the log unless it is looked for.
+     * That is how a missing key turns into "autocomplete returns nothing" with
+     * no trail — this logs it once, with the reason Google gave.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function get(string $path, array $query): ?array
+    {
+        if ($this->apiKey === '') {
+            Log::warning('Google Maps key is not configured', ['path' => $path]);
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(8)->get($this->baseUrl . $path, $query + ['key' => $this->apiKey]);
+        } catch (\Throwable $e) {
+            Log::warning('Google Maps request failed', ['path' => $path, 'error' => $e->getMessage()]);
+            return null;
+        }
+
+        $json = $response->json();
+
+        if (! is_array($json)) {
+            return null;
+        }
+
+        if (! in_array($json['status'] ?? '', self::OK_STATUSES, true)) {
+            Log::warning('Google Maps returned an error', [
+                'path' => $path,
+                'status' => $json['status'] ?? 'unknown',
+                // Google puts the actual reason here — "This API project is not
+                // authorized", "The provided API key is expired", and so on.
+                'error' => $json['error_message'] ?? null,
+            ]);
+        }
+
+        return $json;
+    }
+
+    /**
+     * Cache only what succeeded.
+     *
+     * `Cache::remember()` stores whatever the closure returns, INCLUDING null
+     * and including Google's REQUEST_DENIED payload. That turns a momentary
+     * failure — an unset key, a quota blip, a network hiccup — into 24 hours of
+     * the same failure served from cache, so fixing the underlying problem
+     * appears to change nothing and the next person goes looking in the wrong
+     * place entirely.
+     *
+     * A failed lookup is therefore not cached at all: the next request retries.
+     *
+     * @template T
+     * @param  callable(): T  $resolve
+     * @return T|null
+     */
+    private function cached(string $key, int $seconds, callable $resolve)
+    {
+        $hit = Cache::get($key);
+        if ($hit !== null) {
+            return $hit;
+        }
+
+        $value = $resolve();
+
+        if ($value === null) {
+            return null;
+        }
+
+        // An array response still has to be a SUCCESSFUL one before it is kept.
+        if (is_array($value) && isset($value['status'])
+            && ! in_array($value['status'], self::OK_STATUSES, true)) {
+            return $value;
+        }
+
+        Cache::put($key, $value, $seconds);
+
+        return $value;
     }
 }
