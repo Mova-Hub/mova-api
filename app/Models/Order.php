@@ -12,6 +12,7 @@ class Order extends Model
         'client_id', 'status', 'event_type',
         'origin', 'destination', 'waypoints', 'distance_km', 'pickup_date', 'pickup_time',
         'return_date', 'return_time',
+        'passengers', 'quoted_total',
         'fleet_requirements', 'contact_name', 'contact_phone',
         'internal_notes'
     ];
@@ -23,6 +24,8 @@ class Order extends Model
         'return_date' => 'date',
         'waypoints' => 'array',
         'distance_km' => 'decimal:2',
+        'passengers' => 'integer',
+        'quoted_total' => 'decimal:2',
     ];
 
     public function scopeNotCancelled($query)

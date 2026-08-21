@@ -6,6 +6,11 @@ use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
+use App\Http\Controllers\Api\V2\Pass\ControlController as PassControlController;
+use App\Http\Controllers\Api\V2\Pass\PlanController as PassPlanController;
+use App\Http\Controllers\Api\V2\Pass\SubscriptionController as PassSubscriptionController;
+use App\Http\Controllers\Api\V2\QuoteController as MobileQuoteController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
@@ -84,6 +89,16 @@ Route::prefix('app/v1')->group(function () {
             return 'Notification Sent to ' . $order->client->name;
         });
 
+        // Trip pricing for the app.
+        //
+        // A SECOND controller, not a change to the back-office /quote — that
+        // one returns commission and operator payout, which must never reach a
+        // customer's phone. Both share App\Domain\Pricing\PricingEngine.
+        //
+        // Throttled: each miss can trigger a billed Directions call.
+        Route::post('/quote', MobileQuoteController::class)
+            ->middleware('throttle:30,1');
+
         // Client sends the order from app
         Route::post('/orders/request', [OrderRequestController::class, 'store']);
         // History
@@ -96,6 +111,52 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/addresses', [SavedAddressController::class, 'store']);
         Route::put('/addresses/{id}', [SavedAddressController::class, 'update']);
         Route::delete('/addresses/{id}', [SavedAddressController::class, 'destroy']);
+
+        /*
+         * ── Mova Pass ─────────────────────────────────────────────────────
+         *
+         * Controllers live in Api\V2\Pass; the URL keeps the /app/v1 prefix
+         * because that is the MOBILE API surface, and moving it would break
+         * every released build for an internal namespace change. V2 is a code
+         * generation, not a wire version.
+         *
+         * Every handler scopes to $request->user(). None of them accepts an id
+         * it then trusts.
+         */
+        Route::prefix('pass')->group(function () {
+            Route::get('/plans', PassPlanController::class);
+
+            // One round trip for the whole tab: subscription + card + the flag
+            // the UI gates on. Three sequential calls on a Brazzaville mobile
+            // connection is a screen that assembles itself in front of you.
+            Route::get('/me', [PassSubscriptionController::class, 'current']);
+
+            Route::get('/subscriptions', [PassSubscriptionController::class, 'index']);
+            Route::post('/subscriptions', [PassSubscriptionController::class, 'store']);
+            Route::get('/subscriptions/{id}', [PassSubscriptionController::class, 'show'])
+                ->whereNumber('id');
+            Route::post('/subscriptions/{id}/cancel', [PassSubscriptionController::class, 'cancel'])
+                ->whereNumber('id');
+
+            Route::get('/cards', [PassCardController::class, 'index']);
+
+            // Throttled hard: the printed serial is an activation credential,
+            // so an unbounded endpoint here is a way to hunt for cards to claim.
+            Route::post('/cards/activate', [PassCardController::class, 'activate'])
+                ->middleware('throttle:5,1');
+
+            // Self-service blacklisting (PC-1). Every hour between losing a
+            // card and reporting it is free rides on the owner's subscription,
+            // so this must not require a phone call or an open guichet.
+            Route::post('/cards/{id}/block', [PassCardController::class, 'block'])
+                ->whereNumber('id');
+
+            // The subscriber reading their own card. Logged with source `app`,
+            // which keeps it out of the boarding figures.
+            Route::post('/scans', [PassCardController::class, 'scan'])
+                ->middleware('throttle:30,1');
+            Route::get('/scans', [PassCardController::class, 'history']);
+        });
 
         // Notifications
         Route::get('/notifications', [ClientNotificationController::class, 'index']);
@@ -134,6 +195,8 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
     Route::get('/autocomplete', [LocationController::class, 'autocomplete']);
     Route::get('/details/{placeId}', [LocationController::class, 'details']);
     Route::get('/reverse-geocode', [LocationController::class, 'reverseGeocode']);
+    // Road-following itinerary. POST because the waypoint list is structured.
+    Route::post('/directions', [LocationController::class, 'directions']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -198,6 +261,31 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Quote endpoint(Pricing engine)
     Route::post('/quote', QuoteController::class);
+
+    /*
+     * ── Mova Pass: staff & Mova Control ───────────────────────────────────
+     *
+     * Sync surface for the inspector app, plus the counter's encoding flow.
+     * Staff-guarded (`auth:sanctum` on the User model) — these expose the whole
+     * fleet, unlike the /app/v1/pass routes which only ever see one client.
+     *
+     * Note what is NOT here: any route that returns a private key. The counter
+     * asks for a signed payload; it never signs anything itself, and the secret
+     * half of the key pair never leaves this server (PRD §4.1).
+     */
+    Route::prefix('pass')->group(function () {
+        // Public keys only. Safe to intercept, cache or decompile — that is the
+        // entire point of choosing Ed25519 over HMAC.
+        Route::get('/keys', [PassControlController::class, 'keys']);
+
+        // Downloaded at the depot each morning; `?since=` fetches a delta.
+        Route::get('/blacklist', [PassControlController::class, 'blacklist']);
+        Route::get('/snapshot', [PassControlController::class, 'snapshot']);
+
+        // Bulk upload of a shift's scans. Idempotent on client_reference, so a
+        // retried upload cannot double-count a day's boardings.
+        Route::post('/scans/bulk', [PassControlController::class, 'uploadScans']);
+    });
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);

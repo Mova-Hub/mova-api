@@ -41,6 +41,11 @@ return [
 
         // Tier C (0.20)
         'church'            => 0.20,
+        // Added 2026-08-21: the console's event list has offered `pilgrimage`
+        // since it was written, but this map did not — so quoting any
+        // reservation created with it threw "Unknown event type" from the
+        // engine. Priced with the other religious/community trips.
+        'pilgrimage'        => 0.20,
         'school_trip'       => 0.20,
         'university_trip'   => 0.20,
         'educational_tour'  => 0.20,

@@ -62,6 +62,40 @@ class Client extends Authenticatable implements CanResetPassword
     }
 
     /**
+     * Mova Pass — cards, subscriptions and scan history.
+     *
+     * The same person, not a separate "subscriber" record. PRD §6 modelled
+     * subscribers as their own table with their own name and phone; collapsing
+     * them into Client means a counter agent cannot create a second, divergent
+     * identity for somebody who already has an app account.
+     */
+    public function passCards()
+    {
+        return $this->hasMany(PassCard::class);
+    }
+
+    public function passSubscriptions()
+    {
+        return $this->hasMany(PassSubscription::class);
+    }
+
+    public function passScans()
+    {
+        return $this->hasMany(PassScan::class);
+    }
+
+    /**
+     * The subscription that decides whether this client travels today.
+     *
+     * Latest expiry wins where several overlap, which is what stacked renewals
+     * produce.
+     */
+    public function activePassSubscription()
+    {
+        return $this->hasOne(PassSubscription::class)->current();
+    }
+
+    /**
      * Get the client's FCM tokens for notifications.
      *
      * @return array

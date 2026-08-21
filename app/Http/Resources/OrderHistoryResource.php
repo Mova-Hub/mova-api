@@ -25,8 +25,17 @@ class OrderHistoryResource extends JsonResource
                 'waypoints' => $res ? $res->waypoints : $this->waypoints,
                 'distance_km' => $res ? (float) $res->distance_km : (float) $this->distance_km,
                 'date' => $this->pickup_date?->translatedFormat('d F Y'), // "15 Janvier 2026"
+                // The formatted date above cannot be parsed, compared or
+                // sorted, so the app had no way to tell an upcoming trip from a
+                // past one. These carry the same instants in a machine form;
+                // the display strings stay for the existing web client.
+                'date_iso' => $this->pickup_date?->toDateString(),
                 'time' => $this->pickup_time,
+                'return_date' => $this->return_date?->translatedFormat('d F Y'),
+                'return_date_iso' => $this->return_date?->toDateString(),
+                'return_time' => $this->return_time,
             ],
+            'passengers' => $this->passengers,
             'vehicles' => $res ? $res->buses->map(fn($bus) => [
                 'id' => $bus->id,
                 'plate' => $bus->plate,
@@ -41,7 +50,13 @@ class OrderHistoryResource extends JsonResource
                 ] : null,
             ]) : [],
             'pricing' => [
-                'total' => $res ? (float) $res->price_total : 0,
+                // The confirmed reservation price wins; before conversion, fall
+                // back to what the app quoted at submission, so a client is not
+                // shown "0 FCFA" for an order they were given a figure for.
+                'total' => $res
+                    ? (float) $res->price_total
+                    : (float) ($this->quoted_total ?? 0),
+                'is_estimate' => ! $res && $this->quoted_total !== null,
                 'is_paid' => $res?->payment_status === 'paid',
             ],
             'started_at' => $res?->started_at,
