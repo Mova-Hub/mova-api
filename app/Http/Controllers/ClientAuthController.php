@@ -344,7 +344,19 @@ class ClientAuthController extends Controller
     public function requestPhoneUpdate(Request $request): JsonResponse
     {
         $request->validate([
-            'phone' => 'required|string|unique:clients,phone',
+            // E.164: a leading +, a non-zero country code, 8-15 digits total.
+            // Previously only `string|unique`, which accepted "abc" or a local
+            // number with no country code — and the SMS would then silently
+            // fail to deliver.
+            'phone' => [
+                'required',
+                'string',
+                'regex:/^\+[1-9]\d{7,14}$/',
+                'unique:clients,phone',
+            ],
+        ], [
+            'phone.regex'  => 'Numéro invalide. Incluez l\'indicatif du pays (ex : +242...).',
+            'phone.unique' => 'Ce numéro est déjà associé à un compte Mova.',
         ]);
 
         $phone = $request->phone;
@@ -397,9 +409,15 @@ class ClientAuthController extends Controller
             ], 400);
         }
 
-        // 2. Update the phone number
+        // 2. Update the phone number.
+        //
+        // The OTP round-trip proves the user controls this number, so record
+        // that. The column already existed but was never written, which meant
+        // an OTP-verified phone was indistinguishable from an unverified one —
+        // and social sign-ups arrive with no phone at all.
         $user->forceFill([
-            'phone' => $cachedData['phone']
+            'phone'             => $cachedData['phone'],
+            'phone_verified_at' => now(),
         ])->save();
 
         // 3. Clear Cache

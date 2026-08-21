@@ -49,9 +49,15 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/update-password', [ClientAuthController::class, 'updatePassword']);
         Route::post('/two-factor', [ClientAuthController::class, 'toggle2FA']);
 
-        // Phone update flow
-        Route::post('/request-phone-update', [ClientAuthController::class, 'requestPhoneUpdate']);
-        Route::post('/verify-phone-update', [ClientAuthController::class, 'verifyPhoneUpdate']);
+        // Phone update / completion flow.
+        //
+        // Throttled because each request sends a real SMS: unthrottled, this is
+        // a way to burn Twilio credit and spam an arbitrary number. 5/min is
+        // ample for a legitimate retry.
+        Route::post('/request-phone-update', [ClientAuthController::class, 'requestPhoneUpdate'])
+            ->middleware('throttle:5,1');
+        Route::post('/verify-phone-update', [ClientAuthController::class, 'verifyPhoneUpdate'])
+            ->middleware('throttle:10,1');
 
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         // Route::post('/fcm/token', [FcmController::class, 'store']);
