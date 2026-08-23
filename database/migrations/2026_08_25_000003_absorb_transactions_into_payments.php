@@ -67,7 +67,17 @@ return new class extends Migration
                     // 5000 franc payment, not 4999.
                     $amount = (int) round((float) $row->amount);
 
-                    DB::table('payments')->insert([
+                    /*
+                     * insertOrIgnore, not insert.
+                     *
+                     * `idempotency_key` is deterministic (`legacy-txn-{id}`)
+                     * and uniquely indexed, so re-running after a partial
+                     * failure skips what already landed instead of aborting on
+                     * a duplicate. This migration failed once mid-flight
+                     * already — a backfill that cannot be resumed makes the
+                     * first failure the expensive one.
+                     */
+                    DB::table('payments')->insertOrIgnore([
                         'uuid' => (string) Str::uuid(),
                         'payable_type' => 'App\\Models\\Reservation',
                         'payable_id' => $reservationId,

@@ -42,6 +42,17 @@ class Redactor
         'private_key',
         'api_key',
         'authorization',
+        /*
+         * The whole provider credentials bag, replaced wholesale rather than
+         * recursed into.
+         *
+         * Recursion catches `api_key` and `client_secret` by substring, but NOT
+         * `subscription_key`, `api_user` or `target_environment` — MTN's four
+         * fields would have gone into the audit log half in plaintext. There is
+         * no audit value in the values anyway: "who changed which provider's
+         * credentials, when" is the whole question.
+         */
+        'credentials',
     ];
 
     /** Kept, but only the tail. */
