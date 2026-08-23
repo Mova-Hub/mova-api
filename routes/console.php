@@ -28,3 +28,14 @@ Schedule::command('queue:work --stop-when-empty --max-time=55')
 Schedule::command('pass:expire')
     ->dailyAt('03:00')
     ->withoutOverlapping();
+
+/*
+ * Audit retention.
+ *
+ * 04:00, after pass:expire, so the two housekeeping jobs never contend. The
+ * defaults live in the command (400 days for mutations, 90 for sensitive
+ * reads) rather than here, so changing them does not mean editing a schedule.
+ */
+Schedule::command('activity:prune')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();

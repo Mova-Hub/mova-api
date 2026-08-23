@@ -32,8 +32,39 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Remove the {"data":{...}} envelope from single-resource responses.
-        // Paginated collections keep their own "data" array (from the paginator).
+        //
+        // NOTE: this also unwraps RESOURCE COLLECTIONS, which the original
+        // comment did not account for — `SomeResource::collection(...)` emits a
+        // bare array here, and only a *paginated* collection keeps a `data`
+        // key (from the paginator, not the resource). The mobile client handles
+        // both shapes via `unwrap`/`unwrapList`; manager/ must do the same.
         JsonResource::withoutWrapping();
+
+        /*
+         * Audit trail.
+         *
+         * Registered per model on purpose. A global observer would start
+         * logging every new table by accident, including ones whose contents
+         * have no business being duplicated into an append-only store.
+         *
+         * These cover mutations that go through Eloquent. Bulk endpoints use
+         * the query builder and bypass model events entirely — they call
+         * ActivityLogger directly. See ActivityObserver's docblock.
+         */
+        foreach ([
+            \App\Models\Order::class,
+            \App\Models\Reservation::class,
+            \App\Models\Bus::class,
+            \App\Models\Client::class,
+            \App\Models\User::class,
+            \App\Models\PassCard::class,
+            \App\Models\PassSubscription::class,
+            \App\Models\PassPlan::class,
+            \App\Models\Payment::class,
+            \App\Models\SavedAddress::class,
+        ] as $model) {
+            $model::observe(\App\Observers\ActivityObserver::class);
+        }
 
         ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
         // OPTION 1: Deep Link (Opens app directly if installed)

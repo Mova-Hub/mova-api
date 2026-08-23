@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Domain\Audit\Support\PerformsAuditedBulkUpdates;
 use App\Http\Requests\StoreStaffRequest;
 use App\Http\Requests\UpdateStaffRequest;
 use App\Http\Resources\StaffResource;
@@ -13,6 +13,8 @@ use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
+    use PerformsAuditedBulkUpdates;
+
     // GET /api/staff?search=&status=&role=&per_page=15
     public function index(Request $request)
     {
@@ -95,16 +97,28 @@ class StaffController extends Controller
     public function bulkStatus(Request $request)
     {
         $validated = $request->validate([
-            'ids'    => ['required','array','min:1'],
+            'ids'    => ['required','array','min:1','max:200'],
             'ids.*'  => ['integer','exists:users,id'],
             'status' => ['required', Rule::in(['active','inactive','suspended'])],
         ]);
 
-        User::whereIn('id', $validated['ids'])
-            ->whereIn('role', ['agent','admin'])
-            ->update(['status' => $validated['status']]);
+        /*
+         * Suspending staff in bulk is among the most consequential actions in
+         * the system — it revokes back-office access — and it produced no audit
+         * record at all, because `Builder::update()` fires no model events.
+         *
+         * It also reported `count($ids)` as the number updated regardless of
+         * how many rows the `role` filter actually matched, so passing a
+         * driver's id inflated the figure. Now it returns what really changed.
+         */
+        $updated = $this->auditedBulkUpdate(
+            User::whereIn('id', $validated['ids'])->whereIn('role', User::STAFF_ROLES),
+            ['status' => $validated['status']],
+            'staff.bulk_status',
+            ['ids' => $validated['ids']],
+        );
 
-        return response()->json(['updated' => count($validated['ids'])]);
+        return response()->json(['updated' => $updated]);
     }
 
     // POST /api/staff/role  { id: number, role: "agent|admin" } (promote/demote)

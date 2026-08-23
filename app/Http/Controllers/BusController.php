@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Audit\Support\PerformsAuditedBulkUpdates;
 use App\Http\Requests\StoreBusRequest;
 use App\Http\Requests\UpdateBusRequest;
 use App\Http\Resources\BusResource;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 class BusController extends Controller
 {
+    use PerformsAuditedBulkUpdates;
+
     // GET /api/buses?search=&status=&type=&operator_id=&driver_id=&year_min=&year_max=&service_before=&insurance_before=&per_page=15&with=operator,driver&order_by=created_at&order_dir=desc
     public function index(Request $request)
     {
@@ -167,13 +170,19 @@ class BusController extends Controller
     public function bulkStatus(Request $request)
     {
         $validated = $request->validate([
-            'ids'    => ['required','array','min:1'],
+            'ids'    => ['required','array','min:1','max:200'],
             'ids.*'  => ['integer','exists:buses,id'],
             'status' => ['required', Rule::in(['active','maintenance','inactive'])],
         ]);
 
-        $count = Bus::whereIn('id', $validated['ids'])
-            ->update(['status' => $validated['status']]);
+        // Was a single Builder::update(), which fires no model events and so
+        // produced no audit record — see PerformsAuditedBulkUpdates.
+        $count = $this->auditedBulkUpdate(
+            Bus::whereIn('id', $validated['ids']),
+            ['status' => $validated['status']],
+            'bus.bulk_status',
+            ['ids' => $validated['ids']],
+        );
 
         return response()->json(['updated' => $count]);
     }
@@ -182,12 +191,21 @@ class BusController extends Controller
     public function bulkDestroy(Request $request)
     {
         $validated = $request->validate([
-            'ids'   => ['required','array','min:1'],
+            'ids'   => ['required','array','min:1','max:200'],
             'ids.*' => ['integer','exists:buses,id'],
         ]);
 
-        $count = Bus::whereIn('id', $validated['ids'])->count();
-        Bus::whereIn('id', $validated['ids'])->delete();
+        /*
+         * Buses hard-delete, so this is the one bulk action that destroys data
+         * outright. The observer's `deleted` hook captures each row's full
+         * state on the way out — without it a mass deletion is both
+         * unrecoverable and unexplainable.
+         */
+        $count = $this->auditedBulkDelete(
+            Bus::whereIn('id', $validated['ids']),
+            'bus.bulk_destroy',
+            ['ids' => $validated['ids']],
+        );
 
         return response()->json(['deleted' => $count]);
     }

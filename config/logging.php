@@ -73,6 +73,42 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+         * Structured logs — the production channel.
+         *
+         * One JSON object per line, with `request_id` as a top-level field, so
+         * it can be filtered rather than grepped for. Use it by setting
+         * LOG_STACK=json in production.
+         *
+         * `LOG_LEVEL` defaults to `info` HERE, not `debug`. The .env currently
+         * runs debug against a single unrotated file, which writes every query
+         * and every framework notice to one ever-growing log — and debug is
+         * exactly the level at which careless code writes secrets. (Two OTP
+         * log lines were doing precisely that until 2026-08-23.)
+         */
+        'json' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/mova.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'tap' => [App\Logging\ConfigureJsonLogging::class],
+            'replace_placeholders' => true,
+        ],
+
+        /*
+         * Same formatting, straight to stderr.
+         *
+         * For any host that collects container output rather than files — no
+         * disk to fill, no rotation to configure.
+         */
+        'json_stderr' => [
+            'driver' => 'monolog',
+            'handler' => Monolog\Handler\StreamHandler::class,
+            'with' => ['stream' => 'php://stderr'],
+            'level' => env('LOG_LEVEL', 'info'),
+            'tap' => [App\Logging\ConfigureJsonLogging::class],
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

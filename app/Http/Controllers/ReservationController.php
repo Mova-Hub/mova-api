@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Audit\Services\ActivityLogger;
 use App\Http\Requests\StoreReservationRequest;
 use App\Http\Requests\UpdateReservationRequest;
 use App\Http\Resources\ReservationResource;
@@ -206,16 +207,55 @@ class ReservationController extends Controller
         return new ReservationResource($reservation->load('buses'));
     }
 
+    /**
+     * Mass status change.
+     *
+     * Rewritten from a single `Builder::update()`. That was faster, but it
+     * bypassed Eloquent entirely, which cost two things silently:
+     *
+     *  - **No client notification.** `setStatus` notifies on every transition;
+     *    doing the same change in bulk told nobody, so whether a customer heard
+     *    about their cancellation depended on which button an agent used.
+     *  - **No audit trail.** Model events do not fire on a query-builder write,
+     *    so the mass actions most worth auditing would have been the only ones
+     *    missing from the log.
+     *
+     * A chunked loop is the correct trade: these are hand-selected rows from a
+     * table view, so the counts are tens, not millions.
+     */
     public function bulkStatus(Request $request)
     {
         $validated = $request->validate([
-            'ids'    => ['required','array','min:1'],
+            'ids'    => ['required','array','min:1','max:200'],
             'ids.*'  => ['uuid','exists:reservations,id'],
             'status' => ['required', Rule::in(['pending','confirmed','cancelled'])],
         ]);
-        $count = Reservation::whereIn('id', $validated['ids'])
-            ->update(['status' => $validated['status']]);
-        return response()->json(['updated' => $count]);
+
+        $updated = 0;
+
+        Reservation::whereIn('id', $validated['ids'])
+            ->chunkById(100, function ($reservations) use ($validated, &$updated) {
+                foreach ($reservations as $reservation) {
+                    if ($reservation->status === $validated['status']) {
+                        continue; // Nothing changed; do not file an empty entry.
+                    }
+
+                    $reservation->status = $validated['status'];
+                    $reservation->save(); // Fires observers → one audit row each.
+                    $updated++;
+                }
+            });
+
+        app(ActivityLogger::class)->log(
+            'reservation.bulk_status',
+            context: [
+                'ids' => $validated['ids'],
+                'status' => $validated['status'],
+                'updated' => $updated,
+            ],
+        );
+
+        return response()->json(['updated' => $updated]);
     }
 
     // -------------------------------------------------------------------------

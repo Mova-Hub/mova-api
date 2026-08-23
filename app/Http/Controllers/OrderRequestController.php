@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Analytics\ProductAnalytics;
 use App\Models\Order;
 use App\Models\User; // <-- Import the User model
 use App\Notifications\OrderStatusUpdated;
@@ -205,6 +206,20 @@ class OrderRequestController extends Controller
             $order,
             "Nous avons bien reçu votre commande pour {$data['to_city']}. Notre équipe la valide et vous envoie la facture."
         ));
+
+        /*
+         * Closes the client-side booking funnel.
+         *
+         * The app reports `booking_started` and each step; this is the event
+         * that says one of them finished. Without it the funnel ends at
+         * "reached the review step" and can never show a completion rate.
+         */
+        ProductAnalytics::orderSubmitted(
+            $client,
+            (int) array_sum(array_map('intval', $data['fleet'])),
+            (int) ($data['passengers'] ?? 0),
+            $order->quoted_total !== null ? (int) round((float) $order->quoted_total) : null,
+        );
 
         return response()->json([
             'status' => true,

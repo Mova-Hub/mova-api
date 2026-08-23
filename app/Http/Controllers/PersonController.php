@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Audit\Support\PerformsAuditedBulkUpdates;
 use App\Http\Resources\PersonResource;
 use App\Models\Bus;
 use App\Models\User;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rule;
 
 class PersonController extends Controller
 {
+    use PerformsAuditedBulkUpdates;
+
     // GET /api/person?search=&status=&role=&per_page=50
     public function index(Request $request)
     {
@@ -142,16 +145,21 @@ class PersonController extends Controller
     public function bulkStatus(Request $request)
     {
         $validated = $request->validate([
-            'ids'    => ['required', 'array', 'min:1'],
+            'ids'    => ['required', 'array', 'min:1', 'max:200'],
             'ids.*'  => ['integer', 'exists:users,id'],
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
         ]);
 
-        User::whereIn('id', $validated['ids'])
-            ->whereIn('role', ['driver', 'conductor', 'owner'])
-            ->update(['status' => $validated['status']]);
+        // Same two problems as StaffController@bulkStatus: no audit record, and
+        // a count that ignored how many rows the role filter actually matched.
+        $updated = $this->auditedBulkUpdate(
+            User::whereIn('id', $validated['ids'])->whereIn('role', User::FLEET_ROLES),
+            ['status' => $validated['status']],
+            'person.bulk_status',
+            ['ids' => $validated['ids']],
+        );
 
-        return response()->json(['updated' => count($validated['ids'])]);
+        return response()->json(['updated' => $updated]);
     }
 
     // POST /api/person/role  { id: number, role: string }

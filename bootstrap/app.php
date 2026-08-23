@@ -24,11 +24,66 @@ return Application::configure(basePath: dirname(__DIR__))
          * called it, which is why the mistake survived: every back-office route
          * was running on `auth:sanctum` alone.
          */
+        /*
+         * Runs on every request, before anything else that logs.
+         *
+         * `prepend` matters: the request id has to exist before authentication,
+         * validation or an exception handler produces its first log line, or
+         * those lines are orphaned from the trail they belong to.
+         */
+        $middleware->prepend(\App\Http\Middleware\AssignRequestId::class);
+
         $middleware->alias([
             'staff' => \App\Http\Middleware\EnsureStaff::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            // Usage: ->middleware('audit.read:client')
+            'audit.read' => \App\Http\Middleware\RecordSensitiveAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        /*
+         * Report unhandled exceptions to Sentry.
+         *
+         * `Integration::handles()` respects `ignore_exceptions` in
+         * config/sentry.php, so validation failures, 404s and refused logins
+         * stay out of the feed — they are the application working correctly,
+         * and burying real exceptions under them is how a team learns to
+         * ignore the alerts.
+         */
+        if (class_exists(\Sentry\Laravel\Integration::class)) {
+            \Sentry\Laravel\Integration::handles($exceptions);
+        }
+
+        /*
+         * A 500 tells the caller its request id.
+         *
+         * "It failed around 2pm" is otherwise the whole bug report. With the id
+         * in the body, a screenshot from an agent is enough to find the exact
+         * Sentry event, the exact log lines, and the exact rows in
+         * `activity_logs` — the header alone is invisible to anyone not looking
+         * at devtools.
+         *
+         * Only for genuine faults. A 422 already carries the field errors that
+         * explain it, and adding a support code to "ce champ est requis" makes
+         * an ordinary correction look like an outage.
+         */
+        $exceptions->respond(function (
+            \Symfony\Component\HttpFoundation\Response $response,
+            \Throwable $e,
+            \Illuminate\Http\Request $request,
+        ) {
+            if (
+                $response->getStatusCode() < 500
+                || ! $request->expectsJson()
+                || ! $response instanceof \Illuminate\Http\JsonResponse
+            ) {
+                return $response;
+            }
+
+            return $response->setData(
+                ((array) $response->getData(true)) + [
+                    'request_id' => \App\Domain\Audit\Services\ActivityLogger::requestId(),
+                ]
+            );
+        });
     })->create();

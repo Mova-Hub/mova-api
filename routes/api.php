@@ -6,6 +6,11 @@ use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\V2\Admin\ActivityLogController;
+use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\V2\Admin\PassCardController as AdminPassCardController;
+use App\Http\Controllers\Api\V2\Admin\PassPlanController as AdminPassPlanController;
+use App\Http\Controllers\Api\V2\Admin\PassSubscriptionController as AdminPassSubscriptionController;
 use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
 use App\Http\Controllers\Api\V2\Payment\InvoiceController;
 use App\Http\Controllers\Api\V2\Payment\PaymentController;
@@ -310,7 +315,10 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
 
     // Client Management
     Route::get('/clients', [ClientController::class, 'index']);
-    Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id');
+    Route::get('/clients/{id}', [ClientController::class, 'show'])
+        ->whereNumber('id')
+        // Reading a customer's phone, email and history is a sensitive read.
+        ->middleware('audit.read:client');
     // console/ has always called PUT /clients/{id}; it did not exist until now.
     Route::put('/clients/{id}', [ClientController::class, 'update'])->whereNumber('id');
     // Suspending an account revokes its tokens — see ClientController::block.
@@ -353,14 +361,76 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * asks for a signed payload; it never signs anything itself, and the secret
      * half of the key pair never leaves this server (PRD §4.1).
      */
+    /*
+     * ── Mova Pass administration ──────────────────────────────────────────
+     *
+     * The counter and back-office surface. Thin controllers over CardService,
+     * SubscriptionService and PaymentService — no Pass logic lives in HTTP, so
+     * the app and the back-office cannot drift apart on what "blocked" or
+     * "renewed" means.
+     */
+    Route::prefix('admin/pass')->group(function () {
+        Route::get('/plans', [AdminPassPlanController::class, 'index']);
+        Route::post('/plans', [AdminPassPlanController::class, 'store']);
+        Route::put('/plans/{id}', [AdminPassPlanController::class, 'update'])->whereNumber('id');
+        Route::delete('/plans/{id}', [AdminPassPlanController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('/cards', [AdminPassCardController::class, 'index']);
+        // Before /cards/{id}, or the literal segment is swallowed by the wildcard.
+        Route::post('/cards/issue', [AdminPassCardController::class, 'issue']);
+        Route::get('/cards/{id}', [AdminPassCardController::class, 'show'])->whereNumber('id');
+        Route::post('/cards/{id}/replace', [AdminPassCardController::class, 'replace'])->whereNumber('id');
+        Route::post('/cards/{id}/block', [AdminPassCardController::class, 'block'])->whereNumber('id');
+        Route::post('/cards/{id}/reencode', [AdminPassCardController::class, 'reencode'])->whereNumber('id');
+
+        Route::get('/subscriptions', [AdminPassSubscriptionController::class, 'index']);
+        Route::post('/subscriptions', [AdminPassSubscriptionController::class, 'store']);
+        Route::get('/subscriptions/{id}', [AdminPassSubscriptionController::class, 'show'])->whereNumber('id');
+        Route::post('/subscriptions/{id}/activate', [AdminPassSubscriptionController::class, 'activate'])->whereNumber('id');
+        Route::post('/subscriptions/{id}/cancel', [AdminPassSubscriptionController::class, 'cancel'])->whereNumber('id');
+    });
+
+    /*
+     * ── Audit trail ───────────────────────────────────────────────────────
+     *
+     * Read-only, and admin-only: the log records what agents did, so agents are
+     * not the audience for it. There is deliberately NO write or delete route —
+     * an audit log an operator can edit proves nothing. Rows leave only by
+     * ageing out through `activity:prune`.
+     */
+    Route::middleware('admin')->prefix('admin/activity')->group(function () {
+        Route::get('/', [ActivityLogController::class, 'index']);
+        // Before /{id}, or these literals are swallowed by the wildcard.
+        Route::get('/actions', [ActivityLogController::class, 'actions']);
+        Route::get('/request/{requestId}', [ActivityLogController::class, 'byRequest']);
+        Route::get('/{id}', [ActivityLogController::class, 'show'])->whereNumber('id');
+    });
+
+    /*
+     * ── Payments ──────────────────────────────────────────────────────────
+     *
+     * Settling by hand, which is the other half of ManualPaymentDriver until a
+     * provider contract exists (PRD D3) — and stays useful afterwards for cash
+     * and bank transfers no provider will cover.
+     */
+    Route::prefix('admin/payments')->group(function () {
+        Route::get('/', [AdminPaymentController::class, 'index']);
+        Route::get('/{id}', [AdminPaymentController::class, 'show'])->whereNumber('id');
+        Route::post('/{id}/confirm', [AdminPaymentController::class, 'confirm'])->whereNumber('id');
+        Route::post('/{id}/fail', [AdminPaymentController::class, 'fail'])->whereNumber('id');
+        Route::post('/{id}/refund', [AdminPaymentController::class, 'refund'])->whereNumber('id');
+    });
+
     Route::prefix('pass')->group(function () {
         // Public keys only. Safe to intercept, cache or decompile — that is the
         // entire point of choosing Ed25519 over HMAC.
         Route::get('/keys', [PassControlController::class, 'keys']);
 
         // Downloaded at the depot each morning; `?since=` fetches a delta.
-        Route::get('/blacklist', [PassControlController::class, 'blacklist']);
-        Route::get('/snapshot', [PassControlController::class, 'snapshot']);
+        Route::get('/blacklist', [PassControlController::class, 'blacklist'])
+            ->middleware('audit.read:pass_blacklist');
+        Route::get('/snapshot', [PassControlController::class, 'snapshot'])
+            ->middleware('audit.read:pass_snapshot');
 
         // Bulk upload of a shift's scans. Idempotent on client_reference, so a
         // retried upload cannot double-count a day's boardings.
@@ -393,7 +463,8 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::apiResource('candidates', CandidateController::class)->except(['store']);
 
         // Dashboard — revenue and conversion figures are not agent-level data.
-        Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
+        Route::get('/dash/cards',  [DashboardController::class, 'cards'])
+            ->middleware('audit.read:dashboard');   // KPIs
         Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
     });
 

@@ -39,6 +39,20 @@ return [
         'credentials' => base_path(env('FIREBASE_CREDENTIALS', 'firebase_credentials.json')),
     ],
 
+    /*
+     * PostHog — server-side product events only.
+     *
+     * EU region by default: the data concerns Congolese customers, and keeping
+     * it in one jurisdiction is a simpler position to defend than two.
+     *
+     * Unset disables it entirely, which is the right default locally — a
+     * developer clicking through a flow should not appear in the funnel.
+     */
+    'posthog' => [
+        'key' => env('POSTHOG_KEY'),
+        'host' => env('POSTHOG_HOST', 'https://eu.i.posthog.com'),
+    ],
+
     'google' => [
         'places_key' => env('GOOGLE_MAPS_API_KEY'),
 

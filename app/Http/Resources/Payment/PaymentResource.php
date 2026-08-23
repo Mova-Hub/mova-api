@@ -11,6 +11,11 @@ class PaymentResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            // The admin routes are keyed on the integer id, so it has to be
+            // here or the back-office cannot address a payment at all. Harmless
+            // to expose: every client-facing query is already scoped to the
+            // caller, so knowing an id grants nothing.
+            'id' => $this->id,
             'uuid' => $this->uuid,
             'provider' => $this->provider->value,
             'provider_label' => $this->provider->label(),
