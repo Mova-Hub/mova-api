@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V2\Payment;
 
+use App\Domain\Documents\DocumentBranding;
 use App\Domain\Payment\PaymentService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
@@ -75,7 +76,9 @@ class InvoiceController extends Controller
         $seatMap = config('booking.vehicle_seats', []);
         $vehicleLabels = config('pricing.vehicles', []);
 
-        $total = $this->payments->amountFor($order);
+        // The order's own figure, not the outstanding balance: an invoice
+        // states what the trip costs. What is still owed is a separate line.
+        $total = $order->paymentAmount();
         $isPaid = $this->payments->isPaid($order)
             || $order->reservation?->payment_status === 'paid';
 
@@ -155,6 +158,10 @@ class InvoiceController extends Controller
                 : null,
             'totalLabel' => $this->money($total),
             'isPaid' => $isPaid,
+            // Logo, colours and company identity. The logo arrives as an
+            // embedded data URI, so the PDF has no network dependency and
+            // renders identically offline — see DocumentBranding.
+            'branding' => app(DocumentBranding::class)->forDocument(),
         ])->setPaper('a4');
 
         // `download`, not `stream`: the header is what makes both mobile

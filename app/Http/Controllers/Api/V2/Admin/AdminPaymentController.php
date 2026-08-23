@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V2\Admin;
 
 use App\Domain\Payment\DTOs\ChargeResult;
-use App\Domain\Payment\Enums\PaymentProvider;
 use App\Domain\Payment\Enums\PaymentStatus;
+use App\Domain\Payment\Exceptions\PaymentException;
 use App\Domain\Payment\PaymentService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Payment\PaymentResource;
@@ -34,17 +34,34 @@ class AdminPaymentController extends Controller
     {
         $request->validate([
             'status' => ['nullable', Rule::in(array_column(PaymentStatus::cases(), 'value'))],
-            'provider' => ['nullable', Rule::in(array_column(PaymentProvider::cases(), 'value'))],
-            'order_id' => ['nullable', 'integer'],
+            // Against the TABLE, not an enum — providers are rows now, so a
+            // method added this morning is filterable this morning.
+            'provider' => ['nullable', 'string', Rule::exists('payment_providers', 'code')],
+            'payable_type' => ['nullable', Rule::in(['order', 'subscription', 'reservation'])],
+            'channel' => ['nullable', Rule::in(['app', 'back_office', 'system'])],
             'search' => ['nullable', 'string', 'max:64'],
         ]);
 
-        $query = Payment::with(['client', 'order'])->latest('id');
+        $query = Payment::with(['client', 'payable', 'provider'])->latest('id');
 
-        foreach (['status', 'provider', 'order_id'] as $field) {
-            if ($value = $request->input($field)) {
-                $query->where($field, $value);
-            }
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($provider = $request->input('provider')) {
+            $query->where('provider_code', $provider);
+        }
+
+        if ($channel = $request->input('channel')) {
+            $query->where('channel', $channel);
+        }
+
+        if ($type = $request->input('payable_type')) {
+            $query->where('payable_type', match ($type) {
+                'order' => \App\Models\Order::class,
+                'subscription' => \App\Models\PassSubscription::class,
+                'reservation' => \App\Models\Reservation::class,
+            });
         }
 
         if ($search = $request->string('search')->trim()->toString()) {
@@ -64,7 +81,7 @@ class AdminPaymentController extends Controller
 
     public function show(int $id)
     {
-        return new PaymentResource(Payment::with(['client', 'order'])->findOrFail($id));
+        return new PaymentResource(Payment::with(['client', 'payable', 'provider'])->findOrFail($id));
     }
 
     /**
@@ -140,10 +157,14 @@ class AdminPaymentController extends Controller
     /**
      * Refunds a settled payment.
      *
-     * Records the decision; it does not move money — no provider integration
-     * exists to move it with. Saying so plainly in the response matters, because
-     * an ops user who believes this refunded a customer will not then go and
-     * actually refund them.
+     * Two paths, and the response says which one ran — an ops user who believes
+     * this moved money will not then go and actually move it.
+     *
+     *  • **Driver supports refunds** (Airtel, Mova Credit): the money really
+     *    goes back, recorded as a CHILD payment so the original collection
+     *    stays readable.
+     *  • **It does not** (cash, MTN until Disbursements is contracted): the
+     *    decision is recorded and a human has to make the transfer.
      */
     public function refund(Request $request, int $id)
     {
@@ -151,6 +172,9 @@ class AdminPaymentController extends Controller
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:255'],
+            // Partial refunds are real: a client who cancels one of three
+            // vehicles is owed a third, not nothing and not everything.
+            'amount' => ['nullable', 'integer', 'min:1', 'max:' . $payment->amount],
         ]);
 
         if ($payment->status !== PaymentStatus::Succeeded) {
@@ -160,23 +184,42 @@ class AdminPaymentController extends Controller
             ], 409);
         }
 
-        // Not via apply(): Succeeded is terminal, and that guard is exactly
-        // what protects against a replayed webhook. A refund is a deliberate
-        // staff decision, so it is written here, explicitly, and only from
-        // Succeeded.
-        $payment->forceFill([
-            'status' => PaymentStatus::Refunded,
-            'failure_reason' => $data['reason'],
-            'meta' => array_merge($payment->meta ?? [], [
-                'refunded_by' => $request->user()->id,
-                'refunded_at' => now()->toIso8601String(),
-            ]),
-        ])->save();
+        try {
+            $refund = $this->payments->refund($payment, $data['amount'] ?? null, $request->user()->id);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Remboursement enregistré. Le virement doit être effectué manuellement auprès de l’opérateur.',
-            'data' => new PaymentResource($payment->fresh()),
-        ]);
+            return response()->json([
+                'status' => true,
+                'message' => 'Remboursement effectué.',
+                'data' => new PaymentResource($refund),
+            ]);
+        } catch (PaymentException $e) {
+            /*
+             * No automatic path. Record the decision so the ledger reflects
+             * reality, and say plainly that a person still has to send the
+             * money — silence here is how a customer never gets refunded.
+             *
+             * Written with forceFill rather than apply(): Succeeded is
+             * terminal, and that guard is exactly what protects against a
+             * replayed webhook. This is a deliberate staff decision, so it
+             * bypasses the guard explicitly and only from Succeeded.
+             */
+            $payment->forceFill([
+                'status' => PaymentStatus::Refunded,
+                'failure_reason' => $data['reason'],
+                'meta' => array_merge($payment->meta ?? [], [
+                    'refunded_by' => $request->user()->id,
+                    'refunded_at' => now()->toIso8601String(),
+                    'refund_amount' => $data['amount'] ?? $payment->amount,
+                    'manual_reason' => $e->getMessage(),
+                ]),
+            ])->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Remboursement enregistré. ' . $e->getMessage()
+                    . ' Le virement doit être effectué manuellement auprès de l’opérateur.',
+                'data' => new PaymentResource($payment->fresh()),
+            ]);
+        }
     }
 }

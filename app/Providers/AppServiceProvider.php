@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domain\Payment\PaymentDriverRegistry;
 use App\Domain\Pricing\Services\PricingEngine;
+use App\Domain\Settings\SettingsRepository;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Event;
@@ -18,6 +20,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PricingEngine::class, fn() => new PricingEngine());
 
+        /*
+         * Settings are read many times per request — the payment sheet alone
+         * touches half a dozen. A singleton means one query and one in-memory
+         * map per request instead of a cache round trip per lookup.
+         */
+        $this->app->singleton(SettingsRepository::class);
+
+        /*
+         * The registry memoises provider rows for the life of the request, so
+         * it must be a singleton or the memo is pointless.
+         */
+        $this->app->singleton(PaymentDriverRegistry::class);
     }
 
     /**
@@ -62,6 +76,21 @@ class AppServiceProvider extends ServiceProvider
             \App\Models\PassPlan::class,
             \App\Models\Payment::class,
             \App\Models\SavedAddress::class,
+            /*
+             * Settings and provider credentials are the highest-value targets
+             * in the system: changing a fee or an API key silently would be
+             * indistinguishable from a compromise. The Redactor strips the
+             * secrets themselves, so what lands is "who changed which key,
+             * when" — which is exactly the question worth answering.
+             */
+            \App\Models\Setting::class,
+            \App\Models\PaymentProvider::class,
+            /*
+             * WalletEntry is append-only, so the observer only ever records
+             * creations — but a credit granted by hand is money, and it must be
+             * as attributable as any other payment.
+             */
+            \App\Models\WalletEntry::class,
         ] as $model) {
             $model::observe(\App\Observers\ActivityObserver::class);
         }

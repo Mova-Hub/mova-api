@@ -32,34 +32,31 @@
     }
 
     /* ── Header band ──
-       A full-bleed block rather than a bordered box: dompdf honours a
-       background on a block-level element reliably, which is what carries the
-       brand colour to the printed page. */
+       WHITE, not the dark green it used to be.
+
+       The Mova logo is green-and-orange on transparent. Placed on #064E3B the
+       green wordmark all but disappears and the orange fights the ground —
+       there is no dark variant of the mark, so the band changed instead. The
+       brand colour now arrives as the rule beneath it, which reads as
+       deliberate rather than as a logo dropped on the wrong background. */
     .head {
-        background-color: #064E3B;
-        color: #FFFFFF;
-        padding: 26pt 34pt 22pt;
+        background-color: #FFFFFF;
+        color: #0F172A;
+        padding: 26pt 34pt 18pt;
+        border-bottom: 3pt solid #4CAF50;
     }
     .head td { vertical-align: top; }
 
-    .mark {
-        display: inline-block;
-        width: 26pt;
-        height: 26pt;
-        background-color: #047857;
-        color: #FFFFFF;
-        font-size: 15pt;
-        font-weight: bold;
-        text-align: center;
-        line-height: 26pt;
-        border-radius: 6pt;
-    }
-    .brand-name { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; }
-    .brand-sub  { font-size: 8pt; color: #A7D8C4; }
+    /* Height-constrained, width auto: the mark is ~2.4:1, and fixing both
+       dimensions in dompdf stretches rather than fits. */
+    .logo { height: 30pt; }
 
-    .doc-kind { font-size: 8pt; letter-spacing: 1.4pt; color: #A7D8C4; text-transform: uppercase; }
-    .doc-ref  { font-size: 15pt; font-weight: bold; }
-    .doc-date { font-size: 8.5pt; color: #A7D8C4; }
+    .brand-name { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; color: #4CAF50; }
+    .brand-sub  { font-size: 8pt; color: #64748B; margin-top: 3pt; }
+
+    .doc-kind { font-size: 8pt; letter-spacing: 1.4pt; color: #64748B; text-transform: uppercase; }
+    .doc-ref  { font-size: 15pt; font-weight: bold; color: #0F172A; }
+    .doc-date { font-size: 8.5pt; color: #64748B; }
 
     .pill {
         display: inline-block;
@@ -162,9 +159,23 @@
     <table width="100%">
         <tr>
             <td width="55%">
-                <span class="mark">M</span>
-                <div class="brand-name">MOVA</div>
-                <div class="brand-sub">Mova Mobility — Brazzaville, République du Congo</div>
+                {{--
+                    The real logo, embedded as a base64 data URI by
+                    DocumentBranding. dompdf will not fetch a URL with
+                    isRemoteEnabled off, and silently drops the image with it
+                    on when the host is slow — which is precisely when an
+                    invoice is generated from a queue worker.
+
+                    Falls back to the wordmark: a missing file should produce a
+                    plain invoice, never a failed download at the moment a
+                    client asked for one.
+                --}}
+                @if (!empty($branding['logo']))
+                    <img src="{{ $branding['logo'] }}" class="logo" alt="Mova">
+                @else
+                    <div class="brand-name">MOVA</div>
+                @endif
+                <div class="brand-sub">{{ $branding['legalName'] }} — {{ $branding['address'] }}</div>
             </td>
             <td align="right">
                 <div class="doc-kind">{{ $isPaid ? 'Facture' : 'Facture proforma' }}</div>

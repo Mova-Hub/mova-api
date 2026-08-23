@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Domain\Payment\Enums\PaymentStatus;
 use App\Models\Reservation;
 use App\Models\Order;
-use App\Models\Transaction;
+use App\Models\Payment;
 
 class DashboardController extends Controller
 {
@@ -22,14 +23,27 @@ class DashboardController extends Controller
         $prevEnd   = (clone $start)->subSecond();
         $prevStart = (clone $prevEnd)->subDays($days);
 
-        // 1. CASH FLOW (Actual Money vs Booked)
-        // Collected: Sum of completed transactions in window
-        $collected = Transaction::where('status', 'completed')
-            ->whereBetween('created_at', [$start, $end])
+        /*
+         * 1. CASH FLOW (Actual Money vs Booked)
+         *
+         * Reads `payments`, which since the ledger unification holds BOTH
+         * back-office collections (formerly `transactions`) and payments made
+         * in the app. Before that, this figure counted only counter cash — so
+         * every franc taken through the app was missing from it.
+         *
+         * `paid_at`, not `created_at`: an attempt started on the 30th and
+         * confirmed on the 1st is revenue for the month it actually landed in.
+         * Refund rows are excluded — a refund flips its parent out of
+         * `succeeded`, so counting both would deduct the same money twice.
+         */
+        $collected = Payment::where('status', PaymentStatus::Succeeded->value)
+            ->where('kind', '!=', 'refund')
+            ->whereBetween('paid_at', [$start, $end])
             ->sum('amount');
 
-        $prevCollected = Transaction::where('status', 'completed')
-            ->whereBetween('created_at', [$prevStart, $prevEnd])
+        $prevCollected = Payment::where('status', PaymentStatus::Succeeded->value)
+            ->where('kind', '!=', 'refund')
+            ->whereBetween('paid_at', [$prevStart, $prevEnd])
             ->sum('amount');
 
         // Booked: Sum of price_total of CONFIRMED reservations in window
@@ -134,10 +148,11 @@ class DashboardController extends Controller
         $start = Carbon::now()->subDays($days - 1)->startOfDay();
 
         // 1. Daily Revenue (Booked vs Collected)
-        // Group Transactions by Day
-        $collections = Transaction::selectRaw('DATE(created_at) as date, SUM(amount) as total')
-            ->where('status', 'completed')
-            ->whereBetween('created_at', [$start, $end])
+        // Grouped on paid_at for the same reason as the cards above.
+        $collections = Payment::selectRaw('DATE(paid_at) as date, SUM(amount) as total')
+            ->where('status', PaymentStatus::Succeeded->value)
+            ->where('kind', '!=', 'refund')
+            ->whereBetween('paid_at', [$start, $end])
             ->groupBy('date')
             ->get()
             ->pluck('total', 'date');

@@ -11,9 +11,15 @@ use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\V2\Admin\PassCardController as AdminPassCardController;
 use App\Http\Controllers\Api\V2\Admin\PassPlanController as AdminPassPlanController;
 use App\Http\Controllers\Api\V2\Admin\PassSubscriptionController as AdminPassSubscriptionController;
+use App\Http\Controllers\Api\V2\Admin\PaymentProviderController;
+use App\Http\Controllers\Api\V2\Admin\PricingSimulatorController;
+use App\Http\Controllers\Api\V2\Admin\SettingsController;
+use App\Http\Controllers\Api\V2\Admin\WalletAdminController;
 use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
 use App\Http\Controllers\Api\V2\Payment\InvoiceController;
 use App\Http\Controllers\Api\V2\Payment\PaymentController;
+use App\Http\Controllers\Api\V2\Payment\PaymentWebhookController;
+use App\Http\Controllers\Api\V2\Payment\WalletController;
 use App\Http\Controllers\Api\V2\Pass\ControlController as PassControlController;
 use App\Http\Controllers\Api\V2\Pass\PlanController as PassPlanController;
 use App\Http\Controllers\Api\V2\Pass\SubscriptionController as PassSubscriptionController;
@@ -113,23 +119,37 @@ Route::prefix('app/v1')->group(function () {
         Route::get('/orders/{id}', [ClientOrderController::class, 'show'])->whereNumber('id');
 
         /*
-         * ── Paying for an order ───────────────────────────────────────────
+         * ── Paying ────────────────────────────────────────────────────────
          *
-         * Every handler scopes to $request->user(); an order id in the URL is a
+         * Generic over payables: `{type}` is `order` or `subscription`, so one
+         * set of routes collects for a charter booking AND a Mova Pass. The
+         * type is resolved against an allow-list in the controller — never to
+         * a caller-supplied class name.
+         *
+         * Every handler scopes to $request->user(); an id in the URL is a
          * claim, not an authorisation. The AMOUNT is never accepted from the
          * request — see App\Domain\Payment\PaymentService.
          */
-        Route::get('/orders/{id}/payment-options', [PaymentController::class, 'options'])
-            ->whereNumber('id');
-        Route::get('/orders/{id}/payments', [PaymentController::class, 'index'])
-            ->whereNumber('id');
+        Route::get('/payment/methods', [PaymentController::class, 'methods']);
+        Route::get('/payment/{type}/{id}/options', [PaymentController::class, 'options']);
+        Route::get('/payment/{type}/{id}/history', [PaymentController::class, 'index']);
         // Throttled: each attempt pushes a prompt to a real handset, so an
         // unbounded endpoint is a way to spam someone's phone.
-        Route::post('/orders/{id}/payments', [PaymentController::class, 'store'])
-            ->whereNumber('id')
+        Route::post('/payment/{type}/{id}', [PaymentController::class, 'store'])
             ->middleware('throttle:10,1');
-        Route::get('/orders/{id}/payments/{uuid}', [PaymentController::class, 'show'])
-            ->whereNumber('id');
+        // Polled while the prompt sits on the handset, so a looser limit than
+        // the one above — reading a status costs nobody anything.
+        Route::get('/payments/{uuid}', [PaymentController::class, 'show'])
+            ->middleware('throttle:120,1');
+
+        // ── Mova Credit ───────────────────────────────────────────────────
+        //
+        // READ ONLY. There is no top-up route and no cash-out route, and their
+        // absence is the compliance posture, not an omission — see
+        // MOVA-WALLET-AND-PAYMENTS.md §3.3. Credit is spent through the normal
+        // payment routes above, with provider `mova_credit`.
+        Route::get('/wallet', [WalletController::class, 'show']);
+        Route::get('/wallet/entries', [WalletController::class, 'entries']);
 
         // Mints a short-lived SIGNED url the system browser can open — a
         // browser carries no bearer token. The document itself is public
@@ -249,6 +269,29 @@ Route::get('/app/v1/invoices/{order}', [InvoiceController::class, 'download'])
     ->middleware('signed')
     ->whereNumber('order')
     ->name('invoice.download');
+
+/*
+ * Provider callbacks.
+ *
+ * The ONLY unauthenticated route that can move money, so it is worth reading
+ * PaymentWebhookController before touching it. Three defences, because one of
+ * the two providers offers no signature on collections:
+ *
+ *   1. Per-driver signature verification, refusing by default.
+ *   2. The body is treated as a HINT — where the driver can poll, the provider
+ *      is asked directly rather than believed.
+ *   3. PaymentService::apply() refuses to move a terminal payment, so even an
+ *      accepted forgery cannot flip a refunded payment back to paid.
+ *
+ * Throttled per provider rather than left open: a retry storm from a
+ * misconfigured callback URL should not take the API down with it. Generous,
+ * because a legitimate burst after an outage is exactly when we most want the
+ * callbacks to land.
+ */
+Route::post('/webhooks/payments/{provider}', [PaymentWebhookController::class, 'handle'])
+    ->middleware('throttle:300,1')
+    ->where('provider', '[a-z0-9_]+')
+    ->name('payments.webhook');
 
 Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/autocomplete', [LocationController::class, 'autocomplete']);
@@ -419,6 +462,58 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::post('/{id}/confirm', [AdminPaymentController::class, 'confirm'])->whereNumber('id');
         Route::post('/{id}/fail', [AdminPaymentController::class, 'fail'])->whereNumber('id');
         Route::post('/{id}/refund', [AdminPaymentController::class, 'refund'])->whereNumber('id');
+    });
+
+    /*
+     * ── Settings ──────────────────────────────────────────────────────────
+     *
+     * Admin only, not merely staff. These endpoints change what every client
+     * is charged and hold the credentials that move money — an agent who can
+     * confirm a payment has no business editing the fee that priced it.
+     *
+     * Secrets go IN and never come back out: reads return a masked tail, and
+     * the audit trail redacts the values. See SettingsController.
+     */
+    Route::middleware('admin')->group(function () {
+        Route::prefix('admin/settings')->group(function () {
+            Route::get('/', [SettingsController::class, 'index']);
+            Route::post('/test-messaging', [SettingsController::class, 'testMessaging']);
+            Route::get('/{group}', [SettingsController::class, 'show']);
+            Route::put('/{group}', [SettingsController::class, 'update']);
+        });
+
+        Route::prefix('admin/payment-providers')->group(function () {
+            Route::get('/', [PaymentProviderController::class, 'index']);
+            Route::post('/', [PaymentProviderController::class, 'store']);
+            Route::get('/{id}', [PaymentProviderController::class, 'show'])->whereNumber('id');
+            Route::put('/{id}', [PaymentProviderController::class, 'update'])->whereNumber('id');
+            Route::delete('/{id}', [PaymentProviderController::class, 'destroy'])->whereNumber('id');
+            Route::post('/{id}/toggle', [PaymentProviderController::class, 'toggle'])->whereNumber('id');
+            Route::post('/{id}/test', [PaymentProviderController::class, 'test'])->whereNumber('id');
+            Route::post('/{id}/logo', [PaymentProviderController::class, 'uploadLogo'])->whereNumber('id');
+        });
+
+        /*
+         * Mova Credit administration.
+         *
+         * `grant` is the only way credit is created by a human, it is capped,
+         * it requires a written reason, and it is audited. There is no route
+         * here that accepts customer funds.
+         */
+        Route::prefix('admin/wallets')->group(function () {
+            Route::get('/', [WalletAdminController::class, 'index']);
+            Route::post('/reconcile', [WalletAdminController::class, 'reconcile']);
+            Route::get('/{clientId}', [WalletAdminController::class, 'show'])->whereNumber('clientId');
+            Route::post('/{clientId}/grant', [WalletAdminController::class, 'grant'])->whereNumber('clientId');
+            Route::post('/{clientId}/status', [WalletAdminController::class, 'setStatus'])->whereNumber('clientId');
+        });
+
+        // Runs the real PricingEngine over supplied inputs. Read-only — it
+        // computes and returns, it never persists. Backs the simulator on the
+        // Algorithme tab. `parameters` returns what the engine is ACTUALLY
+        // using, which is config, not settings — see the controller.
+        Route::get('/admin/pricing/parameters', [PricingSimulatorController::class, 'parameters']);
+        Route::post('/admin/pricing/simulate', [PricingSimulatorController::class, 'simulate']);
     });
 
     Route::prefix('pass')->group(function () {

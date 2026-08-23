@@ -39,3 +39,40 @@ Schedule::command('pass:expire')
 Schedule::command('activity:prune')
     ->dailyAt('04:00')
     ->withoutOverlapping();
+
+/*
+ * Payment reconciliation.
+ *
+ * The safety net under every mobile-money payment. Webhooks get lost, and a
+ * payment stuck at `processing` means a client who has been debited, an order
+ * that still reads unpaid, and an in-flight guard that blocks any retry. This
+ * is the only thing that resolves that state.
+ *
+ * Every five minutes rather than every minute: the poll only starts two
+ * minutes after an attempt, providers rate-limit, and the app is already
+ * polling on the client's behalf while they watch the sheet.
+ */
+Schedule::command('payments:reconcile')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
+/*
+ * Mova Credit expiry.
+ *
+ * Sweeps lapsed promotional credit by writing an explicit `expired` debit —
+ * the ledger is append-only, so nothing is deleted. 03:30, between the Pass
+ * sweep and the audit prune.
+ */
+Schedule::command('wallet:expire')
+    ->dailyAt('03:30')
+    ->withoutOverlapping();
+
+/*
+ * Payment reminders.
+ *
+ * Once a day, mid-morning — a dunning SMS at 04:00 is how a brand teaches
+ * people to mute it. Frequency-capped per client inside the command.
+ */
+Schedule::command('payments:remind')
+    ->dailyAt('09:30')
+    ->withoutOverlapping();

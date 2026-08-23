@@ -3,14 +3,19 @@
 namespace App\Models;
 
 use App\Domain\Pass\Enums\SubscriptionStatus;
+use App\Domain\Pass\Services\SubscriptionService;
+use App\Domain\Payment\Concerns\HasPayments;
+use App\Domain\Payment\Contracts\Payable;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-class PassSubscription extends Model
+class PassSubscription extends Model implements Payable
 {
+    use HasPayments;
+
     protected $fillable = [
         'uuid', 'client_id', 'pass_plan_id', 'status',
         'starts_at', 'expires_at', 'trips_remaining',
@@ -96,5 +101,69 @@ class PassSubscription extends Model
             ->where('status', SubscriptionStatus::Active->value)
             ->where('expires_at', '>=', now())
             ->orderByDesc('expires_at');
+    }
+
+    /* ─────────────────────────── Payable ─────────────────────────── */
+
+    /**
+     * What the subscription costs.
+     *
+     * `price_paid` is stamped from the plan when the subscription is created,
+     * so it is the price the client was actually shown — a later plan price
+     * change must not silently re-price a purchase already in progress. The
+     * plan is only a fallback for rows predating that stamp.
+     */
+    public function paymentAmount(): int
+    {
+        return (int) ($this->price_paid ?: $this->plan?->price ?: 0);
+    }
+
+    public function paymentCurrency(): string
+    {
+        return $this->currency ?: 'XAF';
+    }
+
+    public function paymentDescription(): string
+    {
+        return 'Mova Pass · ' . ($this->plan?->name ?? 'Abonnement');
+    }
+
+    /**
+     * Only a subscription awaiting payment may be paid for.
+     *
+     * An active one is already settled, and an expired one must be renewed —
+     * which creates a NEW subscription rather than paying for the dead one, so
+     * that the purchase history stays a list of distinct periods.
+     */
+    public function isPayable(): bool
+    {
+        return $this->status === SubscriptionStatus::Pending
+            && $this->paymentAmount() > 0
+            && ! $this->isFullyPaid();
+    }
+
+    public function paymentClient(): ?Client
+    {
+        return $this->client;
+    }
+
+    /**
+     * Payment is what activates a Pass.
+     *
+     * Routed through SubscriptionService rather than flipping the column here,
+     * because activation also signs the Ed25519 entitlement the offline
+     * inspector app verifies. A subscription marked active without that
+     * signature is one that fails at the roadside.
+     *
+     * Only on FULL payment: a deposit on a subscription buys nothing until the
+     * balance lands, unlike a charter where a deposit secures the vehicle.
+     */
+    public function onPaymentSucceeded(Payment $payment): void
+    {
+        if (! $this->isFullyPaid()) {
+            return;
+        }
+
+        app(SubscriptionService::class)->activate($this);
     }
 }

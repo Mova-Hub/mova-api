@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Payment\Concerns\HasPayments;
+use App\Domain\Payment\Contracts\Payable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Reservation extends Model
+class Reservation extends Model implements Payable
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasPayments, HasUuids, SoftDeletes;
 
     protected $table = 'reservations';
     protected $keyType = 'string';
@@ -143,5 +145,57 @@ class Reservation extends Model
         }
         // Fallback with UUID fragment to avoid rare collisions
         return sprintf('%s-%s', $prefix, Str::upper(Str::random(8)));
+    }
+
+    /* ─────────────────────────── Payable ─────────────────────────── */
+
+    /**
+     * A reservation is Payable so that BACK-OFFICE collections have somewhere
+     * to land.
+     *
+     * Cash taken at a counter used to become a `transactions` row, invisible to
+     * the payments ledger — which is why the dashboard's revenue figure could
+     * never see an app payment and vice versa. Both now write here.
+     */
+    public function paymentAmount(): int
+    {
+        return (int) round((float) ($this->price_total ?? 0));
+    }
+
+    public function paymentCurrency(): string
+    {
+        return 'XAF';
+    }
+
+    public function paymentDescription(): string
+    {
+        return trim(sprintf('Mova · %s (%s → %s)', $this->code, $this->from_location, $this->to_location));
+    }
+
+    /**
+     * Cancelled reservations refuse money; everything else accepts it.
+     *
+     * Looser than Order's rule on purpose — an agent taking cash at a counter
+     * is looking at the client, and the app-side guards (is the vehicle
+     * available, has ops confirmed) have already been exercised by the fact
+     * that a human is standing there.
+     */
+    public function isPayable(): bool
+    {
+        return $this->paymentAmount() > 0
+            && ! in_array($this->status, ['cancelled'], true)
+            && ! $this->isFullyPaid();
+    }
+
+    public function paymentClient(): ?Client
+    {
+        return $this->client;
+    }
+
+    public function onPaymentSucceeded(Payment $payment): void
+    {
+        $this->update([
+            'payment_status' => $this->isFullyPaid() ? 'paid' : 'pending',
+        ]);
     }
 }

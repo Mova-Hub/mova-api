@@ -132,9 +132,19 @@ class Client extends Authenticatable implements CanResetPassword
         return $this->hasMany(ClientFcmToken::class);
     }
 
-    public function wallet(): HasOne
+    /**
+     * Mova Credit.
+     *
+     * Was `hasOne(Wallet::class)`, which could never return a row: `wallets`
+     * was keyed to `users` (staff), so every client wallet insert violated the
+     * foreign key. WalletAccount is keyed to `clients`.
+     *
+     * Closed-loop — spendable on Mova, never cashed out, never topped up.
+     * See MOVA-WALLET-AND-PAYMENTS.md §3.
+     */
+    public function walletAccount(): HasOne
     {
-        return $this->hasOne(Wallet::class);
+        return $this->hasOne(WalletAccount::class);
     }
 
     /**

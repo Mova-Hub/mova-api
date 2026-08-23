@@ -6,8 +6,9 @@ use App\Domain\Audit\Services\ActivityLogger;
 use App\Http\Requests\StoreReservationRequest;
 use App\Http\Requests\UpdateReservationRequest;
 use App\Http\Resources\ReservationResource;
+use App\Domain\Payment\Enums\PaymentStatus;
+use App\Models\Payment;
 use App\Models\Reservation;
-use App\Models\Transaction; // Imported
 use App\Notifications\ReservationStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Imported for transactions
@@ -272,28 +273,40 @@ class ReservationController extends Controller
             'reference' => ['required_unless:method,cash', 'nullable', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($reservation, $validated) {
-            Transaction::create([
-                'reservation_id' => $reservation->id,
-                'amount'         => $validated['amount'],
-                'method'         => $validated['method'],
-                'reference'      => $validated['reference'] ?? null,
-                'note'           => $validated['note'] ?? null,
-                'status'         => 'completed',
+        /*
+         * Writes into `payments`, not the old `transactions` table.
+         *
+         * Recorded as already `succeeded`: an agent entering this has the cash
+         * or the transfer confirmation in front of them, so unlike an app
+         * payment there is nothing to wait for. `channel = back_office` and
+         * `created_by` are what keep it attributable.
+         */
+        DB::transaction(function () use ($reservation, $validated, $request) {
+            $amount = (int) round((float) $validated['amount']);
+
+            Payment::create([
+                'payable_type'       => Reservation::class,
+                'payable_id'         => $reservation->id,
+                'client_id'          => $reservation->client_id,
+                'provider_code'      => $this->providerCodeForMethod($validated['method']),
+                'channel'            => 'back_office',
+                'kind'               => 'full',
+                'status'             => PaymentStatus::Succeeded,
+                'amount'             => $amount,
+                'net_amount'         => $amount,
+                'currency'           => 'XAF',
+                'provider_reference' => $validated['reference'] ?? null,
+                'paid_at'            => now(),
+                'meta'               => ['note' => $validated['note'] ?? null],
+                'created_by'         => $request->user()?->id,
             ]);
 
-            $totalPaid = Transaction::where('reservation_id', $reservation->id)
-                ->where('status', 'completed')
-                ->sum('amount');
-
-            $status = 'pending';
-            if ($totalPaid >= $reservation->price_total) {
-                $status = 'paid';
-            } elseif ($totalPaid > 0) {
-                $status = 'pending';
-            }
-
-            $reservation->update(['payment_status' => $status]);
+            // Derived from the ledger rather than accumulated by hand, so a
+            // corrected or deleted entry cannot leave the flag out of step.
+            $reservation->refresh();
+            $reservation->update([
+                'payment_status' => $reservation->isFullyPaid() ? 'paid' : 'pending',
+            ]);
         });
 
         // TRIGGER PAYMENT NOTIFICATION
@@ -309,6 +322,23 @@ class ReservationController extends Controller
         return new ReservationResource($reservation->refresh());
     }
 
-
-
+    /**
+     * The back-office's payment methods, mapped to provider codes.
+     *
+     * These four are what an agent can actually record by hand. `mobile_money`
+     * here is a MANUAL entry — money the client sent by MoMo and an agent
+     * confirmed — which is a different thing from the `mtn_momo` provider that
+     * pushes a prompt to a handset, and must not share its code or the two
+     * would be indistinguishable in reconciliation.
+     */
+    private function providerCodeForMethod(string $method): string
+    {
+        return match ($method) {
+            'cash'          => 'cash',
+            'mobile_money'  => 'mobile_money_manual',
+            'bank_transfer' => 'bank_transfer',
+            'check'         => 'cheque',
+            default         => 'cash',
+        };
+    }
 }
