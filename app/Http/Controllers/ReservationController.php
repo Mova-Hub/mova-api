@@ -166,11 +166,23 @@ class ReservationController extends Controller
         return new ReservationResource($reservation->fresh(['order']));
     }
 
+    /*
+     * These three validated bus ids as `uuid`.
+     *
+     * `reservations` uses HasUuids, `buses` does not — `buses.id` is a plain
+     * auto-increment bigint (2025_10_20_023855_create_buses_table). So the rule
+     * could never pass and all three endpoints have been permanently broken:
+     * assigning a bus to a reservation was impossible through the API.
+     *
+     * `BusController@bulkStatus` had it right all along with `integer`, which is
+     * why bulk operations worked while these did not.
+     */
+
     public function syncBuses(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
             'bus_ids'   => ['required','array','min:0'],
-            'bus_ids.*' => ['uuid','distinct','exists:buses,id'],
+            'bus_ids.*' => ['integer','distinct','exists:buses,id'],
         ]);
         $reservation->buses()->sync($validated['bus_ids']);
         return new ReservationResource($reservation->load('buses'));
@@ -179,7 +191,7 @@ class ReservationController extends Controller
     public function attachBus(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'bus_id' => ['required','uuid','exists:buses,id'],
+            'bus_id' => ['required','integer','exists:buses,id'],
         ]);
         $reservation->buses()->syncWithoutDetaching([$validated['bus_id']]);
         return new ReservationResource($reservation->load('buses'));
@@ -188,7 +200,7 @@ class ReservationController extends Controller
     public function detachBus(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'bus_id' => ['required','uuid','exists:buses,id'],
+            'bus_id' => ['required','integer','exists:buses,id'],
         ]);
         $reservation->buses()->detach($validated['bus_id']);
         return new ReservationResource($reservation->load('buses'));

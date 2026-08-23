@@ -47,10 +47,41 @@ class AuthController extends Controller
             return response()->json(['message' => 'Identifiants incorrects.'], 422);
         }
 
+        /*
+         * Status is checked HERE, not only in middleware.
+         *
+         * Middleware stops a suspended account using an existing token; without
+         * this, suspending someone still lets them log in and mint a fresh one,
+         * so the suspension never actually takes effect.
+         *
+         * Deliberately worded differently from "identifiants incorrects": the
+         * password was right, and telling someone their account is suspended is
+         * information they need — unlike telling an attacker which half of a
+         * failed login was wrong.
+         */
+        if ($user->status !== 'active') {
+            return response()->json([
+                'message' => 'Ce compte est désactivé. Contactez un administrateur.',
+            ], 403);
+        }
+
+        // Fleet roles (driver, conductor, owner) are records in the system, not
+        // operators of it. They have no back-office to log into.
+        if (! in_array($user->role, ['admin', 'agent'], true)) {
+            return response()->json([
+                'message' => 'Ce compte n’a pas accès au back-office.',
+            ], 403);
+        }
+
         $deviceName = $credentials['device'] ?? 'web';
         $user->tokens()->where('name', $deviceName)->delete();
 
         $token = $user->createToken($deviceName, ['*'])->plainTextToken;
+
+        // `forceFill`+`saveQuietly`: a sign-in is not a change to the account,
+        // and once the activity observer lands (Phase 2) a normal save here
+        // would file an "admin updated their own record" entry on every login.
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         return response()->json([
             'user'       => $this->formatUser($user),
@@ -110,13 +141,21 @@ class AuthController extends Controller
             'enabled' => ['required', 'boolean'],
         ]);
 
-        // Only update if the column is present on the model
-        if (array_key_exists('is_2fa_enabled', $user->getAttributes())) {
-            $user->update(['is_2fa_enabled' => $data['enabled']]);
-        }
+        /*
+         * The `array_key_exists` guard that used to wrap this is gone.
+         *
+         * `users` had no `is_2fa_enabled` column, so the guard was permanently
+         * false: the endpoint accepted the request, threw it away, and returned
+         * `two_fa_enabled: false` regardless — while the back-office rendered a
+         * working-looking toggle. A defensive check that silently turns a
+         * feature off is worse than no feature.
+         *
+         * The column now exists (2026_08_23_000001), so this simply writes.
+         */
+        $user->update(['is_2fa_enabled' => $data['enabled']]);
 
         return response()->json([
-            'two_fa_enabled' => (bool) ($user->is_2fa_enabled ?? false),
+            'two_fa_enabled' => (bool) $user->fresh()->is_2fa_enabled,
         ]);
     }
 

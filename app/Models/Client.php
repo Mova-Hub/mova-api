@@ -27,6 +27,8 @@ class Client extends Authenticatable implements CanResetPassword
         'provider',
         'provider_id',
         'email_verified_at',
+        'blocked_at',
+        'blocked_reason',
     ];
 
     protected $hidden = [
@@ -40,7 +42,14 @@ class Client extends Authenticatable implements CanResetPassword
         'password' => 'hashed',
         'is_2fa_enabled' => 'boolean',
         'last_login_at' => 'datetime',
+        'blocked_at' => 'datetime',
     ];
+
+    /** Suspended by staff. Tokens are revoked at the same time — see ClientController. */
+    public function isBlocked(): bool
+    {
+        return $this->blocked_at !== null;
+    }
 
     protected $appends = [
         'avatar_url',

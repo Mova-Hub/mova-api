@@ -15,8 +15,18 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 
+        /*
+         * A MAP, not a list.
+         *
+         * This was `['admin', EnsureUserIsAdmin::class]` — an array literal, so
+         * Laravel registered two aliases named `0` and `1`, and `->middleware('admin')`
+         * would have thrown "Target class [admin] does not exist". Nothing ever
+         * called it, which is why the mistake survived: every back-office route
+         * was running on `auth:sanctum` alone.
+         */
         $middleware->alias([
-            'admin', \App\Http\Middleware\EnsureUserIsAdmin::class
+            'staff' => \App\Http\Middleware\EnsureStaff::class,
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

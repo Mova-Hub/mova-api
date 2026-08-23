@@ -26,9 +26,17 @@ class User extends Authenticatable
         'password',
         'role',             // driver|owner|conductor|agent|admin
         'status',           // active|inactive|suspended
+        'is_2fa_enabled',
+        'last_login_at',
         'email_verified_at',
         'phone_verified_at',
     ];
+
+    /** Back-office roles. Everything else is a fleet record, not an operator. */
+    public const STAFF_ROLES = ['admin', 'agent'];
+
+    /** Fleet people — they appear in the system, they do not log into it. */
+    public const FLEET_ROLES = ['driver', 'conductor', 'owner'];
 
     protected $hidden = [
         'password',
@@ -43,7 +51,20 @@ class User extends Authenticatable
             'password'                => 'hashed',
             'address'                 => 'array',
             'permit_expiration_date'  => 'date',
+            'is_2fa_enabled'          => 'boolean',
+            'last_login_at'           => 'datetime',
         ];
+    }
+
+    /** An active back-office account. Mirrors the `staff` middleware exactly. */
+    public function isStaff(): bool
+    {
+        return in_array($this->role, self::STAFF_ROLES, true) && $this->status === 'active';
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin' && $this->status === 'active';
     }
 
     public function getAvatarUrlAttribute($value)

@@ -51,19 +51,38 @@ class DashboardController extends Controller
         $prevConverted = Order::whereBetween('created_at', [$prevStart, $prevEnd])->where('status', 'converted')->count();
         $prevConvRate = $prevLeads > 0 ? ($prevConverted / $prevLeads) * 100 : 0;
 
-        // 3. FLEET DEMAND (Based on Orders JSON)
-        // We look at raw demand from Orders to see what clients want most
-        // This is a rough aggregation of the JSON keys
-        $hiaceDemand = Order::whereBetween('created_at', [$start, $end])
-            ->whereJsonContains('fleet_requirements', ['hiace' => 1]) // Simplified check, usually requires raw SQL for accurate sum
-            ->orWhereRaw("JSON_EXTRACT(fleet_requirements, '$.hiace') > 0")
-            ->count();
+        /*
+         * 3. FLEET DEMAND — which vehicle clients are actually asking for.
+         *
+         * The previous version was wrong in a way that made this card noise:
+         *
+         *   Order::whereBetween('created_at', [$start, $end])
+         *       ->whereJsonContains(...)
+         *       ->orWhereRaw("JSON_EXTRACT(...) > 0")
+         *
+         * An ungrouped `orWhere` at the top level short-circuits everything
+         * before it, so the date window was discarded and the query counted the
+         * whole table. `$coasterDemand` had no `where` at all before its
+         * `orWhereRaw`, so it counted every order ever placed. The "Véhicule
+         * Tendance" card has been comparing two all-time totals.
+         *
+         * Counting ORDERS is also the wrong unit — an order for four Coasters
+         * counted the same as an order for one. This sums the quantities.
+         */
+        $demandFor = function (string $type, $from, $to): int {
+            return (int) Order::whereBetween('created_at', [$from, $to])
+                ->sum(DB::raw("COALESCE(JSON_EXTRACT(fleet_requirements, '$.\"{$type}\"'), 0)"));
+        };
 
-        $coasterDemand = Order::whereBetween('created_at', [$start, $end])
-            ->orWhereRaw("JSON_EXTRACT(fleet_requirements, '$.coaster') > 0")
-            ->count();
+        $hiaceDemand   = $demandFor('hiace', $start, $end);
+        $coasterDemand = $demandFor('coaster', $start, $end);
 
         $topVehicle = $coasterDemand > $hiaceDemand ? 'Coaster' : 'Hiace';
+
+        // A real delta, not the hardcoded 0 this card used to report: the same
+        // vehicle's demand over the preceding window of equal length.
+        $prevTopDemand = $demandFor(strtolower($topVehicle), $prevStart, $prevEnd);
+        $topDemand     = max($hiaceDemand, $coasterDemand);
 
         return response()->json([
             'range' => $range,
@@ -93,8 +112,14 @@ class DashboardController extends Controller
                     'label' => 'Véhicule Tendance',
                     'value' => $topVehicle,
                     'format' => 'text',
-                    'delta_pct' => 0, // N/A
-                    'subtext' => $coasterDemand + $hiaceDemand . " demandes totales"
+                    'delta_pct' => $this->pctDelta($topDemand, $prevTopDemand),
+                    /*
+                     * Parenthesised. `$a + $b . " x"` parses as `($a + $b) . " x"`
+                     * here only by luck of PHP 8's precedence change — before
+                     * 8.0 it concatenated first and summed a string. Being
+                     * explicit costs nothing and survives a downgrade.
+                     */
+                    'subtext' => ($coasterDemand + $hiaceDemand) . " véhicules demandés"
                 ]
             ]
         ]);

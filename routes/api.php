@@ -195,7 +195,18 @@ Route::prefix('app/v1')->group(function () {
 // Internal Routes
 
 Route::prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
+    /*
+     * `POST /auth/register` is GONE.
+     *
+     * It was public and unauthenticated, and it created a `User` — a staff
+     * account — from nothing but a name, an email and a password. It happened
+     * to fail at the database (users.role is NOT NULL with no default, and
+     * register() never set one), so it 500'd rather than succeeding; that is
+     * luck, not a control.
+     *
+     * Staff accounts are created by an admin through `POST /staff`, which
+     * assigns a role and a status deliberately.
+     */
     Route::post('login',    [AuthController::class, 'login']);
 
     Route::middleware('auth:sanctum')->group(function () {
@@ -218,6 +229,22 @@ Route::get('/jobs/public', [EmploiController::class, 'publicIndex']);
 // 2. Les candidats postulent et uploadent leur CV
 Route::post('/candidates', [CandidateController::class, 'store']);
 
+/*
+ * Invoice PDF.
+ *
+ * OUTSIDE the Sanctum group on purpose: the download is opened by the system
+ * browser, which carries no bearer token. `signed` is what authorises it — the
+ * app calls the authenticated `/orders/{id}/invoice-link` to mint a URL valid
+ * for thirty minutes, and without a valid signature this route refuses.
+ *
+ * An unsigned public route keyed on the order id would let anyone read every
+ * client's itinerary, phone number and price by counting upwards.
+ */
+Route::get('/app/v1/invoices/{order}', [InvoiceController::class, 'download'])
+    ->middleware('signed')
+    ->whereNumber('order')
+    ->name('invoice.download');
+
 Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/autocomplete', [LocationController::class, 'autocomplete']);
     Route::get('/details/{placeId}', [LocationController::class, 'details']);
@@ -226,22 +253,43 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
     Route::post('/directions', [LocationController::class, 'directions']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+/*
+ * ══════════════════════════════════════════════════════════════════════════
+ *  BACK-OFFICE
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * `auth:sanctum` ALONE IS NOT ENOUGH HERE, and this group ran on it for a long
+ * time. `App\Models\Client` also uses `HasApiTokens`, and Sanctum resolves
+ * whichever model owns the presented token — so every customer's mobile token
+ * authenticated successfully against all of it: the full client list with names
+ * and phone numbers, every reservation, the staff directory, and the pricing
+ * engine's commission and operator payout.
+ *
+ * `staff` establishes "an active admin or agent". `admin` narrows further, on
+ * the sections console/ has always guarded that way (staff, people, jobs,
+ * dashboard). Never remove `staff` from this group.
+ */
+Route::middleware(['auth:sanctum', 'staff'])->group(function () {
 
-    // Staff management (admin only)
-    Route::apiResource('staff', StaffController::class);
+    /*
+     * Admin-only sections.
+     *
+     * Nested rather than repeated per route: a route added inside this block
+     * inherits the guard, whereas a per-route `->middleware('admin')` is
+     * something the next person has to remember.
+     */
+    Route::middleware('admin')->group(function () {
+        // Staff management
+        Route::post('/staff/bulk-status', [StaffController::class, 'bulkStatus']);
+        Route::post('/staff/role',        [StaffController::class, 'setRole']); // promote/demote
+        Route::apiResource('staff', StaffController::class);
 
-    // extras
-    Route::post('/staff/bulk-status', [StaffController::class, 'bulkStatus']);
-    Route::post('/staff/role',        [StaffController::class, 'setRole']); // promote/demote
-
-    // People management
-    Route::apiResource('person', PersonController::class);
-
-    // extras
-    Route::post('/person/bulk-status',        [PersonController::class, 'bulkStatus']);
-    Route::post('/person/role',               [PersonController::class, 'setRole']);
-    Route::post('/person/{person}/avatar',    [PersonController::class, 'uploadAvatar']);
+        // People management (drivers / conductors / owners)
+        Route::post('/person/bulk-status',        [PersonController::class, 'bulkStatus']);
+        Route::post('/person/role',               [PersonController::class, 'setRole']);
+        Route::post('/person/{person}/avatar',    [PersonController::class, 'uploadAvatar']);
+        Route::apiResource('person', PersonController::class);
+    });
 
     // Bus management
     Route::post('/buses/bulk-status',           [BusController::class, 'bulkStatus']);
@@ -262,7 +310,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Client Management
     Route::get('/clients', [ClientController::class, 'index']);
-    Route::get('/clients/{id}', [ClientController::class, 'show']);
+    Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id');
+    // console/ has always called PUT /clients/{id}; it did not exist until now.
+    Route::put('/clients/{id}', [ClientController::class, 'update'])->whereNumber('id');
+    // Suspending an account revokes its tokens — see ClientController::block.
+    Route::post('/clients/{id}/block', [ClientController::class, 'block'])->whereNumber('id');
+    Route::post('/clients/{id}/unblock', [ClientController::class, 'unblock'])->whereNumber('id');
 
     // Order/Lead Management
     Route::get('/orders', [OrderController::class, 'index']);
@@ -320,23 +373,37 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
-    // Jobs
-    Route::post('/jobs/bulk-status', [EmploiController::class, 'bulkStatus']);
-    Route::apiResource('jobs', EmploiController::class)->parameters([
-        'jobs' => 'emploi' // Indique à Laravel de l'appeler $emploi dans le contrôleur
-    ]);
+    /*
+     * Recruitment and the dashboard are admin-only, matching console/'s own
+     * `RequireAdmin` guard on `/jobs` and `/overview`.
+     *
+     * console/ gates `/jobs` in its router but NOT in its section nav, so an
+     * agent currently sees a "Recrutement" tab that bounces them on click. The
+     * server side is what actually matters, and it is closed here.
+     */
+    Route::middleware('admin')->group(function () {
+        // Jobs
+        Route::post('/jobs/bulk-status', [EmploiController::class, 'bulkStatus']);
+        Route::apiResource('jobs', EmploiController::class)->parameters([
+            'jobs' => 'emploi' // Indique à Laravel de l'appeler $emploi dans le contrôleur
+        ]);
 
-    Route::post('/candidates/bulk-status', [CandidateController::class, 'bulkStatus']);
+        // Candidates
+        Route::post('/candidates/bulk-status', [CandidateController::class, 'bulkStatus']);
+        Route::apiResource('candidates', CandidateController::class)->except(['store']);
 
-    // Candidates
-    Route::apiResource('candidates', CandidateController::class)->except(['store']);
-
-    // Dashboard
-    Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
-    Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
+        // Dashboard — revenue and conversion figures are not agent-level data.
+        Route::get('/dash/cards',  [DashboardController::class, 'cards']);   // KPIs
+        Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
+    });
 
 });
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+/*
+ * Removed: `GET /user`, a closure returning `$request->user()` whole.
+ *
+ * It served no caller — console/ uses `/auth/me`, mobile uses `/app/v1/me` —
+ * and it serialised the raw model for whichever guard happened to match,
+ * exposing every column the model does not explicitly hide. Both real
+ * endpoints go through a resource or a formatter that decides what is public.
+ */

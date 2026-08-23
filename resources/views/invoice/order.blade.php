@@ -2,298 +2,284 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Facture {{ $reference }} — Mova</title>
+<title>Facture {{ $reference }}</title>
 {{--
-    A print-ready HTML document, not a PDF binary.
+    Rendered by dompdf, which is NOT a browser.
 
-    No PDF library is involved on purpose. dompdf would add a composer
-    dependency and a whole rendering engine whose CSS support is a decade
-    behind, and the mobile app has no native package that can save a file —
-    expo-print and expo-file-system are both absent from the build, and adding
-    either means a new native build.
+    Everything here is tables and blocks on purpose: dompdf supports neither
+    flexbox nor grid, silently collapsing both to stacked blocks. A template
+    written with `display:flex` looks right in a browser preview and prints as a
+    single ragged column — so the layout is built the way dompdf actually lays
+    out, not the way modern CSS would.
 
-    Opened in the system browser, this is one tap from a real PDF on both
-    platforms: Safari → Partager → Imprimer → pincer pour zoomer → Enregistrer
-    dans Fichiers, Chrome → ⋮ → Imprimer → Enregistrer au format PDF. The @media
-    print rules below are written so that output is A4-clean: no browser chrome,
-    no page-break through a table row, colours preserved.
-
-    Everything is inline — one file, no external stylesheet, no webfont. It has
-    to render identically offline and inside a webview that may block requests.
+    Other constraints this file works within:
+      · `font-family: DejaVu Sans` — the only bundled face with full Latin-1
+        coverage. Helvetica drops é, è, à and ç, which is unusable in French.
+      · No external assets. The logo is drawn with a coloured block and text,
+        so the PDF has no network dependency and renders identically offline.
+      · Colours are literal hex. Custom properties are not resolved.
 --}}
 <style>
-    /* Fixed brand values, not CSS variables: some print engines drop custom
-       properties, and an invoice that prints in black and white because of a
-       var() fallback is a worse document. */
-    :root { color-scheme: light; }
-
-    * { box-sizing: border-box; }
+    @page { margin: 0; }
 
     body {
         margin: 0;
-        padding: 24px;
-        background: #F4F4F5;
+        padding: 0;
+        font-family: "DejaVu Sans", sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.45;
         color: #0F172A;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
     }
 
-    .sheet {
-        max-width: 780px;
-        margin: 0 auto;
-        background: #FFFFFF;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, .08), 0 12px 32px rgba(15, 23, 42, .06);
-    }
-
-    /* ── Header ── */
+    /* ── Header band ──
+       A full-bleed block rather than a bordered box: dompdf honours a
+       background on a block-level element reliably, which is what carries the
+       brand colour to the printed page. */
     .head {
-        background: #064E3B;
+        background-color: #064E3B;
         color: #FFFFFF;
-        padding: 32px 36px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 24px;
-        flex-wrap: wrap;
+        padding: 26pt 34pt 22pt;
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .mark {
-        width: 40px; height: 40px; border-radius: 10px;
-        background: #047857;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 800; font-size: 18px; letter-spacing: -.5px;
-    }
-    .brand-name { font-size: 20px; font-weight: 800; letter-spacing: 2px; }
-    .brand-sub { font-size: 12px; opacity: .75; }
-    .doc { text-align: right; }
-    .doc-kind { font-size: 11px; letter-spacing: 1.5px; opacity: .75; text-transform: uppercase; }
-    .doc-ref { font-size: 20px; font-weight: 700; }
-    .doc-date { font-size: 12px; opacity: .75; }
+    .head td { vertical-align: top; }
 
-    /* ── Status pill ── */
+    .mark {
+        display: inline-block;
+        width: 26pt;
+        height: 26pt;
+        background-color: #047857;
+        color: #FFFFFF;
+        font-size: 15pt;
+        font-weight: bold;
+        text-align: center;
+        line-height: 26pt;
+        border-radius: 6pt;
+    }
+    .brand-name { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; }
+    .brand-sub  { font-size: 8pt; color: #A7D8C4; }
+
+    .doc-kind { font-size: 8pt; letter-spacing: 1.4pt; color: #A7D8C4; text-transform: uppercase; }
+    .doc-ref  { font-size: 15pt; font-weight: bold; }
+    .doc-date { font-size: 8.5pt; color: #A7D8C4; }
+
     .pill {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-top: 8px;
+        padding: 3pt 10pt;
+        border-radius: 20pt;
+        font-size: 8.5pt;
+        font-weight: bold;
+        margin-top: 5pt;
     }
-    .pill-paid   { background: rgba(255,255,255,.18); color: #FFFFFF; }
-    .pill-unpaid { background: #ED7615; color: #FFFFFF; }
+    .pill-paid   { background-color: #047857; color: #FFFFFF; }
+    .pill-unpaid { background-color: #ED7615; color: #FFFFFF; }
 
     /* ── Body ── */
-    .body { padding: 32px 36px; }
-
-    .cols { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 28px; }
-    .col { flex: 1; min-width: 220px; }
+    .body { padding: 24pt 34pt 0; }
 
     .label {
-        font-size: 11px;
-        letter-spacing: 1px;
+        font-size: 7.5pt;
+        letter-spacing: 1pt;
         text-transform: uppercase;
         color: #656F7C;
-        margin-bottom: 6px;
+        padding-bottom: 3pt;
     }
-    .value { font-size: 14px; }
-    .value strong { display: block; font-size: 15px; }
+    .party td { vertical-align: top; padding-bottom: 16pt; }
+    .party strong { font-size: 11pt; }
 
-    /* ── Itinerary ── */
-    .route { margin: 0 0 28px; padding: 0; list-style: none; }
-    .route li {
-        position: relative;
-        padding: 0 0 16px 24px;
-        font-size: 14px;
+    /* ── Itinerary ──
+       A table, so the marker column and the label column stay aligned when a
+       long address wraps. Absolute-positioned pseudo-elements — the browser
+       approach — are unreliable in dompdf. */
+    .route { width: 100%; border-collapse: collapse; margin-bottom: 18pt; }
+    .route td { padding: 3pt 0; vertical-align: top; }
+    .route .dot { width: 16pt; }
+    .marker {
+        display: inline-block;
+        width: 7pt; height: 7pt;
+        border-radius: 7pt;
+        border: 1.6pt solid #047857;
+        background-color: #FFFFFF;
     }
-    .route li:last-child { padding-bottom: 0; }
-    .route li::before {
-        content: '';
-        position: absolute; left: 0; top: 6px;
-        width: 9px; height: 9px; border-radius: 50%;
-        border: 2px solid #047857; background: #FFFFFF;
-    }
-    .route li:last-child::before { background: #047857; border-radius: 2px; }
-    /* The connecting line, drawn on the item rather than between items so it
-       cannot desynchronise from the dots when a label wraps to two lines. */
-    .route li:not(:last-child)::after {
-        content: '';
-        position: absolute; left: 4px; top: 17px; bottom: 2px;
-        width: 1px; background: #E4E4E7;
-    }
-    .route small { color: #656F7C; }
+    .marker-end { background-color: #047857; border-radius: 1.5pt; }
+    .route small { color: #656F7C; font-size: 8pt; }
 
-    /* ── Table ── */
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    thead th {
+    /* ── Line items ── */
+    table.items { width: 100%; border-collapse: collapse; }
+    table.items thead th {
         text-align: left;
-        font-size: 11px;
-        letter-spacing: 1px;
+        font-size: 7.5pt;
+        letter-spacing: 1pt;
         text-transform: uppercase;
         color: #656F7C;
-        font-weight: 600;
-        padding: 0 0 10px;
-        border-bottom: 1px solid #E4E4E7;
+        padding-bottom: 7pt;
+        border-bottom: 0.8pt solid #E4E4E7;
     }
-    tbody td { padding: 12px 0; border-bottom: 1px solid #F4F4F5; vertical-align: top; }
-    .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    table.items tbody td {
+        padding: 9pt 0;
+        border-bottom: 0.8pt solid #F1F1F2;
+        vertical-align: top;
+    }
+    .num { text-align: right; }
+    .muted { color: #656F7C; font-size: 8.5pt; }
 
-    /* ── Totals ── */
-    .totals { margin-left: auto; width: 280px; margin-top: 18px; }
-    .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-    .totals .grand {
-        border-top: 2px solid #0F172A;
-        margin-top: 8px; padding-top: 12px;
-        font-size: 20px; font-weight: 800;
+    /* ── Totals ──
+       Right-aligned via an outer table with an empty spacer cell: `margin-left:
+       auto` does not work on a table in dompdf. */
+    .totals { width: 100%; border-collapse: collapse; margin-top: 14pt; }
+    .totals .spacer { width: 58%; }
+    .totals td { padding: 3pt 0; }
+    .totals .grand td {
+        border-top: 1.6pt solid #0F172A;
+        padding-top: 8pt;
+        font-size: 14pt;
+        font-weight: bold;
         color: #047857;
     }
 
     .note {
-        margin-top: 28px; padding: 14px 16px;
-        background: #F4F4F5; border-radius: 10px;
-        font-size: 12px; color: #576270;
+        margin-top: 20pt;
+        padding: 10pt 12pt;
+        background-color: #F4F4F5;
+        border-radius: 5pt;
+        font-size: 8.5pt;
+        color: #576270;
     }
 
+    /* Pinned to the bottom of every page — dompdf's `fixed` positioning is
+       page-repeating, which is exactly what a document footer wants. */
     .foot {
-        padding: 20px 36px 28px;
-        border-top: 1px solid #E4E4E7;
-        font-size: 11px; color: #656F7C;
-        display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    }
-
-    /* ── Print button ── */
-    .actions { max-width: 780px; margin: 0 auto 16px; text-align: right; }
-    .print-btn {
-        appearance: none; border: 0; cursor: pointer;
-        background: #047857; color: #FFFFFF;
-        font-size: 14px; font-weight: 600;
-        padding: 11px 20px; border-radius: 10px;
-        font-family: inherit;
-    }
-
-    @media print {
-        /* Chrome and Safari strip backgrounds by default; an invoice whose
-           header prints white is not the document that was designed. */
-        body { background: #FFFFFF; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .sheet { box-shadow: none; border-radius: 0; max-width: none; }
-        .actions { display: none; }
-        tr, li { break-inside: avoid; page-break-inside: avoid; }
-        @page { size: A4; margin: 14mm; }
+        position: fixed;
+        bottom: 16pt; left: 34pt; right: 34pt;
+        border-top: 0.8pt solid #E4E4E7;
+        padding-top: 7pt;
+        font-size: 7.5pt;
+        color: #656F7C;
     }
 </style>
 </head>
 <body>
 
-<div class="actions">
-    <button class="print-btn" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+<div class="head">
+    <table width="100%">
+        <tr>
+            <td width="55%">
+                <span class="mark">M</span>
+                <div class="brand-name">MOVA</div>
+                <div class="brand-sub">Mova Mobility — Brazzaville, République du Congo</div>
+            </td>
+            <td align="right">
+                <div class="doc-kind">{{ $isPaid ? 'Facture' : 'Facture proforma' }}</div>
+                <div class="doc-ref">{{ $reference }}</div>
+                <div class="doc-date">Émise le {{ $issuedAt }}</div>
+                <span class="pill {{ $isPaid ? 'pill-paid' : 'pill-unpaid' }}">
+                    {{ $isPaid ? 'PAYÉE' : 'EN ATTENTE DE PAIEMENT' }}
+                </span>
+            </td>
+        </tr>
+    </table>
 </div>
 
-<div class="sheet">
-    <div class="head">
-        <div class="brand">
-            <div class="mark">M</div>
-            <div>
-                <div class="brand-name">MOVA</div>
-                <div class="brand-sub">Mova Mobility — Brazzaville, Congo</div>
-            </div>
-        </div>
-        <div class="doc">
-            <div class="doc-kind">{{ $isPaid ? 'Facture' : 'Facture proforma' }}</div>
-            <div class="doc-ref">{{ $reference }}</div>
-            <div class="doc-date">Émise le {{ $issuedAt }}</div>
-            <span class="pill {{ $isPaid ? 'pill-paid' : 'pill-unpaid' }}">
-                {{ $isPaid ? 'Payée' : 'En attente de paiement' }}
-            </span>
-        </div>
-    </div>
-
-    <div class="body">
-        <div class="cols">
-            <div class="col">
+<div class="body">
+    <table width="100%" class="party">
+        <tr>
+            <td width="34%">
                 <div class="label">Client</div>
-                <div class="value">
-                    <strong>{{ $order->contact_name }}</strong>
-                    {{ $order->contact_phone }}
-                </div>
-            </div>
-            <div class="col">
+                <strong>{{ $order->contact_name }}</strong><br>
+                {{ $order->contact_phone }}
+            </td>
+            <td width="33%">
                 <div class="label">Prestation</div>
-                <div class="value">
-                    <strong>{{ $eventLabel }}</strong>
-                    {{ $dateLabel }}{{ $order->pickup_time ? ' · ' . $order->pickup_time : '' }}
-                </div>
-            </div>
-            @if ($returnLabel)
-                <div class="col">
-                    <div class="label">Retour</div>
-                    <div class="value">
-                        <strong>{{ $returnLabel }}</strong>
-                        {{ $order->return_time ?: '' }}
-                    </div>
-                </div>
-            @endif
-        </div>
+                <strong>{{ $eventLabel }}</strong><br>
+                {{ $dateLabel }}{{ $order->pickup_time ? ' · ' . $order->pickup_time : '' }}
+            </td>
+            <td width="33%">
+                <div class="label">{{ $returnLabel ? 'Retour' : 'Passagers' }}</div>
+                @if ($returnLabel)
+                    <strong>{{ $returnLabel }}</strong><br>
+                    {{ $order->return_time ?: 'Heure à confirmer' }}
+                @else
+                    <strong>{{ $order->passengers ?? '—' }}</strong><br>
+                    <span class="muted">Aller simple</span>
+                @endif
+            </td>
+        </tr>
+    </table>
 
-        <div class="label">Itinéraire</div>
-        <ul class="route">
-            <li><strong>{{ $order->origin }}</strong><br><small>Départ</small></li>
-            @foreach ($stops as $i => $stop)
-                <li>{{ $stop }}<br><small>Arrêt {{ $i + 1 }}</small></li>
-            @endforeach
-            <li><strong>{{ $order->destination }}</strong><br><small>Destination</small></li>
-        </ul>
+    <div class="label">Itinéraire</div>
+    <table class="route">
+        <tr>
+            <td class="dot"><span class="marker"></span></td>
+            <td><strong>{{ $order->origin }}</strong><br><small>Départ</small></td>
+        </tr>
+        @foreach ($stops as $i => $stop)
+            <tr>
+                <td class="dot"><span class="marker"></span></td>
+                <td>{{ $stop }}<br><small>Arrêt {{ $i + 1 }}</small></td>
+            </tr>
+        @endforeach
+        <tr>
+            <td class="dot"><span class="marker marker-end"></span></td>
+            <td><strong>{{ $order->destination }}</strong><br><small>Destination</small></td>
+        </tr>
+    </table>
 
-        <table>
-            <thead>
+    <table class="items">
+        <thead>
+            <tr>
+                <th width="52%">Désignation</th>
+                <th class="num" width="12%">Qté</th>
+                <th class="num" width="14%">Places</th>
+                <th class="num" width="22%">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($lines as $line)
                 <tr>
-                    <th>Désignation</th>
-                    <th class="num">Qté</th>
-                    <th class="num">Places</th>
-                    <th class="num">Montant</th>
+                    <td>
+                        <strong>{{ $line['label'] }}</strong><br>
+                        <span class="muted">{{ $line['detail'] }}</span>
+                    </td>
+                    <td class="num">{{ $line['quantity'] }}</td>
+                    <td class="num">{{ $line['seats'] }}</td>
+                    <td class="num">{{ $line['amount'] }}</td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach ($lines as $line)
-                    <tr>
-                        <td>
-                            <strong>{{ $line['label'] }}</strong><br>
-                            <small style="color:#656F7C">{{ $line['detail'] }}</small>
-                        </td>
-                        <td class="num">{{ $line['quantity'] }}</td>
-                        <td class="num">{{ $line['seats'] }}</td>
-                        <td class="num">{{ $line['amount'] }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+            @endforeach
+        </tbody>
+    </table>
 
-        <div class="totals">
-            @if ($distanceLabel)
-                <div><span>Distance facturée</span><span>{{ $distanceLabel }}</span></div>
-            @endif
-            <div><span>Passagers</span><span>{{ $order->passengers ?? '—' }}</span></div>
-            <div class="grand"><span>Total</span><span>{{ $totalLabel }}</span></div>
-        </div>
+    <table class="totals">
+        <tr>
+            <td class="spacer"></td>
+            <td></td>
+        </tr>
+        @if ($distanceLabel)
+            <tr>
+                <td class="spacer"></td>
+                <td><table width="100%"><tr><td>Distance facturée</td><td class="num">{{ $distanceLabel }}</td></tr></table></td>
+            </tr>
+        @endif
+        <tr>
+            <td class="spacer"></td>
+            <td><table width="100%"><tr><td>Passagers</td><td class="num">{{ $order->passengers ?? '—' }}</td></tr></table></td>
+        </tr>
+        <tr class="grand">
+            <td class="spacer"></td>
+            <td><table width="100%"><tr><td>Total</td><td class="num">{{ $totalLabel }}</td></tr></table></td>
+        </tr>
+    </table>
 
-        <div class="note">
-            @if ($isPaid)
-                Paiement reçu. Merci de votre confiance.
-            @else
-                Montant payable par Mobile Money (MTN MoMo, Airtel Money) depuis l’application Mova,
-                ou directement auprès de notre équipe. Ce document ne vaut pas reçu tant que le
-                paiement n’a pas été encaissé.
-            @endif
-        </div>
+    <div class="note">
+        @if ($isPaid)
+            Paiement reçu. Merci de votre confiance.
+        @else
+            Montant payable par Mobile Money (MTN MoMo, Airtel Money) depuis l’application Mova, ou
+            directement auprès de notre équipe. Ce document ne vaut pas reçu tant que le paiement
+            n’a pas été encaissé.
+        @endif
     </div>
+</div>
 
-    <div class="foot">
-        <span>Mova Mobility · Brazzaville, République du Congo · reservation@mova-mobility.com</span>
-        <span>{{ $reference }}</span>
-    </div>
+<div class="foot">
+    Mova Mobility · Brazzaville, République du Congo · reservation@mova-mobility.com · {{ $reference }}
 </div>
 
 </body>

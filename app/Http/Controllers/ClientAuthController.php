@@ -95,6 +95,21 @@ class ClientAuthController extends Controller
             return response()->json(['status' => false, 'message' => 'Identifiants incorrects.'], 401);
         }
 
+        /*
+         * A blocked account cannot mint a new token.
+         *
+         * Blocking already revokes existing tokens (ClientController::block),
+         * so without this the block would last exactly until the customer
+         * signed in again — which is the first thing anyone does when an app
+         * logs them out.
+         */
+        if ($client->isBlocked()) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Ce compte est suspendu. Contactez le service client Mova.',
+            ], 403);
+        }
+
         $client->forceFill(['last_login_at' => now()])->save();
 
         // --- FCM LOGIC ---
@@ -288,11 +303,23 @@ class ClientAuthController extends Controller
             ], 500);
         }
 
-        Log::info("PASSWORD RESET OTP for {$phone}: {$otp}");
+        /*
+         * The OTP is NOT logged.
+         *
+         * This line used to be `Log::info("PASSWORD RESET OTP for {$phone}: {$otp}")`.
+         * With LOG_LEVEL=debug and a single unrotated file, every password-reset
+         * code in the system was sitting in plaintext in storage/logs alongside
+         * the phone number it belonged to — enough, on its own, to take over any
+         * account. Anyone who can read the log can reset any password.
+         *
+         * The phone is recorded so the flow is still traceable; the code is not.
+         */
+        Log::info('Password reset OTP issued', ['phone' => $this->maskPhone($phone)]);
 
         return response()->json([
             'status'  => true,
             'message' => 'Code OTP envoyé sur votre téléphone.',
+            // Local only, and `isLocal()` reads APP_ENV — never true in production.
             'debug_otp' => app()->isLocal() ? $otp : null
         ]);
     }
@@ -380,7 +407,8 @@ class ClientAuthController extends Controller
             ], 500);
         }
 
-        Log::info("PHONE UPDATE OTP for {$phone}: {$otp}");
+        // Never the code itself — see the note on the password-reset OTP above.
+        Log::info('Phone update OTP issued', ['phone' => $this->maskPhone($phone)]);
 
         return response()->json([
             'status'  => true,
@@ -458,5 +486,21 @@ class ClientAuthController extends Controller
             'status'  => true,
             'message' => 'Votre compte et vos données ont été supprimés avec succès.'
         ]);
+    }
+
+    /**
+     * Masks a phone number for logging.
+     *
+     * Keeps the last four digits, which is enough to correlate a log line with
+     * a support call without writing the full number into a file that has a far
+     * longer life and a much wider readership than the request that produced it.
+     */
+    private function maskPhone(?string $phone): string
+    {
+        if (! is_string($phone) || strlen($phone) < 4) {
+            return '****';
+        }
+
+        return str_repeat('*', max(0, strlen($phone) - 4)) . substr($phone, -4);
     }
 }

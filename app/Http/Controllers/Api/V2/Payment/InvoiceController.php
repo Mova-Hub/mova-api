@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2\Payment;
 use App\Domain\Payment\PaymentService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -42,26 +43,32 @@ class InvoiceController extends Controller
             'status' => true,
             'data' => [
                 'url' => URL::temporarySignedRoute(
-                    'invoice.show',
+                    'invoice.download',
                     now()->addMinutes(self::LINK_TTL_MINUTES),
                     ['order' => $order->id],
                 ),
+                'filename' => 'facture-' . (
+                    $order->reservation?->code
+                        ?? 'MOVA-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT)
+                ) . '.pdf',
                 'expires_in' => self::LINK_TTL_MINUTES * 60,
             ],
         ]);
     }
 
     /**
-     * Renders the invoice.
+     * Streams the invoice as a PDF download.
      *
-     * HTML, not a PDF binary — deliberately. Generating a PDF server-side would
-     * mean a rendering engine whose CSS support is a decade behind, and the app
-     * has no native package that can save a file. This document is built to
-     * print: one tap through the browser's share sheet produces a proper A4 PDF
-     * on both platforms, and the design is entirely ours rather than whatever
-     * dompdf can approximate.
+     * A file, not a page. `Content-Disposition: attachment` is what makes both
+     * mobile browsers offer "save" rather than rendering it inline — which is
+     * the difference between a document the client keeps and one they have to
+     * screenshot.
+     *
+     * The API deliberately serves no HTML views; this returns
+     * `application/pdf` and nothing else. The Blade template is an internal
+     * rendering detail of dompdf, never reachable as a URL.
      */
-    public function show(Request $request, int $order)
+    public function download(Request $request, int $order)
     {
         $order = Order::with('reservation.buses')->findOrFail($order);
 
@@ -131,19 +138,28 @@ class InvoiceController extends Controller
             ->values()
             ->all();
 
-        return response()->view('invoice.order', [
+        $reference = $order->reservation?->code
+            ?? 'MOVA-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
+
+        $pdf = Pdf::loadView('invoice.order', [
             'order' => $order,
-            'reference' => $order->reservation?->code ?? 'MOVA-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT),
+            'reference' => $reference,
             'issuedAt' => CarbonImmutable::now()->translatedFormat('d F Y'),
             'eventLabel' => $this->eventLabel($order->event_type),
             'dateLabel' => $order->pickup_date?->translatedFormat('d F Y') ?? '—',
             'returnLabel' => $order->return_date?->translatedFormat('d F Y'),
             'stops' => $stops,
             'lines' => $lines,
-            'distanceLabel' => $order->distance_km ? number_format((float) $order->distance_km, 1, ',', ' ') . ' km' : null,
+            'distanceLabel' => $order->distance_km
+                ? number_format((float) $order->distance_km, 1, ',', ' ') . ' km'
+                : null,
             'totalLabel' => $this->money($total),
             'isPaid' => $isPaid,
-        ]);
+        ])->setPaper('a4');
+
+        // `download`, not `stream`: the header is what makes both mobile
+        // browsers offer to save the file rather than render it inline.
+        return $pdf->download("facture-{$reference}.pdf");
     }
 
     private function money(int $amount): string
