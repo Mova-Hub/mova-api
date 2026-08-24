@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V2\Pass;
 
+use App\Domain\Pass\Enums\SubscriptionStatus;
 use App\Domain\Pass\Exceptions\PassException;
 use App\Domain\Pass\Services\CardService;
 use App\Domain\Pass\Services\SubscriptionService;
@@ -112,6 +113,46 @@ class SubscriptionController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Abonnement annulé.',
+            'data' => new PassSubscriptionResource($subscription->fresh(['plan'])),
+        ]);
+    }
+
+    /**
+     * Turns auto-renewal on or off.
+     *
+     * The ONLY field a subscriber may change on their own subscription — hence
+     * a dedicated method rather than a general update. Price, dates and trip
+     * count are derived at purchase and must not be reachable from a client
+     * request; a generic `update` accepting `$request->all()` is how they would
+     * become so.
+     *
+     * Allowed on an active or pending subscription. A cancelled or expired one
+     * has nothing left to renew, and silently accepting the toggle there would
+     * show a switch that does nothing.
+     */
+    public function updateAutoRenew(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'auto_renew' => ['required', 'boolean'],
+        ]);
+
+        $subscription = PassSubscription::where('client_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if (! in_array($subscription->status, [SubscriptionStatus::Active, SubscriptionStatus::Pending], true)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cet abonnement est terminé : il n’y a plus rien à renouveler.',
+            ], 422);
+        }
+
+        $subscription->forceFill(['auto_renew' => $data['auto_renew']])->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => $data['auto_renew']
+                ? 'Renouvellement automatique activé.'
+                : 'Renouvellement automatique désactivé.',
             'data' => new PassSubscriptionResource($subscription->fresh(['plan'])),
         ]);
     }

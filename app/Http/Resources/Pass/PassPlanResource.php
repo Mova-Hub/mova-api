@@ -25,6 +25,21 @@ class PassPlanResource extends JsonResource
             // not as "0 trajets".
             'trips' => $this->trips,
             'is_bundle' => $this->isBundle(),
+
+            /*
+             * Both are ACCEPTED by PassPlanController's validator and were
+             * never returned, so the back-office could set them and then had no
+             * way to read them back — its "Inactive" badge rendered a branch
+             * that could not be reached, and the plans list could not sort by
+             * the very column the API orders on.
+             *
+             * The client-facing `/app/v1/pass/plans` only ever returns active
+             * plans, so `is_active` is always true there; it is the staff
+             * catalogue that needs it.
+             */
+            'is_active' => (bool) $this->is_active,
+            'sort_order' => (int) $this->sort_order,
+
             'metadata' => $this->metadata,
         ];
     }

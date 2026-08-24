@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\V2\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\V2\Admin\AnalyticsController;
 use App\Http\Controllers\Api\V2\Admin\PassCardController as AdminPassCardController;
 use App\Http\Controllers\Api\V2\Admin\PassPlanController as AdminPassPlanController;
 use App\Http\Controllers\Api\V2\Admin\PassSubscriptionController as AdminPassSubscriptionController;
@@ -190,6 +191,12 @@ Route::prefix('app/v1')->group(function () {
             Route::post('/subscriptions/{id}/cancel', [PassSubscriptionController::class, 'cancel'])
                 ->whereNumber('id');
 
+            // Auto-renewal is the ONE field a subscriber may change on their
+            // own subscription, so it gets its own route rather than a generic
+            // update that would put price and dates within reach of a request.
+            Route::patch('/subscriptions/{id}', [PassSubscriptionController::class, 'updateAutoRenew'])
+                ->whereNumber('id');
+
             Route::get('/cards', [PassCardController::class, 'index']);
 
             // Throttled hard: the printed serial is an activation credential,
@@ -358,6 +365,20 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
 
     // Client Management
     Route::get('/clients', [ClientController::class, 'index']);
+
+    /*
+     * Bulk suspension — NOT bulk deletion.
+     *
+     * There is no bulk delete route for clients and there should not be: an
+     * account carries orders, payments and invoices that must survive for
+     * accounting, so suspension is the only mass action that makes sense.
+     *
+     * Declared BEFORE `/clients/{id}` or `bulk-block` gets matched as an id —
+     * and `whereNumber` would then 404 it with no clue why.
+     */
+    Route::post('/clients/bulk-block', [ClientController::class, 'bulkBlock']);
+    Route::post('/clients/bulk-unblock', [ClientController::class, 'bulkUnblock']);
+
     Route::get('/clients/{id}', [ClientController::class, 'show'])
         ->whereNumber('id')
         // Reading a customer's phone, email and history is a sensitive read.
@@ -370,8 +391,10 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
 
     // Order/Lead Management
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::get('/orders/{id}', [OrderController::class, 'show']);
-    Route::patch('/orders/{id}', [OrderController::class, 'update']);
+    // Before `/orders/{id}`, same reason as the client bulk routes above.
+    Route::post('/orders/bulk-status', [OrderController::class, 'bulkStatus']);
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
+    Route::patch('/orders/{id}', [OrderController::class, 'update'])->whereNumber('id');
 
     // The Conversion Action
     Route::post('/orders/{id}/convert', [OrderController::class, 'convertToReservation']);
@@ -514,6 +537,26 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         // using, which is config, not settings — see the controller.
         Route::get('/admin/pricing/parameters', [PricingSimulatorController::class, 'parameters']);
         Route::post('/admin/pricing/simulate', [PricingSimulatorController::class, 'simulate']);
+
+        /*
+         * ── Analytics ─────────────────────────────────────────────────────
+         *
+         * One endpoint per dashboard tab, so opening a tab is one request
+         * rather than six. Every figure is a SQL aggregate — see the
+         * controller's docblock for why that is not negotiable here.
+         *
+         * `/dash/cards` and `/dash/charts` stay: they are live, the overview
+         * below supersedes them, and breaking a working endpoint to remove a
+         * duplicate is not a trade worth making mid-migration.
+         */
+        Route::prefix('admin/analytics')->group(function () {
+            Route::get('/overview', [AnalyticsController::class, 'overview']);
+            Route::get('/revenue', [AnalyticsController::class, 'revenue']);
+            Route::get('/operations', [AnalyticsController::class, 'operations']);
+            Route::get('/fleet', [AnalyticsController::class, 'fleet']);
+            Route::get('/pass', [AnalyticsController::class, 'pass']);
+            Route::get('/clients', [AnalyticsController::class, 'clients']);
+        });
     });
 
     Route::prefix('pass')->group(function () {

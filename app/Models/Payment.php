@@ -109,6 +109,28 @@ class Payment extends Model
         return $query->where('status', PaymentStatus::Succeeded->value);
     }
 
+    /**
+     * Money that actually arrived in a window — the revenue rule, in one place.
+     *
+     * Three conditions that must always travel together, and were being
+     * written out by hand at every call site:
+     *
+     *  - **`paid_at`, not `created_at`.** An attempt started on the 30th and
+     *    confirmed on the 1st is revenue for the month it landed in.
+     *  - **Refund rows excluded.** A refund flips its parent out of
+     *    `succeeded`, so counting both deducts the same money twice.
+     *  - Succeeded only, obviously.
+     *
+     * Getting any one of them wrong produces a plausible number that is quietly
+     * incorrect, which is the worst kind.
+     */
+    public function scopeSucceededBetween(Builder $query, $start, $end): Builder
+    {
+        return $query->where('status', PaymentStatus::Succeeded->value)
+            ->where('kind', '!=', 'refund')
+            ->whereBetween('paid_at', [$start, $end]);
+    }
+
     /** Attempts reconciliation should ask a provider about. */
     public function scopeStale(Builder $query, int $olderThanSeconds): Builder
     {

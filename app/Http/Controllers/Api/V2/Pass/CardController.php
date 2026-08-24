@@ -126,12 +126,29 @@ class CardController extends Controller
     }
 
     /** The subscriber's own scan history. */
+    /**
+     * The subscriber's own boarding history.
+     *
+     * Paginated rather than a flat `limit(100)`. The old cap was silent: a
+     * daily commuter passes a hundred boardings in under two months, and from
+     * then on the screen showed a truncated history with nothing to say so —
+     * the rows simply stopped, which reads as "Mova lost my trips".
+     *
+     * `per_page` is clamped. An unbounded value here is a way to pull an entire
+     * scan table in one request, and a zero divides by nothing in the paginator.
+     */
     public function history(Request $request)
     {
+        $perPage = min(max((int) $request->input('per_page', 25), 1), 100);
+
         $scans = \App\Models\PassScan::where('client_id', $request->user()->id)
+            // `scanned_at` is when the passenger boarded; `id` breaks ties for
+            // the offline batches that upload with identical timestamps. Without
+            // the tiebreaker those rows shuffle between pages and the same
+            // boarding can appear twice, or not at all.
             ->orderByDesc('scanned_at')
-            ->limit(100)
-            ->get();
+            ->orderByDesc('id')
+            ->paginate($perPage);
 
         return PassScanResource::collection($scans);
     }

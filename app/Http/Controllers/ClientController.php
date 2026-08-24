@@ -116,4 +116,78 @@ class ClientController extends Controller
 
         return new ClientResource($client->fresh()->loadCount('orders'));
     }
+
+    /**
+     * Suspends several accounts at once.
+     *
+     * Deliberately NOT a bulk delete. A customer account is suspended pending a
+     * dispute, never destroyed — their orders, payments and invoices have to
+     * survive for accounting, and a cascade would take all of it. There is no
+     * bulk delete route for clients and there should not be one.
+     *
+     * The reason is required for the same purpose as the single-account
+     * version: an unexplained suspension is one the next agent cannot judge,
+     * and it is the first thing asked when the customer calls back.
+     */
+    public function bulkBlock(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer', 'exists:clients,id'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indiquez le motif de la suspension.',
+        ]);
+
+        $updated = 0;
+
+        Client::whereIn('id', $data['ids'])
+            ->whereNull('blocked_at')
+            ->chunkById(100, function ($clients) use ($data, &$updated) {
+                foreach ($clients as $client) {
+                    $client->forceFill([
+                        'blocked_at' => now(),
+                        'blocked_reason' => $data['reason'],
+                    ])->save(); // Observer fires → one audit row per account.
+
+                    // Revoked immediately, exactly as the single-account path
+                    // does. A suspension that leaves a live token suspends
+                    // nothing until it expires.
+                    $client->tokens()->delete();
+
+                    $updated++;
+                }
+            });
+
+        return response()->json([
+            'status' => true,
+            'updated' => $updated,
+            'message' => "{$updated} compte(s) suspendu(s). Leurs sessions ont été révoquées.",
+        ]);
+    }
+
+    public function bulkUnblock(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer', 'exists:clients,id'],
+        ]);
+
+        $updated = 0;
+
+        Client::whereIn('id', $data['ids'])
+            ->whereNotNull('blocked_at')
+            ->chunkById(100, function ($clients) use (&$updated) {
+                foreach ($clients as $client) {
+                    $client->forceFill(['blocked_at' => null, 'blocked_reason' => null])->save();
+                    $updated++;
+                }
+            });
+
+        return response()->json([
+            'status' => true,
+            'updated' => $updated,
+            'message' => "{$updated} compte(s) réactivé(s).",
+        ]);
+    }
 }

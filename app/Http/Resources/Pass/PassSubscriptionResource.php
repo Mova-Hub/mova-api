@@ -16,6 +16,21 @@ class PassSubscriptionResource extends JsonResource
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'plan' => new PassPlanResource($this->whenLoaded('plan')),
+
+            /*
+             * Who this belongs to — `whenLoaded`, so the client-facing
+             * `/app/v1/pass/*` responses (which never load it, and where the
+             * subscriber already knows who they are) are unchanged.
+             *
+             * The staff controllers DO eager-load it and could not display it:
+             * a subscriptions table with no owner column is a list of
+             * anonymous rows.
+             */
+            'client' => $this->whenLoaded('client', fn () => [
+                'id' => $this->client->id,
+                'name' => $this->client->name,
+                'phone' => $this->client->phone,
+            ]),
             'starts_at' => $this->starts_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
             // Derived server-side so the app never has to reimplement the rule

@@ -47,6 +47,27 @@ class ReservationResource extends JsonResource
 
             'event'     => $this->event,
 
+            /*
+             * The two links a detail screen needs and could not follow.
+             *
+             * A reservation without its client is a passenger name with no
+             * account behind it, and without `order_id` there is no way back to
+             * the lead that produced it — which is the first thing anyone looks
+             * for when a booking is disputed. Both `whenLoaded`, so list
+             * responses that do not eager-load stay the same size.
+             */
+            'client' => $this->whenLoaded('client', fn () => [
+                'id' => $this->client->id,
+                'name' => $this->client->name,
+                'phone' => $this->client->phone,
+            ]),
+            'order_id' => $this->order_id,
+
+            // Written by setStatus() and never exposed. "When did this trip
+            // actually start" is not answerable from `trip_date` alone.
+            'started_at' => $this->started_at?->toIso8601String(),
+            'completed_at' => $this->completed_at?->toIso8601String(),
+
             'created_at'      => $this->created_at?->toIso8601String(),
             'updated_at'      => $this->updated_at?->toIso8601String(),
             'deleted_at'      => $this->deleted_at?->toIso8601String(),

@@ -83,7 +83,10 @@ class ReservationController extends Controller
 
     public function show(Reservation $reservation)
     {
-        $reservation->load('buses');
+        // `client` and `order` too: a detail screen that cannot reach the
+        // customer or the lead behind a booking is a dead end, and both are one
+        // relation away.
+        $reservation->load(['buses', 'client', 'order']);
         return new ReservationResource($reservation);
     }
 
@@ -229,19 +232,48 @@ class ReservationController extends Controller
         $validated = $request->validate([
             'ids'    => ['required','array','min:1','max:200'],
             'ids.*'  => ['uuid','exists:reservations,id'],
-            'status' => ['required', Rule::in(['pending','confirmed','cancelled'])],
+            // Widened from pending|confirmed|cancelled to the full set, because
+            // confirming a morning's trips and then marking them started is
+            // exactly the work this endpoint exists for. The transition rules
+            // below are what make that safe.
+            'status' => ['required', Rule::in(['pending','confirmed','in_progress','completed','cancelled'])],
         ]);
 
         $updated = 0;
+        $skipped = [];
 
         Reservation::whereIn('id', $validated['ids'])
-            ->chunkById(100, function ($reservations) use ($validated, &$updated) {
+            ->chunkById(100, function ($reservations) use ($validated, &$updated, &$skipped) {
                 foreach ($reservations as $reservation) {
                     if ($reservation->status === $validated['status']) {
                         continue; // Nothing changed; do not file an empty entry.
                     }
 
+                    /*
+                     * The SAME state machine setStatus() enforces.
+                     *
+                     * A bulk endpoint that skips it is how a reservation
+                     * reaches `completed` without ever having started — and the
+                     * trip timestamps below would then be nonsense. Illegal
+                     * transitions are reported back rather than silently
+                     * dropped, so an operator knows which rows did not move.
+                     */
+                    if (! $this->canTransition($reservation->status, $validated['status'])) {
+                        $skipped[] = $reservation->code ?? $reservation->id;
+                        continue;
+                    }
+
                     $reservation->status = $validated['status'];
+
+                    // Stamped here too, or a bulk start leaves started_at null
+                    // and the trip looks like it never happened.
+                    if ($validated['status'] === 'in_progress' && ! $reservation->started_at) {
+                        $reservation->started_at = now();
+                    }
+                    if ($validated['status'] === 'completed' && ! $reservation->completed_at) {
+                        $reservation->completed_at = now();
+                    }
+
                     $reservation->save(); // Fires observers → one audit row each.
                     $updated++;
                 }
@@ -253,10 +285,42 @@ class ReservationController extends Controller
                 'ids' => $validated['ids'],
                 'status' => $validated['status'],
                 'updated' => $updated,
+                'skipped' => $skipped,
             ],
         );
 
-        return response()->json(['updated' => $updated]);
+        return response()->json([
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'message' => $skipped === []
+                ? "{$updated} réservation(s) mise(s) à jour."
+                : sprintf(
+                    '%d mise(s) à jour. %d ignorée(s) — transition impossible depuis leur statut actuel : %s.',
+                    $updated,
+                    count($skipped),
+                    implode(', ', array_slice($skipped, 0, 5)),
+                ),
+        ]);
+    }
+
+    /**
+     * Whether a reservation may move from one status to another.
+     *
+     * Mirrors setStatus()'s guards so single and bulk paths cannot diverge —
+     * which they would, the first time one of them was edited alone.
+     */
+    private function canTransition(string $from, string $to): bool
+    {
+        return match ($to) {
+            'in_progress' => $from === 'confirmed',
+            'completed' => $from === 'in_progress',
+            // Cancelling is allowed from anything still open; a completed trip
+            // is history and is not un-done by a checkbox.
+            'cancelled' => in_array($from, ['pending', 'confirmed', 'in_progress'], true),
+            'confirmed' => $from === 'pending',
+            'pending' => $from === 'confirmed',
+            default => false,
+        };
     }
 
     // -------------------------------------------------------------------------
