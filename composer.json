@@ -17,10 +17,12 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.30",
         "laravel/tinker": "^2.10.1",
+        "matomo/device-detector": "^6.5",
         "posthog/posthog-php": "^4.13",
         "pusher/pusher-php-server": "^7.2",
         "sentry/sentry-laravel": "^4.27",
         "socialiteproviders/apple": "^5.8",
+        "stevebauman/location": "^7.6",
         "symfony/cache": "7.4",
         "twilio/sdk": "^8.11"
     },

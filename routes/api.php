@@ -470,9 +470,9 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::get('/actions', [ActivityLogController::class, 'actions']);
         Route::get('/request/{requestId}', [ActivityLogController::class, 'byRequest']);
         Route::get('/{id}', [ActivityLogController::class, 'show'])->whereNumber('id');
-        // Approximate, network-level origin of the request. Off unless a
-        // provider is configured — see the controller.
-        Route::get('/{id}/location', [ActivityLogController::class, 'location'])->whereNumber('id');
+        // Parsed device + approximate network origin. Separate from show() so
+        // a slow lookup cannot hold up the audit record itself.
+        Route::get('/{id}/fingerprint', [ActivityLogController::class, 'fingerprint'])->whereNumber('id');
     });
 
     /*
