@@ -33,9 +33,23 @@ class ActivityLogResource extends JsonResource
             'after' => $this->after,
             'changed' => $this->changed,
             'ip' => $this->ip,
+            /*
+             * The raw string, parsed for display in the client.
+             *
+             * Deliberately not pre-parsed into browser/OS here: user-agent
+             * parsing is a heuristic that ages badly, and an audit record must
+             * keep what was actually sent. The back-office interprets it; the
+             * log stores it.
+             */
+            'user_agent' => $this->user_agent,
             'request_id' => $this->request_id,
             'route' => $this->route,
             'method' => $this->method,
+            // Present for sensitive reads, where the middleware sees the
+            // finished response. Null for mutations — the observer fires while
+            // the response is still being built.
+            'status_code' => $this->status_code,
+            'duration_ms' => $this->duration_ms,
             'context' => $this->context,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

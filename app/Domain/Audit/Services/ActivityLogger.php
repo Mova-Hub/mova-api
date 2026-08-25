@@ -40,12 +40,35 @@ class ActivityLogger
     }
 
     /**
+     * Milliseconds from the start of the request to this moment.
+     *
+     * For a mutation this is time-to-the-change, not total request time — the
+     * observer fires while the response is still being built, so the request
+     * has not finished and its real duration is unknowable here. The
+     * sensitive-read middleware passes the true figure explicitly because it
+     * runs after the response exists.
+     *
+     * `LARAVEL_START` is defined in public/index.php. Absent under artisan and
+     * in tests, in which case there is no meaningful duration to report.
+     */
+    private static function elapsedMs(): ?int
+    {
+        if (! defined('LARAVEL_START')) {
+            return null;
+        }
+
+        return (int) round((microtime(true) - LARAVEL_START) * 1000);
+    }
+
+    /**
      * Records an action.
      *
-     * @param  string      $action   dotted verb, e.g. `order.updated`
-     * @param  Model|null  $subject  what it happened to
-     * @param  array|null  $before   attributes before the change
-     * @param  array|null  $after    attributes after
+     * @param  string      $action      dotted verb, e.g. `order.updated`
+     * @param  Model|null  $subject     what it happened to
+     * @param  array|null  $before      attributes before the change
+     * @param  array|null  $after       attributes after
+     * @param  int|null    $statusCode  HTTP status, when the caller knows it
+     * @param  int|null    $durationMs  overrides the elapsed-since-boot default
      */
     public function log(
         string $action,
@@ -53,6 +76,8 @@ class ActivityLogger
         ?array $before = null,
         ?array $after = null,
         array $context = [],
+        ?int $statusCode = null,
+        ?int $durationMs = null,
     ): ?ActivityLog {
         try {
             $actor = $this->resolveActor();
@@ -82,6 +107,18 @@ class ActivityLogger
                 'request_id' => self::requestId(),
                 'route' => $request?->path(),
                 'method' => $request?->method(),
+                /*
+                 * First-class columns, not buried in `context`.
+                 *
+                 * They were created, made fillable and cast, and then nothing
+                 * ever wrote to them — the sensitive-read middleware put both
+                 * inside the `context` JSON instead, so "show me every action
+                 * that took over two seconds" was not a query anyone could
+                 * write. That is the entire reason a column was chosen over a
+                 * JSON key in the first place.
+                 */
+                'status_code' => $statusCode,
+                'duration_ms' => $durationMs ?? self::elapsedMs(),
                 'context' => $context ?: null,
             ]);
         } catch (Throwable $e) {

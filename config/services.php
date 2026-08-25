@@ -84,4 +84,28 @@ return [
         'from' => env('TWILIO_FROM'),
     ],
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | IP geolocation (audit trail)
+    |--------------------------------------------------------------------------
+    |
+    | Turns the IP on an activity-log entry into an APPROXIMATE, network-level
+    | origin for the map on the activity detail page.
+    |
+    | Unset by default, and that is the point: enabling it sends the IP
+    | addresses of staff and customers to a third party. That is a decision for
+    | whoever runs the deployment to take deliberately, not one to inherit.
+    |
+    | Supported providers: 'ipapi' (ipapi.co, no key for low volume),
+    | 'ipinfo' (ipinfo.io, token required).
+    |
+    | Whatever it returns is city-level at best. See ActivityLogController::location().
+    |
+    */
+    'ip_geolocation' => [
+        'provider' => env('IP_GEOLOCATION_PROVIDER'),
+        'key' => env('IP_GEOLOCATION_KEY'),
+    ],
+
 ];

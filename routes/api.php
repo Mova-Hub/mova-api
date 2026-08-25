@@ -470,6 +470,9 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::get('/actions', [ActivityLogController::class, 'actions']);
         Route::get('/request/{requestId}', [ActivityLogController::class, 'byRequest']);
         Route::get('/{id}', [ActivityLogController::class, 'show'])->whereNumber('id');
+        // Approximate, network-level origin of the request. Off unless a
+        // provider is configured — see the controller.
+        Route::get('/{id}/location', [ActivityLogController::class, 'location'])->whereNumber('id');
     });
 
     /*

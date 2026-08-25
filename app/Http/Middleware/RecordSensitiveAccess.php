@@ -41,14 +41,17 @@ class RecordSensitiveAccess
         $this->logger->log(
             action: $subject . '.accessed',
             context: [
-                'status_code' => $response->getStatusCode(),
-                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                 // The route parameters identify WHICH record was read, without
                 // storing the response body — which would duplicate the very
                 // data the log is meant to police access to.
                 'parameters' => $request->route()?->parameters() ?? [],
                 'query' => $request->query(),
             ],
+            // Passed as columns rather than context keys. They were going into
+            // the JSON blob while the dedicated `status_code` and `duration_ms`
+            // columns sat empty, which made them unqueryable.
+            statusCode: $response->getStatusCode(),
+            durationMs: (int) round((microtime(true) - $startedAt) * 1000),
         );
 
         return $response;
