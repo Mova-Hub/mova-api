@@ -7,6 +7,7 @@ use App\Domain\Pricing\DTOs\QuoteRequest;
 use App\Domain\Pricing\Services\PricingEngine;
 use App\Models\Bus;
 use Carbon\Carbon;
+use InvalidArgumentException;
 
 class QuoteController extends Controller
 {
@@ -44,12 +45,46 @@ class QuoteController extends Controller
             vehicleType : $req->filled('vehicle_type') ? (string) $req->input('vehicle_type') : null,
             buses       : (int) $req->input('buses', 1),
             vehicleTypes: $vehicleTypes,
-            distanceKm  : (float) $req->input('distance_km'),
+            /*
+             * Doubled for a return leg, exactly as `TripQuoteService` does it
+             * before calling this same engine — "a return leg is the same road
+             * driven twice".
+             *
+             * Without this the back-office quoted a round trip at the one-way
+             * price, so a reservation converted from a round-trip request was
+             * billed at roughly half what the app had already quoted that same
+             * customer.
+             */
+            distanceKm  : (float) $req->input('distance_km') * ($req->boolean('round_trip') ? 2 : 1),
             eventType   : (string) $req->input('event', 'none'),
             when        : $req->filled('when') ? Carbon::parse($req->input('when')) : null,
         );
 
-        $quote = $this->engine->quote($dto);
+        /*
+         * An unpriceable vehicle is a 422, not a 500.
+         *
+         * `config('pricing.vehicles')` holds only `hiace` and `coaster`, while
+         * a `Bus` may be any of seven types. Selecting a Sprinter in the
+         * back-office therefore threw `InvalidArgumentException` out of the
+         * engine and surfaced as a server error with no usable message — the
+         * price simply never appeared and nothing said why.
+         *
+         * The type list is echoed back so the client can name the problem
+         * instead of guessing, and without duplicating the config in the
+         * browser where it could drift.
+         */
+        try {
+            $quote = $this->engine->quote($dto);
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    'vehicles_map' => [$e->getMessage()],
+                ],
+                'priceable_vehicle_types' => array_keys(config('pricing.vehicles', [])),
+            ], 422);
+        }
+
         return response()->json($quote->asArray());
     }
 

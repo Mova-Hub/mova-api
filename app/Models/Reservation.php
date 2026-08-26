@@ -25,6 +25,9 @@ class Reservation extends Model implements Payable
         'client_id',
         'code',
         'trip_date',
+        // The return leg. Null = one way, which is also what the pricing engine
+        // reads to decide whether to bill the road twice.
+        'return_date',
         'from_location',
         'to_location',
         'passenger_name',
@@ -45,6 +48,7 @@ class Reservation extends Model implements Payable
 
     protected $casts = [
         'trip_date' => 'datetime',
+        'return_date' => 'datetime',
         'waypoints'      => 'array',     // [{lat,lng,label},...]
         'price_total'    => 'decimal:2',
         'distance_km'    => 'decimal:2',

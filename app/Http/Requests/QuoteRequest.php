@@ -40,6 +40,18 @@ class QuoteRequest extends FormRequest
             'distance_km'    => ['required','numeric','min:0'],
             'event'          => ['nullable', Rule::in($eventKeys)],
             'when'           => ['nullable','date'],
+
+            /*
+             * A return leg doubles the billed distance.
+             *
+             * The mobile path has priced round trips since launch
+             * (TripQuoteService: 'a return leg is the same road driven twice').
+             * This endpoint had no such concept, so the back-office quoted a
+             * round trip at the one-way price — and the reservation it created
+             * was billed at roughly half what the app had already quoted the
+             * same customer.
+             */
+            'round_trip'     => ['sometimes','boolean'],
         ];
     }
 

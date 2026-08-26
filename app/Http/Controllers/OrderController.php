@@ -152,6 +152,10 @@ class OrderController extends Controller
         // Comprehensive validation matching the Reservation requirements
         $data = $request->validate([
             'trip_date'      => 'required|date',
+            // The return leg. Must not precede departure — a reservation that
+            // comes back before it leaves is unschedulable, and dispatch would
+            // only find out on the day.
+            'return_date'    => 'nullable|date|after:trip_date',
             'from_location'  => 'required|string',
             'to_location'    => 'required|string',
             'passenger_name' => 'required|string',
@@ -172,6 +176,11 @@ class OrderController extends Controller
                 'order_id'        => $order->id,
                 'client_id'       => $order->client_id,
                 'trip_date'       => $data['trip_date'],
+                // Null = one way. The same rule the order path uses, so a
+                // request and the booking it becomes agree on what was sold —
+                // a round trip converted without this became a one-way booking
+                // that dispatch had no way to know needed a return.
+                'return_date'     => $data['return_date'] ?? null,
                 'from_location'   => $data['from_location'],
                 'to_location'     => $data['to_location'],
                 'passenger_name'  => $data['passenger_name'],

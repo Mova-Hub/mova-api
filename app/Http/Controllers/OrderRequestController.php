@@ -46,6 +46,21 @@ class OrderRequestController extends Controller
             'from_city'    => 'required|string|max:255',
             'to_city'      => 'required|string|max:255',
             'waypoints'    => 'nullable|array|max:25',
+            /*
+             * `label` MUST be validated, or it is silently thrown away.
+             *
+             * `$request->validate()` returns only the keys it was given rules
+             * for. The app posts `{label, lat, lng}` per stop, and with rules
+             * for `lat`/`lng` alone Laravel handed `Order::create` bare
+             * coordinates — so every waypoint name a customer picked
+             * ("Aéroport Maya-Maya", "Église Saint-Esprit") was discarded at
+             * the moment the order was created, and the back-office could only
+             * ever show numbers.
+             *
+             * Nothing errored, nothing logged: the column was written, just
+             * without the field that makes it readable.
+             */
+            'waypoints.*.label' => 'nullable|string|max:255',
             'waypoints.*.lat' => 'nullable|numeric|between:-90,90',
             'waypoints.*.lng' => 'nullable|numeric|between:-180,180',
             'distance_km'  => 'nullable|numeric|min:0|max:2000',

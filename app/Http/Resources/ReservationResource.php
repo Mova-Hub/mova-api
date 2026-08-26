@@ -18,6 +18,10 @@ class ReservationResource extends JsonResource
             'id'              => (string) $this->id,
             'code'            => $this->code,
             'trip_date'       => $this->trip_date,
+            // Null = one way. Both the price and the vehicle schedule depend on
+            // this, so it is a first-class field rather than something to infer.
+            'return_date'     => $this->return_date,
+            'is_round_trip'   => $this->return_date !== null,
             'from_location'   => $this->from_location,
             'to_location'     => $this->to_location,
 
