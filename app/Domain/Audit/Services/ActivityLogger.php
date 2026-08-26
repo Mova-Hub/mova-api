@@ -104,6 +104,18 @@ class ActivityLogger
                 'changed' => $after !== null ? array_keys($after) : null,
                 'ip' => $request?->ip(),
                 'user_agent' => Str::limit((string) $request?->userAgent(), 500, ''),
+                /*
+                 * What the calling application says it is.
+                 *
+                 * A native app's user agent is whatever its HTTP stack picked —
+                 * "OkHttp 4.12" on Android, nothing at all on iOS — so the Mova
+                 * apps send this header instead. Kept raw and truncated, never
+                 * trusted: it is as forgeable as the user agent above it, and
+                 * `declared_` in the column name is there to keep that visible.
+                 */
+                'declared_client' => $request?->header('X-Mova-Client')
+                    ? Str::limit((string) $request->header('X-Mova-Client'), 250, '')
+                    : null,
                 'request_id' => self::requestId(),
                 'route' => $request?->path(),
                 'method' => $request?->method(),

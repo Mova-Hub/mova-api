@@ -96,7 +96,7 @@ class ActivityLogController extends Controller
         return response()->json([
             'status' => true,
             'data' => [
-                'device' => $fingerprint->device($log->user_agent),
+                'device' => $fingerprint->device($log->user_agent, $log->declared_client),
                 'location' => $fingerprint->location($log->ip),
             ],
         ]);

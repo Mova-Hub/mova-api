@@ -24,7 +24,7 @@ class ActivityLog extends Model
         'action',
         'subject_type', 'subject_id', 'subject_label',
         'before', 'after', 'changed',
-        'ip', 'user_agent',
+        'ip', 'user_agent', 'declared_client',
         'request_id', 'route', 'method', 'status_code', 'duration_ms',
         'context',
     ];

@@ -6,6 +6,7 @@ use App\Domain\Audit\Support\NetworkPosition;
 use DeviceDetector\DeviceDetector;
 use DeviceDetector\Parser\Device\AbstractDeviceParser;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Stevebauman\Location\Drivers\MaxMind;
 use Stevebauman\Location\Facades\Location;
 use Throwable;
@@ -43,12 +44,59 @@ class RequestFingerprint
     }
 
     /**
-     * Browser, OS and hardware, from the user agent.
+     * Browser, OS and hardware.
+     *
+     * Two sources, and the order between them matters:
+     *
+     *  - **`$declaredClient`** — the `X-Mova-Client` header, when one of Mova's
+     *    own apps sent the request. It is the ONLY reliable way to know an
+     *    action came from the passenger app rather than a browser or a script:
+     *    React Native's user agent says "OkHttp 4.12" on Android and nothing at
+     *    all on iOS, and Expo Go's says "Chrome Webview".
+     *  - **`$userAgent`** — still parsed, because it is where the OS version
+     *    and the handset model come from.
+     *
+     * The declared identity wins for *who is calling*; the parsed agent wins for
+     * *what they are calling from*. Neither is treated as fact — both are
+     * client-supplied.
      *
      * @return array<string, mixed>
      */
-    public function device(?string $userAgent): array
+    public function device(?string $userAgent, ?string $declaredClient = null): array
     {
+        $declared = $this->parseDeclaredClient($declaredClient);
+
+        if ($declared !== null) {
+            // Device details from the header when the app sent them (expo-device
+            // knows its own hardware far better than a UA string does), falling
+            // back to the parsed agent for anything it omitted.
+            //
+            // Through the memo, and NOT via `device()` — recursing into it with
+            // the declared client still in scope would loop. Fifty rows from
+            // the app share one user agent, so this must not re-parse per row.
+            $parsed = $userAgent && trim($userAgent) !== ''
+                ? (self::$parsed[$userAgent] ??= $this->parseUserAgent($userAgent))
+                : [];
+
+            return [
+                'known' => true,
+                'kind' => 'app',
+                'client' => trim(($declared['app'] ?? 'Application Mova') . ' ' . ($declared['version'] ?? '')),
+                'app_id' => $declared['app_id'] ?? null,
+                'app_build' => $declared['build'] ?? null,
+                'platform' => $declared['platform'] ?? ($parsed['platform'] ?? 'Inconnue'),
+                'os_name' => $declared['os_name'] ?? ($parsed['os_name'] ?? null),
+                'os_version' => $declared['os_version'] ?? ($parsed['os_version'] ?? null),
+                'device_type' => $parsed['device_type'] ?? null,
+                'brand' => $declared['brand'] ?? ($parsed['brand'] ?? null),
+                'model' => $declared['model'] ?? ($parsed['model'] ?? null),
+                'bot' => false,
+                // Says where this came from, so the UI can mark it as declared
+                // by the application rather than inferred from a header.
+                'source' => 'declared',
+            ];
+        }
+
         if (! $userAgent || trim($userAgent) === '') {
             // No user agent at all: a queued job, an artisan command, or a
             // direct API call. Worth naming — "no browser" is itself a fact
@@ -133,6 +181,80 @@ class RequestFingerprint
                 'platform' => 'Inconnue',
             ];
         }
+    }
+
+    /**
+     * Reads the `X-Mova-Client` header.
+     *
+     * Format is a URL-encoded query string, which is deliberate: header values
+     * must be ASCII and a handset model can contain spaces, accents or a comma
+     * ("iPhone15,3"). Percent-encoding makes any model name safe to send, and
+     * `parse_str` reads it back with no bespoke format to get subtly wrong.
+     *
+     *     app=passenger&version=1.0.0&build=42&platform=ios&os=18.1&brand=Apple&model=iPhone%2015%20Pro
+     *
+     * Returns null for anything unparseable, so a malformed or hostile header
+     * simply falls through to normal user-agent parsing rather than producing a
+     * half-populated card.
+     *
+     * @return array<string, string>|null
+     */
+    private function parseDeclaredClient(?string $header): ?array
+    {
+        if (! $header || trim($header) === '') {
+            return null;
+        }
+
+        parse_str($header, $values);
+
+        $app = isset($values['app']) && is_string($values['app']) ? $values['app'] : null;
+        if (! $app) {
+            return null;
+        }
+
+        // Only apps this API knows about. An arbitrary `app=` value would let a
+        // caller write its own label onto an audit record, which is a small but
+        // real way to make the log say something misleading.
+        $names = [
+            'passenger' => 'Application Mova',
+            'control' => 'Mova Control',
+            'manager' => 'Mova Manager',
+        ];
+
+        if (! isset($names[$app])) {
+            return null;
+        }
+
+        // Every value is clamped: these end up in a fixed-width column and on a
+        // page, and none of them should be able to arrive at arbitrary length.
+        $take = fn (string $key, int $max = 40): ?string => isset($values[$key]) && is_string($values[$key])
+            ? (Str::limit(trim($values[$key]), $max, '') ?: null)
+            : null;
+
+        $osName = $take('platform');
+        $osVersion = $take('os', 20);
+
+        return array_filter([
+            'app' => $names[$app],
+            'app_id' => $app,
+            'version' => $take('version', 20),
+            'build' => $take('build', 20),
+            'platform' => trim(($this->platformLabel($osName)) . ' ' . ($osVersion ?? '')) ?: null,
+            'os_name' => $osName,
+            'os_version' => $osVersion,
+            'brand' => $take('brand'),
+            'model' => $take('model', 60),
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function platformLabel(?string $platform): string
+    {
+        return match (strtolower((string) $platform)) {
+            'ios' => 'iOS',
+            'android' => 'Android',
+            'web' => 'Web',
+            default => $platform ?: 'Inconnue',
+        };
     }
 
     private function kindFor(DeviceDetector $detector): string

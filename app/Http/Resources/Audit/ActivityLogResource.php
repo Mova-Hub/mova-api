@@ -50,7 +50,8 @@ class ActivityLogResource extends JsonResource
              * Server-side rather than in the browser so the list and the detail
              * page cannot disagree about what a device was.
              */
-            'device' => app(RequestFingerprint::class)->device($this->user_agent),
+            'device' => app(RequestFingerprint::class)->device($this->user_agent, $this->declared_client),
+            'declared_client' => $this->declared_client,
             'request_id' => $this->request_id,
             'route' => $this->route,
             'method' => $this->method,
