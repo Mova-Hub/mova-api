@@ -8,6 +8,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin \App\Models\Payment */
 class PaymentResource extends JsonResource
 {
+    /**
+     * A payment, or a real `null`.
+     *
+     * `PaymentResource::make(null)` does NOT produce null — Laravel wraps the
+     * null and calls `toArray()` on it anyway, which fatals here on
+     * `$this->status->value`. Both "is anything in flight?" endpoints used it,
+     * so `payment-options` threw a 500 in the ordinary case where nothing is
+     * pending — which is almost always.
+     *
+     * Returning `null` rather than an empty object is the other half of the
+     * fix: the app tests `options.pending` for truthiness, and `{}` is truthy,
+     * so an empty object would make a fresh reservation look like it already
+     * had a prompt sitting on somebody's handset.
+     */
+    public static function maybe(?\App\Models\Payment $payment): ?self
+    {
+        return $payment ? new self($payment) : null;
+    }
+
     public function toArray(Request $request): array
     {
         $provider = $this->provider;

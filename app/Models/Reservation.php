@@ -33,7 +33,10 @@ class Reservation extends Model implements Payable
         'passenger_name',
         'passenger_phone',
         'passenger_email',
+        // Capacity attached (`seats`) and head count expected (`passengers`).
+        // Two different facts — see the migration that added `passengers`.
         'seats',
+        'passengers',
         'price_total',
         'status',
         'payment_status',
@@ -50,6 +53,8 @@ class Reservation extends Model implements Payable
         'trip_date' => 'datetime',
         'return_date' => 'datetime',
         'waypoints'      => 'array',     // [{lat,lng,label},...]
+        'seats'          => 'integer',
+        'passengers'     => 'integer',
         'price_total'    => 'decimal:2',
         'distance_km'    => 'decimal:2',
         'deleted_at'     => 'datetime',

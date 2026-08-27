@@ -96,7 +96,10 @@ class PaymentController extends Controller
 
                 // An attempt already running, so the sheet resumes it instead
                 // of starting a second prompt on the same handset.
-                'pending' => PaymentResource::make($this->payments->inFlightFor($payable)),
+                // `maybe`, not `make`: `make(null)` fatals on serialization —
+                // see PaymentResource. This endpoint threw a 500 for every
+                // payable with nothing in flight, which is the normal case.
+                'pending' => PaymentResource::maybe($this->payments->inFlightFor($payable)),
             ],
         ]);
     }

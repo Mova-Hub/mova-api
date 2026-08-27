@@ -411,7 +411,27 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     Route::post('/reservations/{reservation}/attach-bus',  [ReservationController::class, 'attachBus']);
     Route::post('/reservations/{reservation}/detach-bus',  [ReservationController::class, 'detachBus']);
     Route::post('/reservations/bulk-status',               [ReservationController::class, 'bulkStatus']);
+
+    /*
+     * Two ways to take money for a reservation, and they are not the same thing.
+     *
+     *  - `payment` RECORDS a collection an agent already holds — cash at a
+     *    counter, a bank transfer they can see. Written as `succeeded`.
+     *  - `charge` STARTS one: a prompt goes to the client's handset and the
+     *    provider decides. Written as `pending`, then polled via `payments/{uuid}`.
+     *
+     * Both live behind `staff`. `auth:sanctum` alone would not do — Client owns
+     * tokens too, and a client must not be able to charge their own booking as
+     * though an agent had.
+     */
     Route::post('/reservations/{reservation}/payment',      [ReservationController::class, 'payment']);
+    Route::get ('/reservations/{reservation}/payment-options', [ReservationController::class, 'paymentOptions']);
+    Route::post('/reservations/{reservation}/charge',       [ReservationController::class, 'charge'])
+        ->middleware('throttle:20,1');
+    Route::get ('/reservations/{reservation}/payments/{uuid}', [ReservationController::class, 'paymentStatus'])
+        // Polled while the prompt is on the handset — reading a status costs
+        // nobody anything, so a looser limit than starting one.
+        ->middleware('throttle:120,1');
 
     // Quote endpoint(Pricing engine)
     Route::post('/quote', QuoteController::class);

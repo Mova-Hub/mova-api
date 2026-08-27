@@ -52,6 +52,7 @@ class UpdateReservationRequest extends FormRequest
             'passenger_email' => $all['passenger_email'] ?? $get('passenger.email'),
 
             'seats'           => $all['seats'] ?? null,
+            'passengers'      => $all['passengers'] ?? null,
             'price_total'     => $all['price_total'] ?? $all['priceTotal'] ?? null,
 
             'status'          => $all['status'] ?? null,
@@ -119,7 +120,18 @@ class UpdateReservationRequest extends FormRequest
             'passenger_phone' => ['sometimes','required','string','max:40'],
             'passenger_email' => ['sometimes','nullable','email','max:190'],
 
-            'seats'           => ['sometimes','required','integer','min:1','max:500'],
+            /*
+             * `min:0`, not `min:1`.
+             *
+             * Zero is a real state: a reservation whose vehicles have all been
+             * detached has no capacity, and `convertToReservation` wrote a
+             * literal 0 for every booking made before capacity was computed
+             * from the pivot. With `min:1` the API refused to accept the value
+             * it had written itself — editing an untouched converted booking
+             * failed validation on a field the agent never touched.
+             */
+            'seats'           => ['sometimes','required','integer','min:0','max:500'],
+            'passengers'      => ['sometimes','nullable','integer','min:1','max:300'],
             'price_total'     => ['sometimes','nullable','numeric','min:0','max:99999999.99'],
 
             'status'          => ['sometimes','required', Rule::in(['pending','confirmed','cancelled'])],

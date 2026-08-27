@@ -31,7 +31,10 @@ class ReservationResource extends JsonResource
                 'email' => $this->passenger_email,
             ],
 
+            // Capacity attached, and head count expected. Two different facts:
+            // either alone hides whether everybody has a seat.
             'seats'           => (int) $this->seats,
+            'passengers'      => $this->passengers !== null ? (int) $this->passengers : null,
             'price_total'     => $this->price_total !== null ? (float) $this->price_total : null,
             'status'          => $this->status,
             'payment_status'  => $this->payment_status,

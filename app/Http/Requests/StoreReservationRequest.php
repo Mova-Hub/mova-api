@@ -51,6 +51,7 @@ class StoreReservationRequest extends FormRequest
             'passenger_email' => $all['passenger_email'] ?? $get('passenger.email'),
 
             'seats'           => $all['seats'] ?? null,
+            'passengers'      => $all['passengers'] ?? null,
             'price_total'     => $all['price_total'] ?? $all['priceTotal'] ?? null,
 
             'status'          => $all['status'] ?? null,
@@ -115,6 +116,10 @@ class StoreReservationRequest extends FormRequest
             'passenger_email' => ['nullable','email','max:190'],
 
             'seats'           => ['required','integer','min:1','max:500'],
+            // Head count, distinct from capacity — see the migration that added
+            // the column. Nullable: a reservation opened at a counter may not
+            // know it yet, and inventing a number would be worse than a null.
+            'passengers'      => ['nullable','integer','min:1','max:300'],
             'price_total'     => ['nullable','numeric','min:0','max:99999999.99'],
 
             'status'          => ['nullable', Rule::in(['pending','confirmed','cancelled','processing'])],
