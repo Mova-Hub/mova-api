@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2\Payment;
 use App\Domain\Payment\Contracts\Payable;
 use App\Domain\Payment\Exceptions\PaymentException;
 use App\Domain\Payment\PaymentService;
+use App\Domain\Payment\Support\PhoneNumber;
 use App\Domain\Wallet\WalletService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Payment\PaymentMethodResource;
@@ -133,6 +134,18 @@ class PaymentController extends Controller
         /** @var Client $client */
         $client = $request->user();
         $payable = $this->resolvePayable($client, $type, $id);
+
+        /*
+         * Normalised BEFORE validation, not demanded of the caller.
+         *
+         * `06 407 4926` is the same number as `+242064074926`, and rejecting
+         * the first tells a client their own phone number is wrong. The regex
+         * below is unchanged and just as strict — it now judges a string whose
+         * spaces have been removed and whose country code has been restored.
+         */
+        if ($request->has('phone')) {
+            $request->merge(['phone' => PhoneNumber::toE164($request->input('phone'))]);
+        }
 
         $data = $request->validate([
             // Validated against the providers TABLE, so a method enabled five

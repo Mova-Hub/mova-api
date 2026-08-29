@@ -11,6 +11,7 @@ use App\Http\Resources\Payment\PaymentResource;
 use App\Domain\Payment\Enums\PaymentStatus;
 use App\Domain\Payment\Exceptions\PaymentException;
 use App\Domain\Payment\PaymentService;
+use App\Domain\Payment\Support\PhoneNumber;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
 use App\Models\Reservation;
@@ -478,7 +479,8 @@ class ReservationController extends Controller
                 'pending'       => PaymentResource::maybe($this->payments->inFlightFor($reservation)),
                 // Pre-fills the phone field. Almost always the right number, and
                 // an agent retyping it from a screen is how digits get lost.
-                'default_phone' => $reservation->passenger_phone,
+                // E.164 so the dialog can format it back for display.
+                'default_phone' => PhoneNumber::toE164($reservation->passenger_phone),
             ],
         ]);
     }
@@ -501,6 +503,12 @@ class ReservationController extends Controller
      */
     public function charge(Request $request, Reservation $reservation)
     {
+        // Spaces out, country code in, before the regex ever sees it — the
+        // same normalisation the app-facing endpoint applies. See PhoneNumber.
+        if ($request->has('phone')) {
+            $request->merge(['phone' => PhoneNumber::toE164($request->input('phone'))]);
+        }
+
         $data = $request->validate([
             // Against the providers TABLE, so a method enabled this morning is
             // usable this morning without a deploy.
@@ -541,7 +549,12 @@ class ReservationController extends Controller
                 payable: $reservation,
                 client: $reservation->client,
                 providerCode: $data['provider'],
-                fields: array_filter(['phone' => $data['phone'] ?? $reservation->passenger_phone]),
+                // The booking's own number as the fallback, normalised too —
+                // it was typed by an agent into a free-text field years before
+                // anyone specified a format.
+                fields: array_filter([
+                    'phone' => $data['phone'] ?? PhoneNumber::toE164($reservation->passenger_phone),
+                ]),
                 kind: $data['kind'] ?? 'full',
                 // Attributable: this collection was opened by staff, not by the
                 // client tapping "payer". Reconciliation needs to tell them apart.

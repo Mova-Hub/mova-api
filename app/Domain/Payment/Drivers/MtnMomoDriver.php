@@ -86,7 +86,7 @@ class MtnMomoDriver extends BaseDriver
         }
 
         return ChargeResult::failed(
-            $this->clientMessage($response->status()),
+            $this->clientMessage($response->status(), $response->json('code')),
             // The provider's own words go to `meta` and to the log, never to
             // the client. "PAYER_NOT_FOUND" is not French and not actionable.
             ['http_status' => $response->status(), 'body' => $response->json() ?? $response->body()],
@@ -226,10 +226,35 @@ class MtnMomoDriver extends BaseDriver
         };
     }
 
-    private function clientMessage(int $httpStatus): string
+    /**
+     * A refusal, in words the reader can act on.
+     *
+     * `400` used to say, flatly, "Numéro MTN invalide." — which in the sandbox
+     * is simply untrue and cost real debugging time. MoMo's sandbox accepts
+     * only ITS OWN test MSISDNs, so a perfectly good Congolese number is
+     * rejected there by design; telling an operator their number is malformed
+     * sends them off to check a number that was never the problem.
+     *
+     * So the sandbox says what is actually happening, and production keeps the
+     * short client-facing wording. MTN's own `code` is preferred over the HTTP
+     * status when it sends one, because it is more specific than any guess
+     * keyed on 400.
+     */
+    private function clientMessage(int $httpStatus, ?string $code = null): string
     {
+        // MTN's own reason wins — it is the only thing here that knows WHY.
+        if (is_string($code) && $code !== '') {
+            return $this->reasonMessage($code);
+        }
+
+        $sandbox = $this->provider->mode !== 'live';
+
         return match ($httpStatus) {
-            400 => 'Numéro MTN invalide.',
+            400 => $sandbox
+                ? 'Numéro refusé par le bac à sable MTN. En mode test, seuls les numéros de test MTN '
+                    . '(par ex. 46733123450) sont acceptés — un vrai numéro congolais est rejeté. '
+                    . 'Passez le fournisseur en production pour encaisser de vrais paiements.'
+                : 'Numéro MTN invalide.',
             409 => 'Une demande identique est déjà en cours.',
             401, 403 => 'Paiement MTN indisponible. Notre équipe est prévenue.',
             default => 'Le paiement MTN n’a pas pu démarrer. Réessayez dans un instant.',
