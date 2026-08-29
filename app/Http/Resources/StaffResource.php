@@ -22,7 +22,7 @@ class StaffResource extends JsonResource
             'phone' => $this->phone,
             'avatar_url' => $this->avatar_url,
             'license_no' => $this->license_no,
-            'role'   => $this->role,   // agent|admin
+            'role'   => $this->role,   // agent|admin|coordinator|controller
             'status' => $this->status, // active|inactive|suspended
 
             /*

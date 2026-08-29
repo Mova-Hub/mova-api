@@ -9,8 +9,24 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    /*
+     * Broadcast auth on the API guard, not on `web`.
+     *
+     * `withRouting(channels: ...)` — which is where this file pointed — registers
+     * /broadcasting/auth with the `web` middleware and its session cookie. No
+     * client in this system has one: the passenger app, manager and control all
+     * present a Sanctum bearer token, so every private-channel subscription
+     * would have been rejected as unauthenticated with nothing in the logs to
+     * say why.
+     *
+     * `auth:sanctum` resolves either a Client or a User; routes/channels.php
+     * branches on which, and must.
+     */
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        attributes: ['middleware' => ['auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
@@ -35,6 +51,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'staff' => \App\Http\Middleware\EnsureStaff::class,
+            /*
+             * The field app's gate, and deliberately NOT `staff`.
+             *
+             * A bus controller needs a token; they do not need the clients list
+             * or the payments ledger. Widening `staff` would have been one line
+             * and would have given them both. See EnsureField.
+             */
+            'field' => \App\Http\Middleware\EnsureField::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             // Usage: ->middleware('audit.read:client')
             'audit.read' => \App\Http\Middleware\RecordSensitiveAccess::class,

@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Reservation; // Assuming you have this or will build it
+use App\Models\User;
 use App\Notifications\OrderStatusUpdated;
+use App\Notifications\ReservationAssigned;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -171,10 +174,38 @@ class OrderController extends Controller
             // already told us, and re-asking an agent to retype it is how the
             // two records end up disagreeing.
             'passengers'     => 'nullable|integer|min:1|max:300',
+            /*
+             * Who will actually run this trip.
+             *
+             * Constrained to accounts that can LOG IN and are ACTIVE — handing a
+             * convoy to a suspended account, or to a `driver` record that has no
+             * password, produces a reservation nobody can open in the field app.
+             * `exists` alone would accept both.
+             *
+             * Nullable here, required by the convert dialog. The API stays
+             * permissive because reservations are also created directly at a
+             * counter, where the coordinator may genuinely not be decided yet.
+             */
+            'coordinator_id' => [
+                'nullable', 'integer',
+                Rule::exists('users', 'id')
+                    ->whereIn('role', User::LOGIN_ROLES)
+                    ->where('status', 'active'),
+            ],
             'internal_notes' => 'nullable|string'
         ]);
 
-        return DB::transaction(function () use ($order, $data) {
+        /*
+         * The transaction returns the reservation; the notifications go out
+         * AFTER it commits.
+         *
+         * Notifying inside would mean a coordinator can be told to run a trip
+         * that a later failure rolls back — a phone call at six in the morning
+         * about a booking that does not exist. Queued notifications make it
+         * worse, not better: the job can be picked up before the commit lands
+         * and rehydrate a model the worker cannot find.
+         */
+        $reservation = DB::transaction(function () use ($order, $data) {
             // 1. Create the Reservation
             $reservation = Reservation::create([
                 'order_id'        => $order->id,
@@ -219,6 +250,15 @@ class OrderController extends Controller
                  */
                 'passengers'      => $data['passengers'] ?? $order->passengers,
 
+                /*
+                 * The person who will actually deliver this.
+                 *
+                 * Until now a converted order became a booking that was nobody's
+                 * job — vehicles attached, and then silence until the morning it
+                 * was supposed to leave.
+                 */
+                'coordinator_id'  => $data['coordinator_id'] ?? null,
+
                 // Set from the attached vehicles immediately below, once the
                 // pivot exists. Never left at 0 — see the note there.
                 'seats'           => 0,
@@ -255,27 +295,52 @@ class OrderController extends Controller
                                     "[System]: Converti en réservation #" . $reservation->code
             ]);
 
-            // 4. Notify Client
-            if ($order->client) {
-                // Log for debugging
-                Log::info("Envoi de notification au client ID : " . $order->client_id);
-
-                $order->client->notify(new OrderStatusUpdated(
-                    $order,
-                    "Bonne nouvelle ! Votre réservation pour {$data['from_location']} -> {$data['to_location']} est confirmée."
-                ));
-            } else {
-                Log::warning("Commande convertie sans client associé. ID commande : " . $order->id);
-            }
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Demande convertie avec succès en réservation #' . $reservation->code,
-                'data' => [
-                    'reservation_id' => $reservation->id,
-                    'reservation_code' => $reservation->code
-                ]
-            ]);
+            return $reservation;
         });
+
+        /* ── Everything below runs only once the booking really exists ── */
+
+        // 4. Notify Client
+        if ($order->client) {
+            // Log for debugging
+            Log::info("Envoi de notification au client ID : " . $order->client_id);
+
+            $order->client->notify(new OrderStatusUpdated(
+                $order,
+                "Bonne nouvelle ! Votre réservation pour {$data['from_location']} -> {$data['to_location']} est confirmée."
+            ));
+        } else {
+            Log::warning("Commande convertie sans client associé. ID commande : " . $order->id);
+        }
+
+        /*
+         * 5. Notify the coordinator.
+         *
+         * Wrapped, because a mail server that is down must not turn a
+         * successful conversion into a 500 — the booking is already committed,
+         * and telling the agent it failed would have them convert it twice.
+         * A coordinator who was not reached is recoverable; a duplicate
+         * reservation is not.
+         */
+        if ($reservation->coordinator) {
+            try {
+                $reservation->coordinator->notify(new ReservationAssigned($reservation));
+            } catch (\Throwable $e) {
+                Log::error('Notification coordinateur échouée', [
+                    'reservation_id' => $reservation->id,
+                    'coordinator_id' => $reservation->coordinator_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Demande convertie avec succès en réservation #' . $reservation->code,
+            'data' => [
+                'reservation_id' => $reservation->id,
+                'reservation_code' => $reservation->code
+            ]
+        ]);
     }
 }

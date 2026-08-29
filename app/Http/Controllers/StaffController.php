@@ -18,8 +18,19 @@ class StaffController extends Controller
     // GET /api/staff?search=&status=&role=&per_page=15
     public function index(Request $request)
     {
+        /*
+         * Every account that can log in — including the field roles.
+         *
+         * `LOGIN_ROLES`, not `STAFF_ROLES`, and the difference is the point of
+         * the split: the back-office CREATES coordinators and controllers, but
+         * those accounts cannot reach the back-office themselves. Who may
+         * manage them is one question; what they may open is another.
+         *
+         * Fleet records (`driver`, `conductor`, `owner`) stay out — they are
+         * people in the system, not accounts, and `PersonController` owns them.
+         */
         $q = User::query()
-            ->whereIn('role', ['agent','admin']);
+            ->whereIn('role', User::LOGIN_ROLES);
 
         if ($search = $request->string('search')->toString()) {
             $q->where(function ($qq) use ($search) {
@@ -33,9 +44,17 @@ class StaffController extends Controller
             $q->where('status', $status);
         }
 
-        // optional: filter specific staff role (agent or admin)
+        /*
+         * Optional role filter — and it accepts a COMMA-SEPARATED list.
+         *
+         * The manager's coordinator picker asks for `role=coordinator,admin,agent`:
+         * a coordinator is the obvious choice, but an agent covering a Saturday
+         * has to be assignable too. `array_intersect` against `LOGIN_ROLES` is
+         * what stops the parameter becoming "show me any role you like".
+         */
         if ($role = $request->string('role')->toString()) {
-            $q->whereIn('role', array_intersect(['agent','admin'], [$role]));
+            $requested = array_map('trim', explode(',', $role));
+            $q->whereIn('role', array_values(array_intersect(User::LOGIN_ROLES, $requested)));
         }
 
         $perPage = max((int) $request->input('per_page', 50), 1);
@@ -112,7 +131,7 @@ class StaffController extends Controller
          * driver's id inflated the figure. Now it returns what really changed.
          */
         $updated = $this->auditedBulkUpdate(
-            User::whereIn('id', $validated['ids'])->whereIn('role', User::STAFF_ROLES),
+            User::whereIn('id', $validated['ids'])->whereIn('role', User::LOGIN_ROLES),
             ['status' => $validated['status']],
             'staff.bulk_status',
             ['ids' => $validated['ids']],
@@ -121,12 +140,21 @@ class StaffController extends Controller
         return response()->json(['updated' => $updated]);
     }
 
-    // POST /api/staff/role  { id: number, role: "agent|admin" } (promote/demote)
+    /**
+     * Promote, demote, or move somebody between the office and the field.
+     *
+     * POST /api/staff/role  { id, role }
+     *
+     * The role set is `LOGIN_ROLES`, so an agent can be made a coordinator for a
+     * season and moved back. Deliberately NOT the fleet roles: turning a
+     * back-office account into a `driver` would strip its login by way of a
+     * dropdown, which is not a thing anyone means to do.
+     */
     public function setRole(Request $request)
     {
         $validated = $request->validate([
             'id'   => ['required','integer','exists:users,id'],
-            'role' => ['required', Rule::in(['agent','admin'])],
+            'role' => ['required', Rule::in(User::LOGIN_ROLES)],
         ]);
 
         $staff = User::findOrFail($validated['id']);
@@ -137,10 +165,17 @@ class StaffController extends Controller
         return new StaffResource($staff);
     }
 
+    /**
+     * 404, not 403, for anyone this endpoint does not own.
+     *
+     * A fleet record reached through /staff should look absent rather than
+     * forbidden — a 403 confirms the id exists, which turns the endpoint into a
+     * membership oracle over the whole users table.
+     */
     private function assertStaff(User $staff): void
     {
-        if (!in_array($staff->role, ['agent','admin'], true)) {
-            abort(404); // hide non-staff users from this endpoint
+        if (!in_array($staff->role, User::LOGIN_ROLES, true)) {
+            abort(404);
         }
     }
 }

@@ -15,6 +15,8 @@ use App\Domain\Payment\Support\PhoneNumber;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
 use App\Models\Reservation;
+use App\Models\User;
+use App\Notifications\ReservationAssigned;
 use App\Notifications\ReservationStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Imported for transactions
@@ -343,21 +345,15 @@ class ReservationController extends Controller
     /**
      * Whether a reservation may move from one status to another.
      *
-     * Mirrors setStatus()'s guards so single and bulk paths cannot diverge —
-     * which they would, the first time one of them was edited alone.
+     * Delegates to `Reservation::canTransitionTo()`, which is now the single
+     * copy of these rules. It moved to the model when `control/` gained the
+     * ability to start and complete a trip: a third caller made a private method
+     * on this controller the wrong home, and three copies of a state machine are
+     * three chances for one of them to be relaxed alone.
      */
     private function canTransition(string $from, string $to): bool
     {
-        return match ($to) {
-            'in_progress' => $from === 'confirmed',
-            'completed' => $from === 'in_progress',
-            // Cancelling is allowed from anything still open; a completed trip
-            // is history and is not un-done by a checkbox.
-            'cancelled' => in_array($from, ['pending', 'confirmed', 'in_progress'], true),
-            'confirmed' => $from === 'pending',
-            'pending' => $from === 'confirmed',
-            default => false,
-        };
+        return (new Reservation(['status' => $from]))->canTransitionTo($to);
     }
 
     // -------------------------------------------------------------------------
@@ -610,6 +606,75 @@ class ReservationController extends Controller
                 'paid_amount'    => $this->payments->paidTotal($reservation),
             ],
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // COORDINATION
+    // -------------------------------------------------------------------------
+
+    /**
+     * Hand this trip to somebody, or to somebody else.
+     *
+     * POST /reservations/{reservation}/coordinator  { coordinator_id: int|null }
+     *
+     * Assignment normally happens at conversion; this exists because people call
+     * in sick. Both sides are notified — the new holder because they have work
+     * to do, and the previous one because otherwise two coordinators arrive at
+     * six in the morning, or neither does.
+     *
+     * `null` un-assigns. That is a real state: a coordinator leaves and the trip
+     * is genuinely nobody's until it is reassigned, and pretending otherwise by
+     * leaving a departed employee's name on it is worse.
+     */
+    public function assignCoordinator(Request $request, Reservation $reservation)
+    {
+        $data = $request->validate([
+            'coordinator_id' => [
+                'present', 'nullable', 'integer',
+                // Must be able to log in AND be active — see the same rule on
+                // the conversion path. Handing a convoy to a suspended account
+                // produces a mission nobody can open.
+                Rule::exists('users', 'id')
+                    ->whereIn('role', User::LOGIN_ROLES)
+                    ->where('status', 'active'),
+            ],
+        ], [
+            'coordinator_id.exists' => 'Ce compte ne peut pas coordonner une réservation.',
+        ]);
+
+        $previous = $reservation->coordinator;
+        $next = $data['coordinator_id'];
+
+        if ((int) $reservation->coordinator_id === (int) $next) {
+            // Nothing changed. Saying so beats sending two people a notification
+            // telling them what they already knew.
+            return new ReservationResource($reservation->load(['buses', 'coordinator']));
+        }
+
+        $reservation->update(['coordinator_id' => $next]);
+        $reservation->load('coordinator');
+
+        /*
+         * Notifications never break the assignment.
+         *
+         * The row is already saved; a mail server that is down must not return
+         * a 500 that has an agent reassigning the same trip a second time.
+         */
+        try {
+            if ($previous) {
+                $previous->notify(new ReservationAssigned($reservation, released: true));
+            }
+            if ($reservation->coordinator) {
+                $reservation->coordinator->notify(new ReservationAssigned($reservation));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Notification de coordination échouée', [
+                'reservation_id' => $reservation->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return new ReservationResource($reservation->load('buses'));
     }
 
     /**

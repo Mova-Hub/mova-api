@@ -30,7 +30,11 @@ class StoreStaffRequest extends FormRequest
             'avatar_url' => ['nullable','url'],
             'license_no' => ['nullable','string','max:100'],
             'password'   => ['nullable','string','min:8'], // can be null if you invite later
-            'role'       => ['required', Rule::in(['agent','admin'])], // staff roles only
+            // Every role that can log in — back-office AND field. Creating a
+            // coordinator or a controller is a back-office job; what those
+            // accounts may then reach is decided by the `field` middleware, not
+            // by this list. Fleet records are `PersonController`'s.
+            'role'       => ['required', Rule::in(\App\Models\User::LOGIN_ROLES)],
             'status'     => ['nullable', Rule::in(['active','inactive','suspended'])],
         ];
     }

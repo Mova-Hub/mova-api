@@ -68,6 +68,21 @@ Schedule::command('wallet:expire')
     ->withoutOverlapping();
 
 /*
+ * GPS trail retention.
+ *
+ * `reservation_positions` is a minute-by-minute record of where a named
+ * employee was. It has a job — the client's live map, and settling a route
+ * dispute a few days later — and once that job is done, keeping it is a
+ * liability. Seven days is the window in which a dispute realistically lands;
+ * the threshold lives in the command so changing it is not a schedule edit.
+ *
+ * 04:30, after the audit prune, so the housekeeping jobs never contend.
+ */
+Schedule::command('positions:prune')
+    ->dailyAt('04:30')
+    ->withoutOverlapping();
+
+/*
  * Payment reminders.
  *
  * Once a day, mid-morning — a dunning SMS at 04:00 is how a brand teaches

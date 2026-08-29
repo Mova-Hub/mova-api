@@ -6,6 +6,11 @@ use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
+// Aliased: `DeviceController` and `MissionController` are field-app concerns and
+// the names are generic enough that an unqualified import would be ambiguous
+// the moment a second one appears.
+use App\Http\Controllers\Field\DeviceController as FieldDeviceController;
+use App\Http\Controllers\Field\MissionController;
 use App\Http\Controllers\Api\V2\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\V2\Admin\AnalyticsController;
@@ -118,6 +123,19 @@ Route::prefix('app/v1')->group(function () {
         // History
         Route::get('/orders/history', [ClientOrderController::class, 'history']);
         Route::get('/orders/{id}', [ClientOrderController::class, 'show'])->whereNumber('id');
+
+        /*
+         * Where is my bus?
+         *
+         * The initial paint and the reconnect state for the live map; positions
+         * themselves arrive over Reverb on `private-trip.{orderId}`. Also the
+         * fallback a client on a bad connection polls, which is why the limit is
+         * generous — reading a coordinate costs nobody anything, and a passenger
+         * refreshing a stalled map is not abuse.
+         */
+        Route::get('/orders/{id}/tracking', [ClientOrderController::class, 'tracking'])
+            ->whereNumber('id')
+            ->middleware('throttle:120,1');
 
         /*
          * ── Paying ────────────────────────────────────────────────────────
@@ -310,6 +328,46 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
 
 /*
  * ══════════════════════════════════════════════════════════════════════════
+ *  FIELD — mova-control
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * The inspector's and the coordinator's app, and DELIBERATELY NOT inside the
+ * back-office group below.
+ *
+ * A controller taps Pass cards on a bus. Putting their role in `STAFF_ROLES`
+ * would have been one line and would have given them the client list, the
+ * payments ledger and the ability to push a payment prompt to a stranger's
+ * handset — every route in the next group is gated on that constant and nothing
+ * else. Phones get left on buses; the gate has to match the job.
+ *
+ * `field` answers "may this person use the app at all". It does NOT answer "is
+ * this mission theirs" — every mission route scopes to `coordinator_id`,
+ * because an id in a URL is a claim and never a permission.
+ */
+Route::middleware(['auth:sanctum', 'field'])->prefix('field')->group(function () {
+    Route::get('/missions', [MissionController::class, 'index']);
+    Route::get('/missions/{reservation}', [MissionController::class, 'show']);
+
+    Route::post('/missions/{reservation}/start', [MissionController::class, 'start']);
+    Route::post('/missions/{reservation}/complete', [MissionController::class, 'complete']);
+
+    /*
+     * Position reports, batched.
+     *
+     * A generous limit on purpose: this fires every few seconds while a trip
+     * runs, and a coordinator coming out of a dead zone flushes a queue in one
+     * burst. Throttling this is throttling the tracking.
+     */
+    Route::post('/missions/{reservation}/position', [MissionController::class, 'position'])
+        ->middleware('throttle:240,1');
+
+    // Push registration, so an assignment reaches the phone rather than an inbox.
+    Route::post('/devices', [FieldDeviceController::class, 'store']);
+    Route::delete('/devices', [FieldDeviceController::class, 'destroy']);
+});
+
+/*
+ * ══════════════════════════════════════════════════════════════════════════
  *  BACK-OFFICE
  * ══════════════════════════════════════════════════════════════════════════
  *
@@ -424,6 +482,13 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * tokens too, and a client must not be able to charge their own booking as
      * though an agent had.
      */
+    /*
+     * Who is running this trip. Assignment normally happens at conversion; this
+     * is for when somebody calls in sick. Both the old and the new holder are
+     * notified — see the controller.
+     */
+    Route::post('/reservations/{reservation}/coordinator', [ReservationController::class, 'assignCoordinator']);
+
     Route::post('/reservations/{reservation}/payment',      [ReservationController::class, 'payment']);
     Route::get ('/reservations/{reservation}/payment-options', [ReservationController::class, 'paymentOptions']);
     Route::post('/reservations/{reservation}/charge',       [ReservationController::class, 'charge'])

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -23,6 +24,9 @@ class Reservation extends Model implements Payable
     protected $fillable = [
         'order_id',
         'client_id',
+        // Who is responsible for delivering this trip — gathers the vehicles,
+        // meets the client, rides with the convoy. See the migration.
+        'coordinator_id',
         'code',
         'trip_date',
         // The return leg. Null = one way, which is also what the pricing engine
@@ -82,6 +86,29 @@ class Reservation extends Model implements Payable
         return $this->belongsTo(Client::class);
     }
 
+    /**
+     * The person accountable for this trip actually happening.
+     *
+     * A `User`, not a `Client` — a coordinator is staff with a login, and the
+     * one whose phone reports the convoy's position while the trip runs.
+     */
+    public function coordinator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'coordinator_id');
+    }
+
+    /**
+     * Where the convoy has been, newest first.
+     *
+     * A trail, not a single point: `latest('recorded_at')->first()` answers
+     * "where is it now", and the rest is what makes a completed trip auditable
+     * when a client disputes a route.
+     */
+    public function positions(): HasMany
+    {
+        return $this->hasMany(ReservationPosition::class)->latest('recorded_at');
+    }
+
     // Many reservation ↔ many buses
     public function buses(): BelongsToMany
     {
@@ -125,6 +152,36 @@ class Reservation extends Model implements Payable
                ->orWhere('from_location', 'like', "%{$q}%")
                ->orWhere('to_location', 'like', "%{$q}%");
         });
+    }
+
+    /* ─────────────────────── The status state machine ─────────────────────── */
+
+    /**
+     * May this reservation move to `$to` from where it is now?
+     *
+     * **The single copy.** This lived as a private method on
+     * `ReservationController`, which was fine while the back-office was the only
+     * thing that moved a reservation. It is not any more: a coordinator now
+     * starts and completes trips from `control/`, and a second copy of these
+     * rules is a second copy that gets edited alone — the first time somebody
+     * relaxes one, a mission reaches `completed` without ever having started and
+     * `started_at` is null on a trip that supposedly ran.
+     *
+     * `cancelled` is reachable from anything still open; a completed trip is
+     * history and is not un-done by a button.
+     */
+    public function canTransitionTo(string $to): bool
+    {
+        $from = (string) $this->status;
+
+        return match ($to) {
+            'in_progress' => $from === 'confirmed',
+            'completed'   => $from === 'in_progress',
+            'cancelled'   => in_array($from, ['pending', 'confirmed', 'in_progress'], true),
+            'confirmed'   => $from === 'pending',
+            'pending'     => $from === 'confirmed',
+            default       => false,
+        };
     }
 
     /**

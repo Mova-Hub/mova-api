@@ -31,7 +31,7 @@ class UpdateStaffRequest extends FormRequest
             'avatar_url' => ['sometimes','nullable'],
             'license_no' => ['sometimes','nullable','string','max:100'],
             'password'   => ['sometimes','nullable','string','min:8'],
-            'role'       => ['sometimes','required', Rule::in(['agent','admin'])],
+            'role'       => ['sometimes','required', Rule::in(\App\Models\User::LOGIN_ROLES)],
             'status'     => ['sometimes','required', Rule::in(['active','inactive','suspended'])],
         ];
     }

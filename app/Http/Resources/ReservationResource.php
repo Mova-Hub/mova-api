@@ -70,6 +70,26 @@ class ReservationResource extends JsonResource
             ]),
             'order_id' => $this->order_id,
 
+            /*
+             * Who is delivering this trip.
+             *
+             * Name and PHONE, no e-mail: the back-office calls a coordinator, it
+             * does not write to them, and an address is one more piece of staff
+             * PII in a payload the field app also reads.
+             *
+             * `coordinator_id` is emitted unconditionally so a form can
+             * pre-select the current holder even when the relation was not
+             * eager-loaded — a picker that shows "aucun" for an assigned
+             * reservation is how somebody gets assigned twice.
+             */
+            'coordinator_id' => $this->coordinator_id,
+            'coordinator' => $this->whenLoaded('coordinator', fn () => $this->coordinator ? [
+                'id' => $this->coordinator->id,
+                'name' => $this->coordinator->name,
+                'phone' => $this->coordinator->phone,
+                'role' => $this->coordinator->role,
+            ] : null),
+
             // Written by setStatus() and never exposed. "When did this trip
             // actually start" is not answerable from `trip_date` alone.
             'started_at' => $this->started_at?->toIso8601String(),
