@@ -25,6 +25,17 @@
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
+        <!--
+            The test suite must not reach the live Pusher app.
+
+            Without this the broadcast driver falls through to whatever .env
+            sets, which here is `pusher`, so every test that dispatched a
+            broadcast event published it to the production channel and then
+            failed on the TLS handshake. Mail, queue, cache and the database
+            were all already pinned for exactly this reason; broadcasting was
+            simply missed when it was added.
+        -->
+        <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

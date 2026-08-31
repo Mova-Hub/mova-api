@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V2\Calendar\CalendarFeedController;
 // the moment a second one appears.
 use App\Http\Controllers\Field\DeviceController as FieldDeviceController;
 use App\Http\Controllers\Field\MissionController;
+use App\Http\Controllers\Field\MissionMessageController;
 use App\Http\Controllers\Api\V2\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\V2\Admin\AnalyticsController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Api\V2\Pass\ControlController as PassControlController;
 use App\Http\Controllers\Api\V2\Pass\PlanController as PassPlanController;
 use App\Http\Controllers\Api\V2\Pass\SubscriptionController as PassSubscriptionController;
 use App\Http\Controllers\Api\V2\QuoteController as MobileQuoteController;
+use App\Http\Controllers\Api\V2\Trip\TripMessageController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
@@ -150,6 +152,21 @@ Route::prefix('app/v1')->group(function () {
         Route::get('/orders/{id}/tracking', [ClientOrderController::class, 'tracking'])
             ->whereNumber('id')
             ->middleware('throttle:120,1');
+
+        /*
+         * Talking to the coordinator running this trip.
+         *
+         * Addressed by ORDER id like everything else the app calls, because
+         * `Trip.id` is the order id throughout the app and it has never held
+         * the reservation UUID. Live delivery is the `message.sent` event on
+         * the same `private-trip.{orderId}` channel positions already use, so
+         * the socket the map opened carries the chat too.
+         */
+        Route::get('/orders/{id}/messages', [TripMessageController::class, 'index'])
+            ->whereNumber('id');
+        Route::post('/orders/{id}/messages', [TripMessageController::class, 'store'])
+            ->whereNumber('id')
+            ->middleware('throttle:60,1');
 
         /*
          * ── Paying ────────────────────────────────────────────────────────
@@ -374,6 +391,17 @@ Route::middleware(['auth:sanctum', 'field'])->prefix('field')->group(function ()
      */
     Route::post('/missions/{reservation}/position', [MissionController::class, 'position'])
         ->middleware('throttle:240,1');
+
+    /*
+     * Talking to the passenger.
+     *
+     * Scoped to `coordinator_id` inside the controller, on top of the `field`
+     * gate. The gate says this person may use the field app; it does not say
+     * this mission is theirs, and a Pass controller passes the gate.
+     */
+    Route::get('/missions/{reservation}/messages', [MissionMessageController::class, 'index']);
+    Route::post('/missions/{reservation}/messages', [MissionMessageController::class, 'store'])
+        ->middleware('throttle:60,1');
 
     // Push registration, so an assignment reaches the phone rather than an inbox.
     Route::post('/devices', [FieldDeviceController::class, 'store']);

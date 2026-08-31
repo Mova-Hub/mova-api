@@ -83,14 +83,36 @@ class ClientOrderController extends Controller
                 ] : null,
 
                 /*
-                 * Name and phone only — the person to call if the coach is late.
-                 * Shown to a customer, so nothing else about the employee goes
-                 * out: no e-mail, no id, no role.
+                 * Name, phone and photo — the person to call if the coach is
+                 * late, and now the face beside their messages on the live
+                 * trip screen. Shown to a customer, so nothing else about the
+                 * employee goes out: no e-mail, no id, no role.
+                 *
+                 * The avatar is a deliberate addition and not an accident of
+                 * spreading the model. A photo is what turns "the coordinator"
+                 * into a person you are willing to ring, and it is the same
+                 * image already shown beside their messages.
                  */
                 'coordinator' => $reservation?->coordinator ? [
                     'name'  => $reservation->coordinator->name,
                     'phone' => $reservation->coordinator->phone,
+                    'avatar_url' => $reservation->coordinator->avatar_url,
                 ] : null,
+
+                /*
+                 * Unread messages from the coordinator, for the badge on the
+                 * live trip screen's message field.
+                 *
+                 * Counted here rather than in a second request, because the
+                 * screen already polls this endpoint as its socket fallback
+                 * and a separate poll for a number would double that traffic.
+                 */
+                'unread_messages' => $reservation
+                    ? \App\Models\TripMessage::where('reservation_id', $reservation->id)
+                        ->where('sender_type', '!=', \App\Models\Client::class)
+                        ->whereNull('read_at')
+                        ->count()
+                    : 0,
 
                 'started_at'   => $reservation?->started_at?->toIso8601String(),
                 'completed_at' => $reservation?->completed_at?->toIso8601String(),
