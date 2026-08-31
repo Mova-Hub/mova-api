@@ -8,9 +8,12 @@ use App\Domain\Pass\Exceptions\PassException;
 use App\Models\Client;
 use App\Models\PassPlan;
 use App\Models\PassSubscription;
+use App\Notifications\PassSubscriptionUpdated;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Buying, renewing and ending a Mova Pass.
@@ -99,12 +102,23 @@ class SubscriptionService
      */
     public function activate(PassSubscription $subscription): PassSubscription
     {
-        return DB::transaction(function () use ($subscription) {
+        /*
+         * `$wasAlreadyActive` is what keeps the notification honest.
+         *
+         * `activate()` is idempotent by design — the payment hook calls it, and
+         * a re-delivered webhook calls it again — so without this a client
+         * would be told their Pass is active once per webhook retry.
+         */
+        $wasAlreadyActive = false;
+
+        $activated = DB::transaction(function () use ($subscription, &$wasAlreadyActive) {
             $subscription = PassSubscription::whereKey($subscription->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
 
             if ($subscription->status === SubscriptionStatus::Active) {
+                $wasAlreadyActive = true;
+
                 return $subscription;
             }
 
@@ -115,6 +129,12 @@ class SubscriptionService
 
             return $subscription->fresh(['plan']);
         });
+
+        if (! $wasAlreadyActive) {
+            $this->announce($activated, PassSubscriptionUpdated::ACTIVATED);
+        }
+
+        return $activated;
     }
 
     public function cancel(PassSubscription $subscription, ?string $reason = null): PassSubscription
@@ -125,7 +145,38 @@ class SubscriptionService
             'cancel_reason' => $reason,
         ])->save();
 
+        $this->announce($subscription, PassSubscriptionUpdated::CANCELLED);
+
         return $subscription;
+    }
+
+    /**
+     * Tells the client what happened to their Pass.
+     *
+     * Before this, nothing in the Pass domain notified anybody about anything.
+     * A subscription could activate, lapse or be cancelled and the client found
+     * out by opening the app, or by being refused at a bus door. A Pass is what
+     * somebody relies on to get to work.
+     *
+     * Wrapped, because a mail server being down must not roll back an
+     * activation. The Pass is live either way; losing the record of it is
+     * strictly worse than a missing e-mail.
+     */
+    private function announce(PassSubscription $subscription, string $event): void
+    {
+        try {
+            $subscription->loadMissing(['client', 'plan']);
+
+            $subscription->client?->notify(
+                new PassSubscriptionUpdated($subscription, $event)
+            );
+        } catch (Throwable $e) {
+            Log::error('Pass notification failed', [
+                'subscription_id' => $subscription->id,
+                'event' => $event,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -153,9 +204,68 @@ class SubscriptionService
      */
     public function expireLapsed(): int
     {
-        return PassSubscription::where('status', SubscriptionStatus::Active->value)
+        /*
+         * Fetched before the update, not counted after it.
+         *
+         * A bulk `update()` fires no model events and returns only a number, so
+         * there is no way to tell anybody afterwards WHICH subscriptions
+         * lapsed. That is how a Pass expired in silence and a client discovered
+         * it at a bus door. The ids are collected first, the bulk update still
+         * does the work in one statement, and the notification loop then has
+         * something to address.
+         *
+         * Chunked: this runs nightly across the whole subscriber base.
+         */
+        $lapsed = PassSubscription::where('status', SubscriptionStatus::Active->value)
             ->where('expires_at', '<', now())
+            ->pluck('id');
+
+        if ($lapsed->isEmpty()) {
+            return 0;
+        }
+
+        $count = PassSubscription::whereIn('id', $lapsed)
             ->update(['status' => SubscriptionStatus::Expired->value]);
+
+        PassSubscription::with(['client', 'plan'])
+            ->whereIn('id', $lapsed)
+            ->chunkById(100, function ($subscriptions) {
+                foreach ($subscriptions as $subscription) {
+                    $this->announce($subscription, PassSubscriptionUpdated::EXPIRED);
+                }
+            });
+
+        return $count;
+    }
+
+    /**
+     * Warns clients whose Pass runs out soon.
+     *
+     * Separate from `expireLapsed` because it is a different message at a
+     * different time: this one can still be acted on. Called by `pass:expire`
+     * before the sweep, so a client hears "it expires Friday" days before they
+     * hear "it expired".
+     *
+     * `notified_expiring_at` is what stops a nightly job sending the same
+     * warning every night for a week.
+     */
+    public function warnExpiring(int $daysAhead = 3): int
+    {
+        $deadline = now()->addDays($daysAhead);
+
+        $expiring = PassSubscription::with(['client', 'plan'])
+            ->where('status', SubscriptionStatus::Active->value)
+            ->whereBetween('expires_at', [now(), $deadline])
+            ->whereNull('notified_expiring_at')
+            ->get();
+
+        foreach ($expiring as $subscription) {
+            $this->announce($subscription, PassSubscriptionUpdated::EXPIRING);
+
+            $subscription->forceFill(['notified_expiring_at' => now()])->saveQuietly();
+        }
+
+        return $expiring->count();
     }
 
     /**

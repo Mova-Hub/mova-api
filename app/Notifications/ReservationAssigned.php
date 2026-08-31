@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\NotifiesClient;
 use App\Channels\ExpoChannel;
 use App\Channels\FcmChannel;
 use App\Models\Reservation;
@@ -28,7 +29,7 @@ use Illuminate\Notifications\Notification;
  */
 class ReservationAssigned extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use NotifiesClient, Queueable;
 
     public $tries = 3;
     public $backoff = [60, 300, 600];
@@ -45,26 +46,6 @@ class ReservationAssigned extends Notification implements ShouldQueue
      * Mirrors `ReservationStatusUpdated::via()`, minus its duplicated FCM block
      * — that file adds `FcmChannel` twice, which sends every push twice.
      */
-    public function via(object $notifiable): array
-    {
-        $channels = ['database'];
-
-        if (! empty($notifiable->email)) {
-            $channels[] = 'mail';
-        }
-
-        if (method_exists($notifiable, 'routeNotificationForFcm')
-            && ! empty($notifiable->routeNotificationForFcm())) {
-            $channels[] = FcmChannel::class;
-        }
-
-        if (method_exists($notifiable, 'routeNotificationForExpo')
-            && ! empty($notifiable->routeNotificationForExpo())) {
-            $channels[] = ExpoChannel::class;
-        }
-
-        return $channels;
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

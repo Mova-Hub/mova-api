@@ -10,6 +10,7 @@ use App\Domain\Settings\Facades\Settings;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
+use App\Notifications\PaymentOutcome;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -155,11 +156,16 @@ class PaymentService
      */
     public function apply(Payment $payment, ChargeResult $result): Payment
     {
+        /*
+         * Already terminal. This early return is also what makes the
+         * notification below fire exactly once: a webhook re-delivered three
+         * times, or a webhook racing the reconciler, all land here and stop.
+         */
         if ($payment->status->isFinal()) {
             return $payment;
         }
 
-        return DB::transaction(function () use ($payment, $result) {
+        $settled = DB::transaction(function () use ($payment, $result) {
             $now = CarbonImmutable::now();
 
             $payment->status = $result->status;
@@ -184,6 +190,59 @@ class PaymentService
 
             return $payment->refresh();
         });
+
+        /*
+         * The client hears about it, AFTER the transaction commits.
+         *
+         * This is the gap that made every payment except a counter collection
+         * silent: money settling through a webhook, through reconciliation or
+         * through an admin confirming it by hand told nobody. The client
+         * watched a sheet spin, closed it, and had no receipt of any kind.
+         *
+         * After the commit rather than inside it, for the reason the whole
+         * codebase applies: a rollback would have told somebody their trip was
+         * paid for when it was not.
+         */
+        $this->announce($settled, $result);
+
+        return $settled;
+    }
+
+    /**
+     * Tells the client where their money got to.
+     *
+     * Only for terminal states. `processing` is the app's own screen, not a
+     * push, and a notification for it would fire on every poll.
+     *
+     * Wrapped, because a mail server being down must never turn a settled
+     * payment into an exception. The money has arrived; failing here would
+     * roll nothing back and would only lose the record of it.
+     */
+    private function announce(Payment $payment, ChargeResult $result): void
+    {
+        if (! in_array($result->status, [PaymentStatus::Succeeded, PaymentStatus::Failed], true)) {
+            return;
+        }
+
+        try {
+            $client = $payment->client ?? $payment->payable?->paymentClient();
+
+            if (! $client) {
+                // A back-office collection for a walk-in has no account to
+                // notify. Not an error, just nobody to tell.
+                return;
+            }
+
+            $client->notify(new PaymentOutcome(
+                $payment,
+                $result->status === PaymentStatus::Succeeded,
+            ));
+        } catch (Throwable $e) {
+            Log::error('Payment settled but the client could not be notified', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
