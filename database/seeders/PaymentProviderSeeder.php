@@ -26,15 +26,55 @@ class PaymentProviderSeeder extends Seeder
 
             if ($existing) {
                 // Presentation and limits refresh; operational state does not.
-                $existing->update(collect($provider)
+                $fresh = collect($provider)
                     ->except(['enabled', 'mode', 'credentials'])
-                    ->all());
+                    ->all();
+
+                if (isset($fresh['options'])) {
+                    $fresh['options'] = $this->keepUploadedLogos($fresh['options'], $existing->options ?? []);
+                }
+
+                $existing->update($fresh);
 
                 continue;
             }
 
             PaymentProvider::create($provider);
         }
+    }
+
+    /**
+     * Re-seeding must not delete a logo somebody uploaded.
+     *
+     * The seed defines each option with `logo_path => null`, because operator
+     * brand marks are not in the repository. Left alone, a re-seed would
+     * therefore blank every logo an operator had uploaded from Settings, and it
+     * would do it silently: the payment sheet would just start showing coloured
+     * initials again and nobody would connect that to a deploy.
+     *
+     * So the seed owns the option LIST (codes, labels, prefixes) and the
+     * database owns the logo. Matched on `code`, since that is the only stable
+     * identifier an option has.
+     *
+     * @param  array<int, array<string, mixed>>  $seeded
+     * @param  array<int, array<string, mixed>>  $existing
+     * @return array<int, array<string, mixed>>
+     */
+    private function keepUploadedLogos(array $seeded, array $existing): array
+    {
+        $uploaded = collect($existing)
+            ->filter(fn ($o) => is_array($o) && ! empty($o['code']) && ! empty($o['logo_path']))
+            ->keyBy('code');
+
+        return collect($seeded)
+            ->map(function (array $option) use ($uploaded) {
+                $kept = $uploaded->get($option['code'] ?? '');
+
+                return $kept
+                    ? [...$option, 'logo_path' => $kept['logo_path']]
+                    : $option;
+            })
+            ->all();
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -101,6 +141,73 @@ class PaymentProviderSeeder extends Seeder
                 'countries' => ['CG'],
                 'fields' => [],
                 'sort_order' => 5,
+            ],
+            /*
+             * Yabetoo, an aggregator rather than a rail.
+             *
+             * One merchant account, one set of credentials, two operators. The
+             * `options` below are what the customer actually taps: the sheet
+             * never shows "Yabetoo", it shows MTN and Airtel, because that is
+             * what somebody paying recognises. Nobody in Brazzaville thinks of
+             * themselves as paying "by Yabetoo".
+             *
+             * Disabled on seed, like every other provider. It cannot collect
+             * until a secret key is entered and tested from the back office.
+             */
+            [
+                'code' => 'yabetoo',
+                'driver' => 'yabetoo',
+                'label' => 'Mobile Money',
+                'description' => 'MTN MoMo ou Airtel Money',
+                'brand_color' => '#0B3B2E',
+                'enabled' => false,
+                'mode' => 'test',
+                /*
+                 * Yabetoo's own cut is not documented publicly and has to come
+                 * from the contract. Left at zero rather than guessed: a fee
+                 * invented here would silently misprice every trip, and zero is
+                 * at least visibly wrong rather than plausibly wrong.
+                 */
+                'fee_percent' => 0.0,
+                'fee_bearer' => 'merchant',
+                'min_amount' => 100,
+                'max_amount' => 2_000_000,
+                'currencies' => ['XAF'],
+                'countries' => ['CG'],
+                'fields' => [
+                    ['key' => 'phone', 'type' => 'phone', 'label' => 'Numero a debiter', 'required' => true],
+                ],
+                /*
+                 * `code` must match Yabetoo's own vocabulary: it is sent
+                 * verbatim as `operator_name` on confirm. Renaming one of these
+                 * to something friendlier would push the prompt nowhere.
+                 *
+                 * Prefixes are copied from the direct MTN and Airtel rows so the
+                 * same number warns identically whichever rail carries it. They
+                 * are advisory: numbers get ported, and telling a client their
+                 * own number is wrong is worse than a failed attempt.
+                 *
+                 * `logo_path` is null on seed. Logos are uploaded from Settings,
+                 * because shipping operator brand marks in the repository is a
+                 * trademark question nobody here has answered.
+                 */
+                'options' => [
+                    [
+                        'code' => 'mtn',
+                        'label' => 'MTN MoMo',
+                        'brand_color' => '#FFCC00',
+                        'phone_prefixes' => ['06'],
+                        'logo_path' => null,
+                    ],
+                    [
+                        'code' => 'airtel',
+                        'label' => 'Airtel Money',
+                        'brand_color' => '#E30613',
+                        'phone_prefixes' => ['05', '04'],
+                        'logo_path' => null,
+                    ],
+                ],
+                'sort_order' => 15,
             ],
             [
                 'code' => 'card',

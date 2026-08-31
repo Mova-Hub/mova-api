@@ -47,6 +47,16 @@ class PaymentMethodResource extends JsonResource
             'phone_prefixes' => $this->phone_prefixes ?: [],
 
             /*
+             * The rails behind an aggregator.
+             *
+             * Empty for every direct provider, which is what keeps them
+             * rendering exactly as before. Yabetoo returns MTN and Airtel here,
+             * and the sheet shows THOSE rather than the aggregator, because
+             * nobody in Brazzaville thinks of themselves as paying by Yabetoo.
+             */
+            'options' => $this->resolvedOptions(),
+
+            /*
              * Only shown when the CLIENT bears it. A merchant-borne fee is
              * Mova's cost of doing business; surfacing it would invite "why am
              * I being charged 2% for MTN?" about money the client never pays.

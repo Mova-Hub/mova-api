@@ -21,7 +21,7 @@ class PaymentProvider extends Model
         'code', 'driver', 'label', 'description', 'logo_path', 'brand_color',
         'enabled', 'mode', 'credentials',
         'fee_percent', 'fee_fixed', 'fee_bearer', 'min_amount', 'max_amount',
-        'currencies', 'countries', 'phone_prefixes', 'fields', 'capabilities',
+        'currencies', 'countries', 'phone_prefixes', 'fields', 'options', 'capabilities',
         'sort_order', 'last_checked_at', 'last_check_status',
     ];
 
@@ -44,6 +44,7 @@ class PaymentProvider extends Model
         'countries' => 'array',
         'phone_prefixes' => 'array',
         'fields' => 'array',
+        'options' => 'array',
         'capabilities' => 'array',
         'sort_order' => 'integer',
         'last_checked_at' => 'datetime',
@@ -122,6 +123,54 @@ class PaymentProvider extends Model
     public function logoUrl(): ?string
     {
         return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+    }
+
+    /**
+     * The choices this provider presents, resolved for display.
+     *
+     * An aggregator like Yabetoo sits in front of both MTN and Airtel, so what
+     * the customer taps is an OPTION rather than the provider itself. Every
+     * other provider returns an empty list and behaves exactly as it always
+     * has: one provider, one choice.
+     *
+     * Logo paths become URLs here rather than in a Resource, so the mobile
+     * sheet and the back office cannot disagree about where an option's logo
+     * lives. An option with no logo falls back to the provider's own colour
+     * rather than to nothing.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function resolvedOptions(): array
+    {
+        return collect($this->options ?: [])
+            ->filter(fn ($o) => is_array($o) && ! empty($o['code']))
+            ->map(fn (array $o) => [
+                'code' => (string) $o['code'],
+                'label' => (string) ($o['label'] ?? $o['code']),
+                'description' => $o['description'] ?? null,
+                'logo_url' => ! empty($o['logo_path'])
+                    ? Storage::disk('public')->url($o['logo_path'])
+                    : null,
+                'color' => $o['brand_color'] ?? $this->brand_color,
+                // Advisory, exactly as on the provider itself: numbers get
+                // ported between operators, so a mismatch warns and never
+                // blocks.
+                'phone_prefixes' => $o['phone_prefixes'] ?? [],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** True when the customer must choose a rail before the provider can charge. */
+    public function hasOptions(): bool
+    {
+        return $this->resolvedOptions() !== [];
+    }
+
+    /** Whether `$code` is a rail this provider actually offers. */
+    public function hasOption(string $code): bool
+    {
+        return collect($this->resolvedOptions())->contains(fn ($o) => $o['code'] === $code);
     }
 
     /**
