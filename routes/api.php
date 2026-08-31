@@ -614,6 +614,14 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      */
     Route::prefix('admin/payments')->group(function () {
         Route::get('/', [AdminPaymentController::class, 'index']);
+        /*
+         * The sidebar badge. Declared BEFORE `/{id}` or the numeric constraint
+         * is the only thing stopping "pending" being read as an id.
+         *
+         * A count rather than a list: it is polled on every back-office screen,
+         * and the badge only needs a number.
+         */
+        Route::get('/pending-count', [AdminPaymentController::class, 'pendingCount']);
         Route::get('/{id}', [AdminPaymentController::class, 'show'])->whereNumber('id');
         Route::post('/{id}/confirm', [AdminPaymentController::class, 'confirm'])->whereNumber('id');
         Route::post('/{id}/fail', [AdminPaymentController::class, 'fail'])->whereNumber('id');

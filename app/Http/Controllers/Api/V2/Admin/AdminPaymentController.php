@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V2\Admin;
 use App\Domain\Payment\DTOs\ChargeResult;
 use App\Domain\Payment\Enums\PaymentStatus;
 use App\Domain\Payment\Exceptions\PaymentException;
+use App\Domain\Payment\PaymentDriverRegistry;
 use App\Domain\Payment\PaymentService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Payment\PaymentResource;
 use App\Models\Payment;
+use App\Models\PaymentProvider;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -77,6 +79,53 @@ class AdminPaymentController extends Controller
         return PaymentResource::collection(
             $query->paginate((int) $request->input('per_page', 25))
         );
+    }
+
+    /**
+     * How many payments are waiting on a person.
+     *
+     * Backs the badge beside Paiements in the back-office sidebar. Ops
+     * previously had no way to know a cash request had arrived without opening
+     * that page and looking, which is how one sat unnoticed long enough for a
+     * separate expiry bug to hide behind it.
+     *
+     * Counts only what a HUMAN has to act on. Every mobile-money attempt also
+     * passes through `processing` for a minute or two and resolves itself, so
+     * counting those would make the badge flicker with work nobody has to do.
+     * The filter is on the driver's capability rather than a list of provider
+     * codes, so a new manual-style provider added from Settings is included
+     * with no change here.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pendingCount()
+    {
+        $registry = app(PaymentDriverRegistry::class);
+
+        // `driverFor` takes the provider ROW, not the driver name. The
+        // registry's `driver()` takes a provider CODE, which is a different
+        // string entirely and would have resolved nothing here.
+        $manualCodes = PaymentProvider::query()
+            ->get()
+            ->filter(function (PaymentProvider $provider) use ($registry) {
+                try {
+                    return ! $registry->driverFor($provider)->capabilities()->statusPoll;
+                } catch (\Throwable) {
+                    // An unresolvable driver is a misconfigured row, not a
+                    // reason to fail the whole back office.
+                    return false;
+                }
+            })
+            ->pluck('code');
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'pending' => Payment::where('status', PaymentStatus::Processing->value)
+                    ->whereIn('provider_code', $manualCodes)
+                    ->count(),
+            ],
+        ]);
     }
 
     public function show(int $id)
