@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\SavedAddressController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\V2\Calendar\CalendarFeedController;
 // Aliased: `DeviceController` and `MissionController` are field-app concerns and
 // the names are generic enough that an unqualified import would be ambiguous
 // the moment a second one appears.
@@ -119,6 +120,19 @@ Route::prefix('app/v1')->group(function () {
         // Throttled: each miss can trigger a billed Directions call.
         Route::post('/quote', MobileQuoteController::class)
             ->middleware('throttle:30,1');
+
+        /*
+         * Calendar subscription URLs, for the client who owns them.
+         *
+         * The feed itself is public and lives outside every auth group, at the
+         * bottom of this file. These two are the authenticated half: reading
+         * your own link, and revoking it.
+         */
+        Route::get('/calendar/feed', [CalendarFeedController::class, 'show']);
+        Route::post('/calendar/feed/rotate', [CalendarFeedController::class, 'rotate'])
+            // Rotating breaks every calendar already subscribed, so it is not
+            // something to let a loop do by accident.
+            ->middleware('throttle:6,60');
 
         // Client sends the order from app
         Route::post('/orders/request', [OrderRequestController::class, 'store']);
@@ -723,6 +737,23 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     });
 
 });
+
+/*
+ * The calendar feed. Deliberately outside every auth group.
+ *
+ * Google's and Apple's servers fetch this, not the app. They send no
+ * Authorization header and hold no session, so the URL is the credential and
+ * the 48-character token in it is the only thing guarding the document. See
+ * CalendarFeedController for what that token is and why the feed carries no
+ * price, no phone number and no name.
+ *
+ * Throttled hard. A public route keyed on a secret has to be expensive to
+ * sweep, and no real calendar client polls anywhere near this often: Google
+ * refetches every few hours, Apple on a schedule the user picks.
+ */
+Route::get('/calendar/{token}.ics', [CalendarFeedController::class, 'feed'])
+    ->middleware('throttle:30,1')
+    ->name('calendar.feed');
 
 /*
  * Removed: `GET /user`, a closure returning `$request->user()` whole.

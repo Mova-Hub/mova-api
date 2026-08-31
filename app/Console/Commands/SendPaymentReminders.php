@@ -68,7 +68,9 @@ class SendPaymentReminders extends Command
         // on the two chosen days — a range would fire every day in between.
         $targets = [1, $dueDays];
 
-        Order::with(['client', 'reservation'])
+        // `reservation.buses` is loaded because `isPayable()` now counts the
+        // assigned vehicles. Without it this chunk fires one COUNT per order.
+        Order::with(['client', 'reservation.buses'])
             ->whereIn('status', ['contacted', 'converted'])
             ->whereNotNull('client_id')
             ->chunkById(200, function ($orders) use ($messaging, $payments, $targets) {
