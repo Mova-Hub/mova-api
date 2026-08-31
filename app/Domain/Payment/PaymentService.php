@@ -130,8 +130,26 @@ class PaymentService
                 // its own request id where it accepts one. A retried HTTP
                 // request therefore cannot become a second debit.
                 'idempotency_key' => (string) Str::uuid(),
-                'expires_at' => CarbonImmutable::now()
-                    ->addMinutes(config('payment.attempt_ttl_minutes', 15)),
+                /*
+                 * How long this attempt stays answerable.
+                 *
+                 * Two very different clocks, because two very different things
+                 * are being waited on. A mobile-money prompt sits on a handset
+                 * and genuinely dies in minutes. A cash request is a job for a
+                 * person, who may settle it tomorrow morning.
+                 *
+                 * Fifteen minutes was applied to both, which meant a cash
+                 * request expired before anyone could act on it. It still has a
+                 * ceiling rather than none: an in-flight attempt blocks any new
+                 * one (see the guard above), so a request nobody ever actions
+                 * must eventually lapse or the client can never choose another
+                 * method.
+                 */
+                'expires_at' => CarbonImmutable::now()->addMinutes(
+                    $this->registry->driverFor($provider)->capabilities()->statusPoll
+                        ? config('payment.attempt_ttl_minutes', 15)
+                        : config('payment.manual_attempt_ttl_minutes', 60 * 48),
+                ),
                 'meta' => ['fields' => $this->safeFields($fields)],
                 'created_by' => $actorId,
             ]);
@@ -283,8 +301,33 @@ class PaymentService
 
         $driver = $this->registry->driver($payment->provider_code);
 
+        /*
+         * A driver with nothing to poll has nothing to expire.
+         *
+         * This used to call `expireIfStale`, which failed the attempt fifteen
+         * minutes after it was created. For a mobile-money prompt that is
+         * right: the prompt on the handset really does die. For cash it was
+         * wrong and it broke the feature outright.
+         *
+         * A client tapping Especes creates a `processing` payment that an agent
+         * settles by hand, possibly tomorrow. The app polls this endpoint while
+         * the sheet is open, so a quarter of an hour later the request marked
+         * itself failed and vanished from the back office's Paiements list,
+         * which filters on `processing`. The client was told a request had been
+         * sent and ops never saw one.
+         *
+         * `ReconcilePayments` already had this right, with a comment saying so:
+         * "Manual and credit payments are skipped, not expired. Their status
+         * only ever changes because a person changed it, so expiring them would
+         * cancel work an agent is still doing." The cron protected these
+         * payments and this method killed them. Now both agree.
+         *
+         * They are still not immortal: `start()` gives them a long window, so a
+         * request nobody actions eventually lapses and the client can choose
+         * another method rather than being locked out for good.
+         */
         if (! $driver->capabilities()->statusPoll) {
-            return $this->expireIfStale($payment);
+            return $payment;
         }
 
         $result = $this->callDriver(fn () => $driver->status($payment), $payment);
