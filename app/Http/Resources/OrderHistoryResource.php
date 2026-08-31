@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Booking\TripSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,6 +11,11 @@ class OrderHistoryResource extends JsonResource
     public function toArray(Request $request): array
     {
         $res = $this->reservation;
+
+        // The agreed schedule. See the note beside the date fields below for
+        // why this is not read off the order.
+        $schedule = TripSchedule::for($this->resource);
+        $returnsAt = $res?->return_date ?? $this->return_date;
 
         return [
             'id' => $this->id,
@@ -24,15 +30,36 @@ class OrderHistoryResource extends JsonResource
                 // Prioritize the finalized Reservation data, fallback to the original Order data
                 'waypoints' => $res ? $res->waypoints : $this->waypoints,
                 'distance_km' => $res ? (float) $res->distance_km : (float) $this->distance_km,
-                'date' => $this->pickup_date?->translatedFormat('d F Y'), // "15 Janvier 2026"
+                /*
+                 * The AGREED dates, not the requested ones.
+                 *
+                 * These read `$schedule`, which prefers `reservations.trip_date`
+                 * and `reservations.return_date` over the order's own columns.
+                 * The order carries what the client asked for on the form and
+                 * is never rewritten; the reservation carries what ops
+                 * confirmed and is what they edit when a trip moves.
+                 *
+                 * This resource already preferred the reservation for
+                 * `waypoints` and `distance_km` a few lines above. The dates
+                 * were the inconsistency, and they matter more: `date_iso` is
+                 * what the app sorts on and what decides A venir versus
+                 * Historique, so a rescheduled trip was filed under the wrong
+                 * one and ordered by a date that had stopped being true.
+                 */
+                'date' => $schedule?->start->translatedFormat('d F Y'), // "15 Janvier 2026"
                 // The formatted date above cannot be parsed, compared or
                 // sorted, so the app had no way to tell an upcoming trip from a
                 // past one. These carry the same instants in a machine form;
                 // the display strings stay for the existing web client.
-                'date_iso' => $this->pickup_date?->toDateString(),
-                'time' => $this->pickup_time,
-                'return_date' => $this->return_date?->translatedFormat('d F Y'),
-                'return_date_iso' => $this->return_date?->toDateString(),
+                'date_iso' => $schedule?->start->toDateString(),
+                // The clock only when one was actually stated. `allDay` means
+                // nobody set an hour, and echoing the order's free text there
+                // would put "tot le matin" in a time field.
+                'time' => $schedule && ! $schedule->allDay
+                    ? $schedule->start->format('H:i')
+                    : $this->pickup_time,
+                'return_date' => $returnsAt?->translatedFormat('d F Y'),
+                'return_date_iso' => $returnsAt?->toDateString(),
                 'return_time' => $this->return_time,
             ],
             'passengers' => $this->passengers,

@@ -212,18 +212,31 @@ class CalendarFeedTest extends TestCase
         $this->assertStringNotContainsString('Oyo', $body);
     }
 
-    public function test_a_cancelled_trip_disappears_from_the_feed(): void
+    public function test_a_cancelled_trip_is_published_as_cancelled_rather_than_dropped(): void
     {
-        // The property that makes a subscription better than an export.
+        /*
+         * This test asserted the opposite until the robustness pass, and the
+         * old behaviour was the weaker one. Dropping the event does remove it
+         * in most clients, because most reconcile the feed against what they
+         * hold. Most is not all, and a client that only merges what it is sent
+         * keeps a stale entry for a coach that is not coming. A tombstone under
+         * the same UID is the form every client acts on.
+         */
         $client = $this->client();
         $order = $this->confirmedOrder($client, ['destination' => 'Dolisie']);
         $url = $this->tokenFor($client);
 
-        $this->assertStringContainsString('Dolisie', $this->get(parse_url($url, PHP_URL_PATH))->getContent());
+        $body = $this->get(parse_url($url, PHP_URL_PATH))->getContent();
+        $this->assertStringContainsString('Dolisie', $body);
+        $this->assertStringNotContainsString('STATUS:CANCELLED', $body);
 
         $order->reservation->update(['status' => 'cancelled']);
 
-        $this->assertStringNotContainsString('Dolisie', $this->get(parse_url($url, PHP_URL_PATH))->getContent());
+        $body = $this->get(parse_url($url, PHP_URL_PATH))->getContent();
+        $this->assertStringContainsString('mova-order-'.$order->id.'@mova.cg', $body);
+        $this->assertStringContainsString('STATUS:CANCELLED', $body);
+        // No alarm on a trip that is not happening.
+        $this->assertStringNotContainsString('BEGIN:VALARM', $body);
     }
 
     public function test_the_feed_carries_no_price_and_no_phone_number(): void
@@ -250,6 +263,175 @@ class CalendarFeedTest extends TestCase
         $body = $this->get(parse_url($url, PHP_URL_PATH))->getContent();
 
         $this->assertStringContainsString('DTSTART;VALUE=DATE:', $body);
+    }
+
+    /* ──────────────── Issue #7.1: the agreed date wins ──────────────── */
+
+    public function test_the_event_uses_the_agreed_date_not_the_requested_one(): void
+    {
+        // The bug: the feed read `orders.pickup_date`, which is what the client
+        // asked for on the form and is never rewritten. Ops confirmed a
+        // different day here, which is the ordinary case.
+        $client = $this->client();
+        $order = $this->confirmedOrder($client, [
+            'pickup_date' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $agreed = now()->addDays(9)->setTime(7, 30);
+        $order->reservation->update(['trip_date' => $agreed]);
+
+        $body = $this->get(parse_url($this->tokenFor($client), PHP_URL_PATH))->getContent();
+
+        $this->assertStringContainsString('DTSTART:'.$agreed->clone()->utc()->format('Ymd\THis\Z'), $body);
+        $this->assertStringNotContainsString($order->pickup_date->format('Ymd').'T', $body);
+    }
+
+    public function test_rescheduling_moves_the_event(): void
+    {
+        // The whole argument for a subscription over an export. It did not
+        // work before, because a reschedule edits the reservation and the feed
+        // was reading the order.
+        $client = $this->client();
+        $order = $this->confirmedOrder($client);
+        $url = parse_url($this->tokenFor($client), PHP_URL_PATH);
+
+        $order->reservation->update(['trip_date' => now()->addDays(20)->setTime(9, 0)]);
+
+        $body = $this->get($url)->getContent();
+
+        $this->assertStringContainsString(
+            'DTSTART:'.now()->addDays(20)->setTime(9, 0)->utc()->format('Ymd\THis\Z'),
+            $body,
+        );
+    }
+
+    public function test_a_trip_confirmed_at_midnight_falls_back_to_the_stated_time(): void
+    {
+        // `trip_date` is a dateTime, but a date-only form stores midnight. A
+        // charter does not depart at midnight, so that is a missing time
+        // rather than a real one, and the order's own clock is used instead.
+        $client = $this->client();
+        $order = $this->confirmedOrder($client, ['pickup_time' => '06:00']);
+
+        $order->reservation->update(['trip_date' => now()->addDays(4)->startOfDay()]);
+
+        $body = $this->get(parse_url($this->tokenFor($client), PHP_URL_PATH))->getContent();
+
+        $this->assertStringContainsString(
+            'DTSTART:'.now()->addDays(4)->setTime(6, 0)->utc()->format('Ymd\THis\Z'),
+            $body,
+        );
+    }
+
+    /* ──────────────── Issue #7.3: robustness ──────────────── */
+
+    public function test_an_unchanged_feed_is_byte_identical_between_polls(): void
+    {
+        // DTSTAMP used to be the render time, so every poll produced a
+        // different document and no conditional request could ever match.
+        $client = $this->client();
+        $this->confirmedOrder($client);
+        $url = parse_url($this->tokenFor($client), PHP_URL_PATH);
+
+        $this->assertSame($this->get($url)->getContent(), $this->get($url)->getContent());
+    }
+
+    public function test_an_unchanged_feed_answers_304(): void
+    {
+        $client = $this->client();
+        $this->confirmedOrder($client);
+        $url = parse_url($this->tokenFor($client), PHP_URL_PATH);
+
+        $etag = $this->get($url)->assertOk()->headers->get('ETag');
+
+        $this->assertNotNull($etag);
+
+        $this->withHeaders(['If-None-Match' => $etag])
+            ->get($url)
+            ->assertStatus(304);
+    }
+
+    public function test_a_changed_feed_does_not_answer_304(): void
+    {
+        $client = $this->client();
+        $order = $this->confirmedOrder($client);
+        $url = parse_url($this->tokenFor($client), PHP_URL_PATH);
+
+        $etag = $this->get($url)->headers->get('ETag');
+
+        $order->reservation->update(['trip_date' => now()->addDays(30)->setTime(8, 0)]);
+
+        $this->withHeaders(['If-None-Match' => $etag])->get($url)->assertOk();
+    }
+
+    public function test_a_reschedule_raises_last_modified_and_the_sequence(): void
+    {
+        // Without these two, a client that already holds the event keeps the
+        // version it has. Outlook is the strict one.
+        $client = $this->client();
+        $order = $this->confirmedOrder($client);
+        $url = parse_url($this->tokenFor($client), PHP_URL_PATH);
+
+        $before = $this->sequenceIn($this->get($url)->getContent());
+
+        $this->travel(2)->hours();
+        $order->reservation->update(['trip_date' => now()->addDays(12)->setTime(8, 0)]);
+
+        $after = $this->get($url)->getContent();
+
+        $this->assertGreaterThan($before, $this->sequenceIn($after));
+        $this->assertStringContainsString('LAST-MODIFIED:', $after);
+    }
+
+    public function test_the_feed_tells_clients_how_often_to_refresh(): void
+    {
+        // Without a hint Google can sit on its own default for a day or more,
+        // which for a trip leaving in the morning is no use at all.
+        $body = (new IcsCalendar('Test'))->render();
+
+        $this->assertStringContainsString('REFRESH-INTERVAL;VALUE=DURATION:PT1H', $body);
+        $this->assertStringContainsString('X-PUBLISHED-TTL:PT1H', $body);
+    }
+
+    public function test_a_client_with_more_trips_than_the_ceiling_keeps_the_upcoming_ones(): void
+    {
+        /*
+         * The query was ascending with the same limit, so it took the OLDEST
+         * rows in the window and dropped every future trip, which are the only
+         * ones anybody subscribes for. Uses a small ceiling by proxy: three
+         * old trips and one upcoming, asserting the upcoming one survives
+         * ordering rather than relying on creating 201 rows.
+         */
+        $client = $this->client();
+
+        foreach ([50, 40, 30] as $daysAgo) {
+            $this->confirmedOrder($client, [
+                'pickup_date' => now()->subDays($daysAgo)->toDateString(),
+                'destination' => 'Ancien-'.$daysAgo,
+            ]);
+        }
+
+        $this->confirmedOrder($client, [
+            'pickup_date' => now()->addDays(10)->toDateString(),
+            'destination' => 'Futur',
+        ]);
+
+        $body = $this->get(parse_url($this->tokenFor($client), PHP_URL_PATH))->getContent();
+
+        // The upcoming trip comes first, so a ceiling can never cut it.
+        $this->assertLessThan(
+            strpos($body, 'Ancien-50'),
+            strpos($body, 'Futur'),
+            'The upcoming trip must be emitted before the oldest history.',
+        );
+    }
+
+    /** The SEQUENCE of the first event in a document. */
+    private function sequenceIn(string $body): int
+    {
+        preg_match('/SEQUENCE:(\d+)/', $body, $m);
+
+        return (int) ($m[1] ?? -1);
     }
 
     /* ─────────────────────── The format itself ─────────────────────── */

@@ -210,6 +210,48 @@ class TripLifecycleTest extends TestCase
         $this->assertSame('pending', $order->fresh()->status);
     }
 
+    /* ─────────────── The date the app is shown (issue #7.2) ─────────────── */
+
+    public function test_the_history_resource_shows_the_agreed_date_not_the_requested_one(): void
+    {
+        /*
+         * `date_iso` is what the app sorts on and what decides A venir versus
+         * Historique. Reading it off the order meant a rescheduled trip was
+         * filed under the wrong group and ordered by a date that had stopped
+         * being true.
+         *
+         * The resource already preferred the reservation for waypoints and
+         * distance. The dates were the inconsistency.
+         */
+        $order = $this->order($this->client(), [
+            'pickup_date' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $reservation = $this->reservation($order, 'confirmed');
+        $agreed = now()->addDays(9)->setTime(7, 30);
+        $reservation->update(['trip_date' => $agreed]);
+
+        $payload = (new \App\Http\Resources\OrderHistoryResource($order->fresh()))
+            ->toArray(request());
+
+        $this->assertSame($agreed->toDateString(), $payload['itinerary']['date_iso']);
+        $this->assertSame('07:30', $payload['itinerary']['time']);
+    }
+
+    public function test_the_history_resource_falls_back_to_the_order_with_no_reservation(): void
+    {
+        // A lead that was never converted has no agreed date, and the request
+        // is all there is.
+        $order = $this->order($this->client(), [
+            'pickup_date' => now()->addDays(5)->toDateString(),
+        ]);
+
+        $payload = (new \App\Http\Resources\OrderHistoryResource($order->fresh()))
+            ->toArray(request());
+
+        $this->assertSame($order->pickup_date->toDateString(), $payload['itinerary']['date_iso']);
+    }
+
     /* ───────────────────────── Trip reminders ───────────────────────── */
 
     public function test_a_trip_tomorrow_gets_the_eve_reminder(): void
