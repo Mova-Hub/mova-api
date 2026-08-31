@@ -278,6 +278,39 @@ class ClientAuthController extends Controller
     }
 
     /**
+     * Drops one device's push token, on sign out.
+     *
+     * Without this, a handset that somebody has signed out of keeps receiving
+     * that account's notifications: on a shared phone, the next person to pick
+     * it up reads the coordinator's messages. The token is only reclaimed
+     * otherwise when another account happens to register the same one, which
+     * may be never.
+     *
+     * **Scoped to the caller's own tokens.** A token is a device identifier
+     * that arrives in the request body, so without the `client_id` scope any
+     * signed-in client could post a token they had seen and silence somebody
+     * else's phone.
+     *
+     * Idempotent, and deliberately quiet about whether anything was deleted.
+     * This is called during logout, where a 404 would be noise and telling the
+     * caller whether a given token exists would answer a question they have no
+     * business asking.
+     */
+    public function deleteFcmToken(Request $request): JsonResponse
+    {
+        $request->validate(['fcm_token' => 'required|string']);
+
+        ClientFcmToken::where('client_id', $request->user()->id)
+            ->where('fcm_token', $request->input('fcm_token'))
+            ->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Jeton supprimé.',
+        ]);
+    }
+
+    /**
      * REQUEST PASSWORD RESET (OTP VERSION)
      */
     public function forgotPassword(Request $request): JsonResponse
