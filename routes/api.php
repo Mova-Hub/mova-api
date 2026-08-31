@@ -90,6 +90,9 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         // Route::post('/fcm/token', [FcmController::class, 'store']);
         Route::post('/fcm/token', [ClientAuthController::class, 'updateFcmToken']);
+        // Sign out drops this device's token, or a shared handset keeps
+        // delivering the previous account's notifications.
+        Route::delete('/fcm/token', [ClientAuthController::class, 'deleteFcmToken']);
 
         // Delete Account
         Route::delete('/account', [ClientAuthController::class, 'deleteAccount']);
