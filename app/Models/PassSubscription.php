@@ -18,7 +18,7 @@ class PassSubscription extends Model implements Payable
 
     protected $fillable = [
         'uuid', 'client_id', 'pass_plan_id', 'status',
-        'starts_at', 'expires_at', 'trips_remaining',
+        'starts_at', 'expires_at', 'notified_expiring_at', 'trips_remaining',
         'price_paid', 'currency', 'auto_renew',
         'key_id', 'signature',
         'cancelled_at', 'cancel_reason', 'metadata',
@@ -28,6 +28,7 @@ class PassSubscription extends Model implements Payable
         'status' => SubscriptionStatus::class,
         'starts_at' => 'immutable_datetime',
         'expires_at' => 'immutable_datetime',
+        'notified_expiring_at' => 'datetime',
         'trips_remaining' => 'integer',
         'price_paid' => 'integer',
         'auto_renew' => 'boolean',

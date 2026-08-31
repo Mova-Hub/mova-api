@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\NotifiesClient;
 use App\Channels\ExpoChannel;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
@@ -14,7 +15,7 @@ use Throwable;
 
 class OrderStatusUpdated extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use NotifiesClient, Queueable;
 
     public $tries = 3;
     public $backoff = [60, 300, 600];
@@ -28,33 +29,6 @@ class OrderStatusUpdated extends Notification implements ShouldQueue
         $this->customMessage = $customMessage;
     }
 
-    public function via($notifiable): array
-    {
-        $channels = ['database'];
-
-        if (!empty($notifiable->email)) {
-            $channels[] = 'mail';
-        }
-
-        // FCM: only add if the method exists AND there are tokens
-        if (method_exists($notifiable, 'routeNotificationForFcm')) {
-            $fcmTokens = $notifiable->routeNotificationForFcm();
-            if (!empty($fcmTokens)) {
-                $channels[] = FcmChannel::class;
-            }
-        }
-
-        // Expo: only add if the method exists AND there are tokens
-        if (method_exists($notifiable, 'routeNotificationForExpo')) {
-            $expoTokens = $notifiable->routeNotificationForExpo();
-            if (!empty($expoTokens)) {
-                $channels[] = ExpoChannel::class;
-            }
-        }
-
-
-        return $channels;
-    }
 
     public function toMail($notifiable): MailMessage
     {
