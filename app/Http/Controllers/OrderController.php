@@ -36,7 +36,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $request->validate([
-            'status' => 'nullable|in:pending,contacted,converted,cancelled',
+            'status' => 'nullable|in:pending,contacted,converted,cancelled,expired',
             'search' => 'nullable|string|max:120',
             'event_type' => 'nullable|string|max:60',
         ]);
@@ -94,7 +94,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:200'],
             'ids.*' => ['integer'],
-            'status' => ['required', 'in:pending,contacted,converted,cancelled'],
+            'status' => ['required', 'in:pending,contacted,converted,cancelled,expired'],
         ]);
 
         /*
@@ -132,7 +132,7 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         $data = $request->validate([
-            'status' => 'nullable|in:pending,contacted,converted,cancelled',
+            'status' => 'nullable|in:pending,contacted,converted,cancelled,expired',
             'internal_notes' => 'nullable|string'
         ]);
 
