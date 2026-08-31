@@ -67,7 +67,7 @@ class ManualPaymentDriver extends BaseDriver
      * by mistake, it refuses instead of accepting an unsigned request that
      * could mark an order paid.
      */
-    public function verifyCallback(array $payload, array $headers): bool
+    public function verifyCallback(array $payload, array $headers, string $rawBody = ''): bool
     {
         return false;
     }

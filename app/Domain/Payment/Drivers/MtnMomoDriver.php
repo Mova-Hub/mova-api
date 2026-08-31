@@ -129,7 +129,7 @@ class MtnMomoDriver extends BaseDriver
      * applying anything, so a forged callback achieves nothing beyond an extra
      * outbound request.
      */
-    public function verifyCallback(array $payload, array $headers): bool
+    public function verifyCallback(array $payload, array $headers, string $rawBody = ''): bool
     {
         return isset($payload['externalId']) || isset($payload['financialTransactionId']);
     }

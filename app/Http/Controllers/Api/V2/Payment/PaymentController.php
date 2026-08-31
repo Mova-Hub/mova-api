@@ -14,9 +14,11 @@ use App\Models\Client;
 use App\Models\Order;
 use App\Models\PassSubscription;
 use App\Models\Payment;
+use App\Models\PaymentProvider;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Paying, from the app.
@@ -155,10 +157,22 @@ class PaymentController extends Controller
             // E.164. The prompt is pushed to this number, which is often not
             // the account's — people pay from a spouse's or employer's wallet.
             'phone' => ['nullable', 'string', 'regex:/^\+[1-9]\d{7,14}$/'],
+            /*
+             * Which rail, when the provider is an aggregator.
+             *
+             * Yabetoo fronts both MTN and Airtel, so "which provider" and "what
+             * the customer tapped" stop being the same question. Validated
+             * against the provider's OWN configured options below rather than
+             * by a rule here, because the allowed values are a property of the
+             * row and change when ops edits it.
+             */
+            'operator' => ['nullable', 'string', 'max:32'],
         ], [
             'provider.exists' => 'Ce moyen de paiement n’est pas disponible.',
             'phone.regex' => 'Numéro invalide. Format attendu : +242 06 123 4567.',
         ]);
+
+        $operator = $this->resolveOperator($data['provider'], $data['operator'] ?? null);
 
         // NOTE: no amount is accepted. See PaymentService — the payable owns it.
         try {
@@ -166,7 +180,13 @@ class PaymentController extends Controller
                 payable: $payable,
                 client: $client,
                 providerCode: $data['provider'],
-                fields: array_filter(['phone' => $data['phone'] ?? null]),
+                fields: array_filter([
+                    'phone' => $data['phone'] ?? null,
+                    // Carried into `payment.meta.fields`, which is where the
+                    // driver reads it. Not a column: it is meaningful to one
+                    // driver and would be null on every other payment.
+                    'operator' => $operator,
+                ]),
                 kind: $data['kind'] ?? 'full',
                 channel: 'app',
             );
@@ -207,6 +227,42 @@ class PaymentController extends Controller
         $payable = $this->resolvePayable($request->user(), $type, $id);
 
         return PaymentResource::collection($payable->payments()->with('provider')->get());
+    }
+
+    /**
+     * The rail the customer chose, checked against what the provider offers.
+     *
+     * Three cases, and the middle one is the reason this is a method rather
+     * than a validation rule:
+     *
+     *  - a provider with no options ignores whatever arrived. A stray
+     *    `operator` on an MTN payment is noise, not an error.
+     *  - a provider WITH options requires one. Letting it through would reach
+     *    the driver, fail there, and cost the customer a round trip to be told
+     *    something the API already knew.
+     *  - an operator the provider does not offer is refused rather than passed
+     *    on. A caller must not be able to post an arbitrary string through to
+     *    the aggregator.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private function resolveOperator(string $providerCode, ?string $operator): ?string
+    {
+        $provider = PaymentProvider::where('code', $providerCode)->first();
+
+        if (! $provider || ! $provider->hasOptions()) {
+            return null;
+        }
+
+        $operator = $operator !== null ? strtolower(trim($operator)) : null;
+
+        if (! $operator || ! $provider->hasOption($operator)) {
+            throw ValidationException::withMessages([
+                'operator' => 'Choisissez un opérateur (MTN ou Airtel).',
+            ]);
+        }
+
+        return $operator;
     }
 
     /**
