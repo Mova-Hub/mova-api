@@ -25,23 +25,55 @@ with no callers outside the file.
 Ask before pushing. Pushing is outward facing and awkward to undo, so it is
 never automatic, even when the change is clearly significant.
 
-Opening a pull request is where the work stops. Approving and merging belong to
-the repository owner alone.
-
 ## How
 
-1. Branch. Never commit to `main` directly. Name the branch for the work:
+1. **Open the pull request for the PREVIOUS branch first**, before starting a
+   new one. See "When the pull request opens" below. This is the step that is
+   easy to skip and is the whole point of the ordering.
+
+2. Branch. Never commit to `main` directly. Name the branch for the work:
    `feat/field-missions`, `fix/coordinator-notification`, `chore/bump-reverb`,
    `style/remove-em-dashes`.
 
-2. Stage only the files belonging to this change. Never `git add -A`. This
+3. Stage only the files belonging to this change. Never `git add -A`. This
    working tree regularly carries unrelated edits, for example a formatter pass
    that rewrites punctuation across files nobody touched. Sweeping those into a
    feature commit makes the diff unreviewable.
 
-3. Commit with a message that says what changed and why, not what the files are.
+4. Commit with a message that says what changed and why, not what the files are.
 
-4. Push the branch and open a pull request with `gh pr create`.
+5. Push the branch. **Do not open a pull request yet.**
+
+## When the pull request opens
+
+Not when the branch is pushed. A branch is pushed as soon as the work is worth
+keeping, and stays open to more commits; the pull request opens only once that
+work is finished, which in practice is the moment the next piece of work starts.
+
+So the order across two changes is:
+
+```
+branch A  ->  commit  ->  push A
+                          (no pull request yet, A may still gain commits)
+
+next change:
+open pull request for A  ->  branch B  ->  commit  ->  push B
+                                                       (no pull request yet)
+```
+
+Two things follow, and both are the reason for doing it this way:
+
+- **A pull request is never opened on work that is still moving.** A reviewer
+  is not asked to look at something that will have three more commits on it by
+  the time they do.
+- **Only one pull request is in front of the reviewer at a time**, and it opens
+  when it is genuinely ready.
+
+If the work is finished and nothing follows it, say so and ask whether to open
+the pull request rather than leaving the branch pushed and forgotten.
+
+Approving and merging belong to the repository owner alone. Never `gh pr merge`,
+never `gh pr review --approve`.
 
 Never commit `.env`, `firebase-credentials.json`, or anything holding a real
 credential. `.env.example` documents keys with empty values and nothing else.
