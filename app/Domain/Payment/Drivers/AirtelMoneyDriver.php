@@ -152,7 +152,7 @@ class AirtelMoneyDriver extends BaseDriver
      * attackable, and while the practical risk here is small the correct
      * comparison costs nothing.
      */
-    public function verifyCallback(array $payload, array $headers): bool
+    public function verifyCallback(array $payload, array $headers, string $rawBody = ''): bool
     {
         $secret = $this->credential('webhook_secret');
 

@@ -69,7 +69,7 @@ interface PaymentDriver
      * default turns its webhook route into an endpoint anyone can use to mark
      * an order paid.
      */
-    public function verifyCallback(array $payload, array $headers): bool;
+    public function verifyCallback(array $payload, array $headers, string $rawBody = ''): bool;
 
     /**
      * Reads the provider's identity out of a callback body.

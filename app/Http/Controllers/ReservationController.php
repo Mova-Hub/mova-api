@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Imported for transactions
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ReservationController extends Controller
 {
@@ -513,6 +514,9 @@ class ReservationController extends Controller
             // E.164. Often not the account's number — a company pays for its
             // staff, a parent for a school trip.
             'phone'    => ['nullable', 'string', 'regex:/^\+[1-9]\d{7,14}$/'],
+            // Which rail, when the provider aggregates several. Validated
+            // against the provider's own options below, not by a rule here.
+            'operator' => ['nullable', 'string', 'max:32'],
         ], [
             'provider.exists' => 'Ce moyen de paiement n’est pas disponible.',
             'phone.regex'     => 'Numéro invalide. Format attendu : +242 06 123 4567.',
@@ -550,6 +554,9 @@ class ReservationController extends Controller
                 // anyone specified a format.
                 fields: array_filter([
                     'phone' => $data['phone'] ?? PhoneNumber::toE164($reservation->passenger_phone),
+                    // The chosen rail for an aggregator. Null for every direct
+                    // provider, and dropped by array_filter when it is.
+                    'operator' => $this->resolveOperator($data['provider'], $data['operator'] ?? null),
                 ]),
                 kind: $data['kind'] ?? 'full',
                 // Attributable: this collection was opened by staff, not by the
@@ -675,6 +682,35 @@ class ReservationController extends Controller
         }
 
         return new ReservationResource($reservation->load('buses'));
+    }
+
+    /**
+     * The rail an agent chose, checked against what the provider offers.
+     *
+     * Mirrors `Api\V2\Payment\PaymentController::resolveOperator()`. Duplicated
+     * rather than shared because the two live on opposite sides of the staff
+     * boundary and neither controller should reach into the other; the rule
+     * itself is three lines and the model owns the actual knowledge.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private function resolveOperator(string $providerCode, ?string $operator): ?string
+    {
+        $provider = PaymentProvider::where('code', $providerCode)->first();
+
+        if (! $provider || ! $provider->hasOptions()) {
+            return null;
+        }
+
+        $operator = $operator !== null ? strtolower(trim($operator)) : null;
+
+        if (! $operator || ! $provider->hasOption($operator)) {
+            throw ValidationException::withMessages([
+                'operator' => 'Choisissez un opérateur (MTN ou Airtel).',
+            ]);
+        }
+
+        return $operator;
     }
 
     /**

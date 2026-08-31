@@ -5,6 +5,7 @@ use App\Domain\Payment\Drivers\CardDriver;
 use App\Domain\Payment\Drivers\ManualPaymentDriver;
 use App\Domain\Payment\Drivers\MovaCreditDriver;
 use App\Domain\Payment\Drivers\MtnMomoDriver;
+use App\Domain\Payment\Drivers\YabetooDriver;
 
 return [
 
@@ -32,6 +33,7 @@ return [
         'mova_credit' => MovaCreditDriver::class,
         'manual' => ManualPaymentDriver::class,
         'card' => CardDriver::class,
+        'yabetoo' => YabetooDriver::class,
     ],
 
     /*
@@ -54,6 +56,12 @@ return [
         'airtel_money' => [
             'test' => 'https://openapiuat.airtel.africa',
             'live' => 'https://openapi.airtel.africa',
+        ],
+        // Yabetoo aggregates MTN and Airtel behind one API. Note the sandbox
+        // and live hosts differ in structure rather than by a subdomain swap.
+        'yabetoo' => [
+            'test' => 'https://pay.sandbox.yabetoopay.com',
+            'live' => 'https://pay.api.yabetoopay.com',
         ],
     ],
 

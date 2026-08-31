@@ -175,23 +175,70 @@ class PaymentProviderController extends Controller
             // bandwidth cost and, if the mime check is loose, an upload
             // primitive. SVG is excluded deliberately — it can carry script.
             'logo' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:512', 'dimensions:max_width=1024,max_height=1024'],
+            /*
+             * Which rail's logo, for an aggregator.
+             *
+             * Yabetoo fronts MTN and Airtel, and the app shows THOSE rather
+             * than the aggregator, so each needs its own mark. Absent means the
+             * provider's own logo, which is every other provider.
+             */
+            'option' => ['nullable', 'string', 'max:32'],
         ]);
 
-        // Replaces rather than accumulates: a provider has one logo, and
-        // orphaned uploads are storage nobody ever reclaims.
-        if ($provider->logo_path) {
-            Storage::disk('public')->delete($provider->logo_path);
+        $option = $request->string('option')->toString();
+
+        if ($option !== '' && ! $provider->hasOption($option)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cet opérateur n’existe pas pour ce moyen de paiement.',
+            ], 422);
         }
 
         $path = $request->file('logo')->store('payment-providers', 'public');
 
-        $provider->update(['logo_path' => $path]);
+        if ($option !== '') {
+            $provider->update(['options' => $this->replaceOptionLogo($provider, $option, $path)]);
+        } else {
+            // Replaces rather than accumulates: a provider has one logo, and
+            // orphaned uploads are storage nobody ever reclaims.
+            if ($provider->logo_path) {
+                Storage::disk('public')->delete($provider->logo_path);
+            }
+
+            $provider->update(['logo_path' => $path]);
+        }
 
         return response()->json([
             'status' => true,
             'message' => 'Logo mis à jour.',
             'data' => $this->present($provider->refresh()),
         ]);
+    }
+
+    /**
+     * Swaps one option's logo, leaving the rest of the option untouched.
+     *
+     * The old file is deleted here for the same reason the provider's own is:
+     * an aggregator's logos get replaced as brands refresh, and orphaned
+     * uploads are storage nobody ever reclaims.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function replaceOptionLogo(PaymentProvider $provider, string $option, string $path): array
+    {
+        return collect($provider->options ?: [])
+            ->map(function (array $existing) use ($option, $path) {
+                if (($existing['code'] ?? null) !== $option) {
+                    return $existing;
+                }
+
+                if (! empty($existing['logo_path'])) {
+                    Storage::disk('public')->delete($existing['logo_path']);
+                }
+
+                return [...$existing, 'logo_path' => $path];
+            })
+            ->all();
     }
 
     public function destroy(int $id)
@@ -298,6 +345,9 @@ class PaymentProviderController extends Controller
             'countries' => $provider->countries ?: [],
             'phone_prefixes' => $provider->phone_prefixes ?: [],
             'fields' => $provider->fields ?: [],
+            // Resolved, so the back office renders the same logo URLs the app
+            // does rather than raw storage paths.
+            'options' => $provider->resolvedOptions(),
             'capabilities' => $capabilities,
             'sort_order' => (int) $provider->sort_order,
 

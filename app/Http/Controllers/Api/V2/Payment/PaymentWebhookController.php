@@ -59,7 +59,7 @@ class PaymentWebhookController extends Controller
             return response()->json(['received' => true]);
         }
 
-        if (! $driver->verifyCallback($payload, $request->headers->all())) {
+        if (! $driver->verifyCallback($payload, $request->headers->all(), $request->getContent())) {
             /*
              * Logged at warning, not error: an unverified callback is a normal
              * event on a public endpoint, and paging on it would train people

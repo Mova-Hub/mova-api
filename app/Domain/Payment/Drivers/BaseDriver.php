@@ -85,7 +85,7 @@ abstract class BaseDriver implements PaymentDriver
      * into an endpoint anyone on the internet can use to mark an order paid.
      * Verification is opt-in, per driver, with the provider's own scheme.
      */
-    public function verifyCallback(array $payload, array $headers): bool
+    public function verifyCallback(array $payload, array $headers, string $rawBody = ''): bool
     {
         return false;
     }
