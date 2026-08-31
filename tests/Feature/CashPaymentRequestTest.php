@@ -9,7 +9,10 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
 use App\Models\Reservation;
+use App\Models\User;
+use App\Notifications\ManualPaymentRequested;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -192,6 +195,112 @@ class CashPaymentRequestTest extends TestCase
         $payment = app(PaymentService::class)->expireIfStale(Payment::where('uuid', $uuid)->first());
 
         $this->assertTrue($payment->status->isFinal(), 'A two day old cash request should have lapsed.');
+    }
+
+    /* ─────────────────── Making it visible to ops ─────────────────── */
+
+    public function test_staff_are_alerted_when_a_cash_request_arrives(): void
+    {
+        // Nothing used to say a cash request existed. Ops had to be looking at
+        // the Paiements page at the right moment, which is how the expiry bug
+        // above stayed hidden: the only evidence was an absence.
+        NotificationFacade::fake();
+
+        $agent = User::create([
+            'name' => 'Agent',
+            'email' => 'agent'.uniqid().'@example.test',
+            'password' => bcrypt('secret'),
+            'role' => 'agent',
+            'status' => 'active',
+        ]);
+
+        $this->cashProvider();
+        Sanctum::actingAs($client = $this->client());
+        $order = $this->payableOrder($client);
+
+        $this->postJson("/api/app/v1/payment/order/{$order->id}", ['provider' => 'cash'])->assertCreated();
+
+        NotificationFacade::assertSentTo($agent, ManualPaymentRequested::class);
+    }
+
+    public function test_a_mobile_money_attempt_does_not_alert_staff(): void
+    {
+        /*
+         * Every mobile-money attempt also passes through `processing` and
+         * resolves itself within a minute or two. Alerting an agent each time
+         * somebody taps MTN would make this notification worthless within a
+         * day, so the test is on the driver's capability rather than on a list
+         * of provider codes.
+         */
+        NotificationFacade::fake();
+
+        $agent = User::create([
+            'name' => 'Agent',
+            'email' => 'agent'.uniqid().'@example.test',
+            'password' => bcrypt('secret'),
+            'role' => 'agent',
+            'status' => 'active',
+        ]);
+
+        $client = $this->client();
+        $order = $this->payableOrder($client);
+
+        app(PaymentService::class)->apply(
+            Payment::create([
+                'payable_type' => Order::class,
+                'payable_id' => $order->id,
+                'client_id' => $client->id,
+                'provider_code' => 'mtn_momo',
+                'channel' => 'app',
+                'status' => 'pending',
+                'amount' => 500000,
+                'currency' => 'XAF',
+                'idempotency_key' => (string) \Illuminate\Support\Str::uuid(),
+            ]),
+            \App\Domain\Payment\DTOs\ChargeResult::processing('REF-1', 'en cours'),
+        );
+
+        NotificationFacade::assertNotSentTo($agent, ManualPaymentRequested::class);
+    }
+
+    public function test_the_pending_count_powers_the_sidebar_badge(): void
+    {
+        $this->cashProvider();
+        Sanctum::actingAs($client = $this->client());
+        $order = $this->payableOrder($client);
+
+        $this->postJson("/api/app/v1/payment/order/{$order->id}", ['provider' => 'cash'])->assertCreated();
+
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin'.uniqid().'@example.test',
+            'password' => bcrypt('secret'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/payments/pending-count')
+            ->assertOk()
+            ->assertJsonPath('data.pending', 1);
+    }
+
+    public function test_the_pending_count_route_is_not_swallowed_by_the_id_route(): void
+    {
+        // `/{id}` sits directly after it. Without the numeric constraint and
+        // the declaration order, "pending-count" is read as an id and 404s.
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin'.uniqid().'@example.test',
+            'password' => bcrypt('secret'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/payments/pending-count')->assertOk();
     }
 
     public function test_a_mobile_money_prompt_still_expires_on_the_short_clock(): void

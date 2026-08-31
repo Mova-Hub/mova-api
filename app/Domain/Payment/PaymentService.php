@@ -10,11 +10,14 @@ use App\Domain\Settings\Facades\Settings;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
+use App\Models\User;
+use App\Notifications\ManualPaymentRequested;
 use App\Notifications\PaymentOutcome;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -238,6 +241,26 @@ class PaymentService
      */
     private function announce(Payment $payment, ChargeResult $result): void
     {
+        /*
+         * A cash or transfer request needs a HUMAN, so tell one.
+         *
+         * This is the only case where `processing` is worth announcing, and it
+         * is announced to staff rather than to the client. Mobile money
+         * resolves itself through a webhook or the reconciler whether anybody
+         * is watching or not; a manual payment sits here until a person
+         * collects the money, and nothing used to say it had arrived. Ops had
+         * to happen to be looking at the Paiements page.
+         *
+         * That silence is also what hid the expiry bug: the request was failing
+         * itself after fifteen minutes, and with no announcement the only
+         * evidence was its absence from a list nobody had reason to refresh.
+         */
+        if ($result->status === PaymentStatus::Processing) {
+            $this->alertStaffToManualPayment($payment);
+
+            return;
+        }
+
         if (! in_array($result->status, [PaymentStatus::Succeeded, PaymentStatus::Failed], true)) {
             return;
         }
@@ -257,6 +280,47 @@ class PaymentService
             ));
         } catch (Throwable $e) {
             Log::error('Payment settled but the client could not be notified', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Tells staff that money is waiting to be collected by hand.
+     *
+     * Only for drivers that cannot settle themselves. A mobile-money prompt
+     * also passes through `processing`, and alerting an agent every time
+     * somebody taps MTN would make this notification worthless within a day.
+     * The capability is the right test rather than a list of provider codes:
+     * a new manual-style provider added from Settings gets this for free.
+     *
+     * Active admins and agents, matching how a new order is announced. No
+     * fallback to a shared inbox: unlike a lead, an unnoticed payment request
+     * costs nobody a sale, and mailing an address nobody owns is how alerts
+     * start being ignored.
+     *
+     * Wrapped, because a mail server being down must never turn a recorded
+     * payment into an exception.
+     */
+    private function alertStaffToManualPayment(Payment $payment): void
+    {
+        try {
+            if ($this->registry->driver($payment->provider_code)->capabilities()->statusPoll) {
+                return;
+            }
+
+            $staff = User::whereIn('role', User::STAFF_ROLES)
+                ->where('status', 'active')
+                ->get();
+
+            if ($staff->isEmpty()) {
+                return;
+            }
+
+            NotificationFacade::send($staff, new ManualPaymentRequested($payment));
+        } catch (Throwable $e) {
+            Log::error('Manual payment recorded but staff could not be alerted', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ]);
