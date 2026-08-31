@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V2\Calendar;
 
+use App\Domain\Booking\TripSchedule;
 use App\Domain\Calendar\IcsCalendar;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
@@ -94,7 +95,7 @@ class CalendarFeedController extends Controller
     /**
      * The feed itself. Public, and the token is the only thing guarding it.
      */
-    public function feed(string $token)
+    public function feed(Request $request, string $token)
     {
         /*
          * A length check before the query.
@@ -119,22 +120,72 @@ class CalendarFeedController extends Controller
             description: 'Vos trajets Mova',
         );
 
-        foreach ($this->trips($client) as $order) {
+        $trips = $this->trips($client);
+
+        foreach ($trips as $order) {
             $this->addTrip($calendar, $order);
         }
 
-        return response($calendar->render(), Response::HTTP_OK, [
+        $body = $calendar->render();
+
+        /*
+         * Conditional requests.
+         *
+         * A calendar client polls this endpoint forever, and until now every
+         * poll transferred the whole document. The ETag is a hash of the bytes
+         * we would have sent, so an unchanged feed answers 304 with no body.
+         *
+         * This only works because `DTSTAMP` is now anchored to each booking's
+         * own timestamp rather than to `now()`. While it was the render time
+         * the bytes changed on every request and no ETag could ever match.
+         */
+        $etag = '"'.md5($body).'"';
+        $lastModified = $this->lastModified($trips);
+
+        if (trim((string) $request->header('If-None-Match')) === $etag) {
+            return response('', Response::HTTP_NOT_MODIFIED, [
+                'ETag' => $etag,
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+            ]);
+        }
+
+        return response($body, Response::HTTP_OK, [
             'Content-Type' => 'text/calendar; charset=utf-8',
             'Content-Disposition' => 'inline; filename="mova.ics"',
-            // Calendar clients poll on their own schedule and ignore most cache
-            // hints, but this stops any proxy in between holding a stale copy
-            // of somebody's itinerary.
-            'Cache-Control' => 'no-store, private',
+            'ETag' => $etag,
+            'Last-Modified' => $lastModified->toRfc7231String(),
+            /*
+             * `must-revalidate`, not `no-store`.
+             *
+             * `no-store` forbade caching outright, which ruled out the 304
+             * above. This lets a client hold the document and ask whether it
+             * is still current, while `private` still keeps any shared proxy
+             * from holding somebody's itinerary.
+             */
+            'Cache-Control' => 'private, max-age=0, must-revalidate',
             // The URL is a credential. Keeping it out of referrer headers stops
             // it leaking to any host the document happens to reference.
             'Referrer-Policy' => 'no-referrer',
             'X-Robots-Tag' => 'noindex, nofollow',
         ]);
+    }
+
+    /**
+     * The most recent change across everything in the feed.
+     *
+     * The reservation's timestamp counts as much as the order's, because a
+     * reschedule edits the reservation and leaves the order untouched. Using
+     * the order alone would report a feed as unchanged at exactly the moment
+     * it changed most.
+     *
+     * @param  \Illuminate\Support\Collection<int, Order>  $trips
+     */
+    private function lastModified($trips): \Illuminate\Support\Carbon
+    {
+        return $trips
+            ->flatMap(fn (Order $order) => [$order->updated_at, $order->reservation?->updated_at])
+            ->filter()
+            ->max() ?? now();
     }
 
     /**
@@ -150,12 +201,40 @@ class CalendarFeedController extends Controller
      */
     private function trips(Client $client)
     {
+        $since = now()->subDays(self::HISTORY_DAYS)->startOfDay();
+
         return Order::query()
             ->where('client_id', $client->id)
             ->with(['reservation.buses'])
-            ->whereHas('reservation', fn ($q) => $q->whereIn('status', ['confirmed', 'in_progress', 'completed']))
-            ->whereDate('pickup_date', '>=', now()->subDays(self::HISTORY_DAYS)->toDateString())
-            ->orderBy('pickup_date')
+            ->whereHas('reservation', fn ($q) => $q->whereIn(
+                'status',
+                // `cancelled` is included so a cancellation can be PUBLISHED as
+                // a tombstone rather than silently vanishing. See `addTrip`.
+                ['confirmed', 'in_progress', 'completed', 'cancelled'],
+            ))
+            /*
+             * Filtered on the AGREED date, not the requested one.
+             *
+             * `reservations.trip_date` is what ops confirmed and what they edit
+             * when a trip moves; `orders.pickup_date` is the original request
+             * and is never rewritten. COALESCE so a reservation that somehow
+             * has no date still falls back rather than disappearing.
+             */
+            ->whereRaw(
+                'COALESCE((select trip_date from reservations where reservations.order_id = orders.id limit 1), orders.pickup_date) >= ?',
+                [$since->toDateTimeString()],
+            )
+            /*
+             * Newest first, and this is a correctness fix rather than a
+             * preference.
+             *
+             * It was ascending with the same limit, so a client with more than
+             * 200 trips in the window got the OLDEST 200 and lost every
+             * upcoming one, which are the only ones that matter. Taking the
+             * most recent 200 keeps the future and drops the far past, which
+             * is the right end to lose.
+             */
+            ->orderByDesc('pickup_date')
             // A hard ceiling. Without it one client with a long history makes
             // this endpoint generate a multi-megabyte document on every poll.
             ->limit(200)
@@ -166,30 +245,25 @@ class CalendarFeedController extends Controller
     {
         $reservation = $order->reservation;
 
-        $time = $this->parseTime($order->pickup_time);
-        $allDay = $time === null;
-
-        $start = $order->pickup_date->copy()->setTime($time['h'] ?? 0, $time['m'] ?? 0);
-
         /*
-         * The end.
+         * The AGREED schedule, from `TripSchedule`.
          *
-         * A return date makes this a multi-day charter and the entry spans it.
-         * Otherwise four hours from departure: a charter here is typically a
-         * half day out and back, and an entry that is too short is worse than
-         * one that is too long, because it tells somebody they are free at noon
-         * when they are on a coach.
+         * This used to read `orders.pickup_date` and the free text
+         * `orders.pickup_time` directly, which is the date the client
+         * requested on the form and is never rewritten. A trip confirmed for a
+         * different day, or rescheduled later, kept its original date in
+         * everybody's calendar for good, which defeats the whole point of
+         * publishing a subscription rather than a one-off export.
          */
-        $end = $order->return_date
-            ? $order->return_date->copy()->setTime(
-                $this->parseTime($order->return_time)['h'] ?? 23,
-                $this->parseTime($order->return_time)['m'] ?? 59,
-            )
-            : $start->copy()->addHours(4);
+        $schedule = TripSchedule::for($order);
 
-        if ($end->lessThanOrEqualTo($start)) {
-            $end = $start->copy()->addHours(4);
+        if (! $schedule) {
+            return;
         }
+
+        $start = $schedule->start;
+        $end = $schedule->end;
+        $allDay = $schedule->allDay;
 
         $description = collect([
             $reservation?->code ? 'Référence : '.$reservation->code : null,
@@ -213,36 +287,57 @@ class CalendarFeedController extends Controller
             location: (string) $order->origin,
             description: $description,
             allDay: $allDay,
-            // Always CONFIRMED. The feed only carries confirmed, running and
-            // completed trips, and a past trip is still something that
-            // happened, so there is no state here that maps to TENTATIVE.
-            // Cancelled ones are excluded by the query rather than published
-            // with STATUS:CANCELLED, so they vanish on the next fetch.
-            status: 'CONFIRMED',
+            /*
+             * A cancelled trip is PUBLISHED as cancelled, not dropped.
+             *
+             * Dropping it does usually remove the entry, because most clients
+             * reconcile the feed against what they hold. Most is not all, and
+             * a client that only merges what it is sent keeps a stale event
+             * for a coach that is not coming. A tombstone with the same UID is
+             * the form every client acts on.
+             *
+             * It stays in the feed for as long as the history window, then
+             * ages out with everything else.
+             */
+            status: $reservation?->status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED',
             // Two hours, and only on a timed event. An all-day entry has no
             // departure to count back from, so an alarm on it fires at
-            // midnight and tells somebody nothing.
-            reminderMinutes: $allDay ? null : 120,
+            // midnight and tells somebody nothing. Never on a cancellation.
+            reminderMinutes: $allDay || $reservation?->status === 'cancelled' ? null : 120,
+            /*
+             * What makes a reschedule actually land.
+             *
+             * The reservation's timestamp, because that is the row ops edit
+             * when a trip moves; the order is untouched by a reschedule, so
+             * using it would report the booking as unchanged at exactly the
+             * moment it changed.
+             */
+            lastModified: $reservation?->updated_at ?? $order->updated_at,
+            sequence: $this->sequenceFor($order),
         );
     }
 
     /**
-     * `pickup_time` is free text on this table and older rows really do hold
-     * things like "tot le matin". Anything unrecognised makes the entry
-     * all-day rather than inventing an hour somebody would plan around.
+     * A revision number that goes up when the booking is edited.
      *
-     * @return array{h: int, m: int}|null
+     * Seconds between creation and the last edit, so it starts at 0 and only
+     * ever increases for a given event. Derived rather than stored because
+     * there is nothing to keep in step: any edit moves `updated_at`, and an
+     * untouched booking keeps emitting the same number, which is what lets the
+     * document stay byte-identical between polls.
+     *
+     * Two edits inside the same second produce the same value. `LAST-MODIFIED`
+     * carries the difference, and no client relies on SEQUENCE alone.
      */
-    private function parseTime(?string $value): ?array
+    private function sequenceFor(Order $order): int
     {
-        if (! $value || ! preg_match('/^(\d{1,2})\s*[:hH]?\s*(\d{2})?/', trim($value), $m)) {
-            return null;
+        $row = $order->reservation ?? $order;
+
+        if (! $row->created_at || ! $row->updated_at) {
+            return 0;
         }
 
-        $h = (int) $m[1];
-        $min = isset($m[2]) ? (int) $m[2] : 0;
-
-        return ($h > 23 || $min > 59) ? null : ['h' => $h, 'm' => $min];
+        return max(0, $row->updated_at->getTimestamp() - $row->created_at->getTimestamp());
     }
 
     private function tokenFor(Client $client): string
