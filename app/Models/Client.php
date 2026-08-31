@@ -34,6 +34,14 @@ class Client extends Authenticatable implements CanResetPassword
     protected $hidden = [
         'password',
         'remember_token',
+        /*
+         * The calendar feed URL is the credential that guards it, so the token
+         * inside it is a password in all but name. Hidden here so it cannot
+         * ride out inside any resource, any `toArray`, or any debug dump that
+         * happens to serialize a client. It is returned by exactly one
+         * endpoint, `GET /app/v1/calendar/feed`, and only to its owner.
+         */
+        'calendar_token',
     ];
 
     protected $casts = [
