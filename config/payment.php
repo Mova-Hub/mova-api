@@ -76,6 +76,22 @@ return [
     // watching "en cours" forever.
     'attempt_ttl_minutes' => 15,
 
+    /*
+    | How long a request that a PERSON settles stays open.
+    |
+    | Cash and bank transfer are not prompts. Nothing is waiting on a handset:
+    | an agent collects the money and marks it paid, which may be tomorrow.
+    | Running those on the 15 minute prompt clock expired every cash request
+    | before ops could see it, and the back-office list filters on `processing`,
+    | so the client was told a request had been sent and nobody ever received
+    | one.
+    |
+    | Not unlimited, because an in-flight attempt blocks a new one: a request
+    | nobody actions has to lapse eventually or the client is stuck with a
+    | payment method they cannot change. Two days covers a weekend.
+    */
+    'manual_attempt_ttl_minutes' => 60 * 48,
+
     // Grace before the first status poll. Polling instantly only ever returns
     // "pending" and burns a rate-limit slot.
     'poll_after_seconds' => 120,
