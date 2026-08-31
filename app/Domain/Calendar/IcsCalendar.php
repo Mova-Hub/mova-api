@@ -56,10 +56,37 @@ class IcsCalendar
         bool $allDay = false,
         string $status = 'CONFIRMED',
         ?int $reminderMinutes = null,
+        /**
+         * When this booking last changed, and how many times.
+         *
+         * These two are what make a rescheduled trip actually move in somebody's
+         * calendar. A client that already holds this UID compares `SEQUENCE`
+         * and `LAST-MODIFIED` to decide whether what it has is stale; without
+         * them, some clients keep the version they have and the new date never
+         * appears. Outlook is the strict one.
+         */
+        ?DateTimeInterface $lastModified = null,
+        int $sequence = 0,
     ): self {
         $this->lines[] = 'BEGIN:VEVENT';
         $this->lines[] = 'UID:'.$uid;
-        $this->lines[] = 'DTSTAMP:'.$this->utc(new \DateTimeImmutable('now'));
+
+        /*
+         * DTSTAMP is the booking's own timestamp, NOT `now()`.
+         *
+         * It used to be the render time, which meant every poll produced a
+         * different document even when nothing had changed. That defeats
+         * conditional requests, and it gives a client no way to tell a real
+         * edit from a re-fetch. Anchored to the data, the bytes are stable
+         * until the trip actually changes.
+         */
+        $this->lines[] = 'DTSTAMP:'.$this->utc($lastModified ?? new \DateTimeImmutable('now'));
+
+        if ($lastModified) {
+            $this->lines[] = 'LAST-MODIFIED:'.$this->utc($lastModified);
+        }
+
+        $this->lines[] = 'SEQUENCE:'.max(0, $sequence);
 
         if ($allDay) {
             /*
@@ -122,6 +149,24 @@ class IcsCalendar
             'METHOD:PUBLISH',
             'X-WR-CALNAME:'.$this->escape($this->name),
             'X-WR-TIMEZONE:'.$this->timezone,
+
+            /*
+             * How often to come back.
+             *
+             * Without a hint every client uses its own default, and Google's
+             * can be a day or more. That is the difference between a
+             * rescheduled coach correcting itself within the hour and doing it
+             * tomorrow, which for a trip leaving in the morning is no use at
+             * all.
+             *
+             * Both spellings, because they are not interchangeable in practice:
+             * REFRESH-INTERVAL is the RFC 7986 property, X-PUBLISHED-TTL is
+             * what Outlook has read for years. Clients that understand neither
+             * simply keep their default, so there is no downside to sending
+             * both. It is a hint either way, never a guarantee.
+             */
+            'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
+            'X-PUBLISHED-TTL:PT1H',
         ];
 
         if ($this->description !== '') {
