@@ -116,10 +116,20 @@ class NewTripMessage extends Notification
             : $body;
     }
 
+    /**
+     * Where tapping the notification lands.
+     *
+     * These are the app's OWN route paths and have to match its router exactly,
+     * which is why they are flat rather than nested: expo-router has
+     * `app/(app)/trip/[id].tsx` already, so a sibling `trip/[id]/messages`
+     * would collide with it. The conversation therefore lives at
+     * `/messages/{orderId}`, and a path invented to look tidier here would
+     * simply open nothing.
+     */
     private function route(): string
     {
         $orderId = $this->message->reservation?->order_id;
 
-        return $orderId ? "/trip/{$orderId}/messages" : '/trips';
+        return $orderId ? "/messages/{$orderId}" : '/trips';
     }
 }
