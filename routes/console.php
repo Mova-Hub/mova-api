@@ -91,3 +91,34 @@ Schedule::command('positions:prune')
 Schedule::command('payments:remind')
     ->dailyAt('09:30')
     ->withoutOverlapping();
+
+/*
+ * Trip reminders: push, mail and the in-app inbox.
+ *
+ * Twice a day, and the two times are chosen rather than convenient. 18:00 is
+ * the eve reminder, late enough that people are done with the working day and
+ * early enough that they can still rearrange it. 05:30 is the morning one, in
+ * front of a charter pickup that is very often at 06:00.
+ *
+ * Both run the same command; which message a given order gets is decided from
+ * its own pickup date, and `trip_reminded_at` stops the pair ever landing
+ * twice on the same day.
+ */
+Schedule::command('trips:remind')
+    ->twiceDailyAt(5, 18, 30)
+    ->withoutOverlapping();
+
+/*
+ * Lapsed requests.
+ *
+ * A charter request whose travel date passed while it was still being quoted
+ * becomes `expired`: it leaves the client's "A venir" list, stops offering a
+ * payment it should never have offered, and stays out of the cancellation
+ * figures ops are measured on.
+ *
+ * 02:00, before `pass:expire` at 03:00, so the whole overnight tidy-up runs
+ * while nobody is using the system.
+ */
+Schedule::command('orders:expire')
+    ->dailyAt('02:00')
+    ->withoutOverlapping();
