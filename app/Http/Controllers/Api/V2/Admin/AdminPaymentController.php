@@ -38,6 +38,20 @@ class AdminPaymentController extends Controller
             // method added this morning is filterable this morning.
             'provider' => ['nullable', 'string', Rule::exists('payment_providers', 'code')],
             'payable_type' => ['nullable', Rule::in(['order', 'subscription', 'reservation'])],
+            /*
+             * One payable's payments, which is what a detail screen wants.
+             *
+             * Without it the only way to narrow to a single booking was
+             * `search`, and `search` matches the provider reference, the payer's
+             * phone and the client's name. It has never matched a reservation
+             * or order code, so the back office's Paiements tab was querying
+             * for something that could not match and rendered an empty table
+             * for every booking.
+             *
+             * A string rather than an integer: `orders` is keyed on a bigint
+             * but `reservations` uses a UUID, and this filter has to serve both.
+             */
+            'payable_id' => ['nullable', 'string', 'max:64'],
             'channel' => ['nullable', Rule::in(['app', 'back_office', 'system'])],
             'search' => ['nullable', 'string', 'max:64'],
         ]);
@@ -62,6 +76,10 @@ class AdminPaymentController extends Controller
                 'subscription' => \App\Models\PassSubscription::class,
                 'reservation' => \App\Models\Reservation::class,
             });
+        }
+
+        if ($payableId = $request->input('payable_id')) {
+            $query->where('payable_id', $payableId);
         }
 
         if ($search = $request->string('search')->trim()->toString()) {
