@@ -59,6 +59,15 @@ return Application::configure(basePath: dirname(__DIR__))
              * and would have given them both. See EnsureField.
              */
             'field' => \App\Http\Middleware\EnsureField::class,
+            /*
+             * Narrower than `field`, and it has to be.
+             *
+             * The Pass fare-control endpoints hand over every subscriber's card
+             * identifier. A contrôleur needs that on a bus; a coordinator
+             * running charters does not, and `field` admits both. See
+             * EnsurePassControl.
+             */
+            'pass.control' => \App\Http\Middleware\EnsurePassControl::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             // Usage: ->middleware('audit.read:client')
             'audit.read' => \App\Http\Middleware\RecordSensitiveAccess::class,
