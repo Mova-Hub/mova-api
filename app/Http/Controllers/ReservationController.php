@@ -39,6 +39,20 @@ class ReservationController extends Controller
         if ($trashed === 'with')      $q->withTrashed();
         elseif ($trashed === 'only')  $q->onlyTrashed();
 
+        /*
+         * `coordinator` is loaded unconditionally, not left to `?with=`.
+         *
+         * `ReservationResource` emits it under `whenLoaded`, so an unloaded
+         * relation is not null in the payload: the key is absent entirely. The
+         * back office reads that as "nobody assigned" and offers an Assigner
+         * button on a reservation that already has a coordinator, which is
+         * exactly the bug this fixes. A caller should not have to opt in to
+         * being told the truth.
+         *
+         * One extra join on a list of at most a few dozen rows.
+         */
+        $q->with('coordinator');
+
         if ($with = $request->query('with')) {
             $rels = collect(explode(',', $with))->intersect(['buses'])->all();
             if ($rels) $q->with($rels);
@@ -88,7 +102,7 @@ class ReservationController extends Controller
         if (is_array($busIds)) {
             $reservation->buses()->sync(array_values($busIds));
         }
-        return (new ReservationResource($reservation->load('buses')))
+        return (new ReservationResource($reservation->load(['buses', 'coordinator'])))
             ->response()->setStatusCode(201);
     }
 
@@ -97,7 +111,7 @@ class ReservationController extends Controller
         // `client` and `order` too: a detail screen that cannot reach the
         // customer or the lead behind a booking is a dead end, and both are one
         // relation away.
-        $reservation->load(['buses', 'client', 'order']);
+        $reservation->load(['buses', 'client', 'order', 'coordinator']);
         return new ReservationResource($reservation);
     }
 
@@ -120,7 +134,7 @@ class ReservationController extends Controller
             'data' => $data,
             'bus_ids' => $busIds,
         ]);
-        return new ReservationResource($reservation->load('buses'));
+        return new ReservationResource($reservation->load(['buses', 'coordinator']));
     }
 
     public function destroy(Reservation $reservation)
@@ -133,7 +147,7 @@ class ReservationController extends Controller
     {
         $model = Reservation::onlyTrashed()->findOrFail($reservation);
         $model->restore();
-        return new ReservationResource($model->load('buses'));
+        return new ReservationResource($model->load(['buses', 'coordinator']));
     }
 
     public function setStatus(Request $request, Reservation $reservation)
@@ -183,7 +197,10 @@ class ReservationController extends Controller
             $reservation->client->notify(new ReservationStatusUpdated($reservation, $message));
         }
 
-        return new ReservationResource($reservation->fresh(['order']));
+        // `coordinator` alongside `order`: the detail screen rerenders from
+        // this response, so omitting the relation here made an assigned trip
+        // look unassigned again the moment somebody pressed Démarrer.
+        return new ReservationResource($reservation->fresh(['order', 'coordinator', 'buses']));
     }
 
     /*
@@ -206,7 +223,7 @@ class ReservationController extends Controller
         ]);
         $reservation->buses()->sync($validated['bus_ids']);
         $this->recomputeSeats($reservation);
-        return new ReservationResource($reservation->load('buses'));
+        return new ReservationResource($reservation->load(['buses', 'coordinator']));
     }
 
     public function attachBus(Request $request, Reservation $reservation)
@@ -216,7 +233,7 @@ class ReservationController extends Controller
         ]);
         $reservation->buses()->syncWithoutDetaching([$validated['bus_id']]);
         $this->recomputeSeats($reservation);
-        return new ReservationResource($reservation->load('buses'));
+        return new ReservationResource($reservation->load(['buses', 'coordinator']));
     }
 
     public function detachBus(Request $request, Reservation $reservation)
@@ -226,7 +243,7 @@ class ReservationController extends Controller
         ]);
         $reservation->buses()->detach($validated['bus_id']);
         $this->recomputeSeats($reservation);
-        return new ReservationResource($reservation->load('buses'));
+        return new ReservationResource($reservation->load(['buses', 'coordinator']));
     }
 
     /**
@@ -681,7 +698,7 @@ class ReservationController extends Controller
             ]);
         }
 
-        return new ReservationResource($reservation->load('buses'));
+        return new ReservationResource($reservation->load(['buses', 'coordinator']));
     }
 
     /**
