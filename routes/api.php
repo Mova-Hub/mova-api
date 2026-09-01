@@ -378,6 +378,38 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
  * this mission theirs" — every mission route scopes to `coordinator_id`,
  * because an id in a URL is a claim and never a permission.
  */
+/*
+ * Mova Pass fare control.
+ *
+ * These four lived inside the `staff` group, which admits `admin` and `agent`
+ * and nobody else. That is the back office, and it excludes the one role whose
+ * whole job this is: a contrôleur signed in to Control, opened the sync screen,
+ * pressed "Télécharger les données" and got 403. The blacklist could only be
+ * downloaded by people who are never on a bus.
+ *
+ * `pass.control` rather than `field`, because `field` also admits coordinators
+ * and these endpoints hand over every subscriber's card identifier. A
+ * coordinator gathering coaches has no use for that. See EnsurePassControl.
+ *
+ * Kept at the top level rather than nested, so the gate is readable at the
+ * group rather than inherited from four hundred lines away.
+ */
+Route::middleware(['auth:sanctum', 'pass.control'])->prefix('pass')->group(function () {
+    // Public keys only. Safe to intercept, cache or decompile, that is the
+    // entire point of choosing Ed25519 over HMAC.
+    Route::get('/keys', [PassControlController::class, 'keys']);
+
+    // Downloaded at the depot each morning; `?since=` fetches a delta.
+    Route::get('/blacklist', [PassControlController::class, 'blacklist'])
+        ->middleware('audit.read:pass_blacklist');
+    Route::get('/snapshot', [PassControlController::class, 'snapshot'])
+        ->middleware('audit.read:pass_snapshot');
+
+    // Bulk upload of a shift's scans. Idempotent on client_reference, so a
+    // retried upload cannot double-count a day's boardings.
+    Route::post('/scans/bulk', [PassControlController::class, 'uploadScans']);
+});
+
 Route::middleware(['auth:sanctum', 'field'])->prefix('field')->group(function () {
     Route::get('/missions', [MissionController::class, 'index']);
     Route::get('/missions/{reservation}', [MissionController::class, 'show']);
@@ -698,22 +730,6 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
             Route::get('/pass', [AnalyticsController::class, 'pass']);
             Route::get('/clients', [AnalyticsController::class, 'clients']);
         });
-    });
-
-    Route::prefix('pass')->group(function () {
-        // Public keys only. Safe to intercept, cache or decompile — that is the
-        // entire point of choosing Ed25519 over HMAC.
-        Route::get('/keys', [PassControlController::class, 'keys']);
-
-        // Downloaded at the depot each morning; `?since=` fetches a delta.
-        Route::get('/blacklist', [PassControlController::class, 'blacklist'])
-            ->middleware('audit.read:pass_blacklist');
-        Route::get('/snapshot', [PassControlController::class, 'snapshot'])
-            ->middleware('audit.read:pass_snapshot');
-
-        // Bulk upload of a shift's scans. Idempotent on client_reference, so a
-        // retried upload cannot double-count a day's boardings.
-        Route::post('/scans/bulk', [PassControlController::class, 'uploadScans']);
     });
 
     // Notifications
