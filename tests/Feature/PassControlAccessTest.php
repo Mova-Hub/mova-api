@@ -49,21 +49,41 @@ class PassControlAccessTest extends TestCase
 
     public function test_a_controller_can_download_the_fare_control_data(): void
     {
-        Sanctum::actingAs($this->user('controller'));
+        $this->actingAsField($this->user('controller'));
 
         foreach (self::READ_ROUTES as $route) {
             $this->getJson($route)->assertOk();
         }
     }
 
-    public function test_staff_keep_their_access(): void
+    /**
+     * The back-office Contrôle page must keep working.
+     *
+     * This is a regression guard, not a formality. These four endpoints have TWO
+     * legitimate callers: `control/` over a field token, and `manager/` over a
+     * back-office one, see `manager/src/api/pass-control.ts`. When ability-scoped
+     * tokens landed, adding a `field` ability check here would have looked
+     * correct and silently broken a working back-office screen. It is asserted
+     * with a BACK-OFFICE token for exactly that reason.
+     */
+    public function test_staff_keep_their_access_with_a_back_office_token(): void
     {
         foreach (['admin', 'agent'] as $role) {
-            Sanctum::actingAs($this->user($role));
+            $this->actingAsBackOffice($this->user($role));
 
             foreach (self::READ_ROUTES as $route) {
                 $this->getJson($route)->assertOk();
             }
+        }
+    }
+
+    /** And the same staff account reaching it from the field app. */
+    public function test_staff_keep_their_access_with_a_field_token(): void
+    {
+        $this->actingAsField($this->user('admin'));
+
+        foreach (self::READ_ROUTES as $route) {
+            $this->getJson($route)->assertOk();
         }
     }
 
@@ -75,7 +95,7 @@ class PassControlAccessTest extends TestCase
      */
     public function test_a_coordinator_is_refused(): void
     {
-        Sanctum::actingAs($this->user('coordinator'));
+        $this->actingAsField($this->user('coordinator'));
 
         foreach (self::READ_ROUTES as $route) {
             $this->getJson($route)->assertForbidden();
@@ -84,7 +104,7 @@ class PassControlAccessTest extends TestCase
 
     public function test_a_suspended_controller_is_refused(): void
     {
-        Sanctum::actingAs($this->user('controller', 'suspended'));
+        $this->actingAsField($this->user('controller', 'suspended'));
 
         foreach (self::READ_ROUTES as $route) {
             $this->getJson($route)->assertForbidden();
@@ -122,10 +142,10 @@ class PassControlAccessTest extends TestCase
 
     public function test_the_bulk_scan_upload_uses_the_same_gate(): void
     {
-        Sanctum::actingAs($this->user('coordinator'));
+        $this->actingAsField($this->user('coordinator'));
         $this->postJson('/api/pass/scans/bulk', ['scans' => []])->assertForbidden();
 
-        Sanctum::actingAs($this->user('controller'));
+        $this->actingAsField($this->user('controller'));
         // Not asserting the body, only that the gate lets a contrôleur through.
         // An empty batch is a validation matter, not an authorisation one.
         $this->assertNotSame(

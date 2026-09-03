@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\AuthController;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -41,6 +42,16 @@ class EnsureStaff
         if (! $user instanceof User
             || ! in_array($user->role, self::STAFF_ROLES, true)
             || $user->status !== 'active'
+            /*
+             * The token has to be a back-office token.
+             *
+             * The mirror of the check in `EnsureField`. An admin's `control/`
+             * handset holds a token scoped to `field`, and that token must not
+             * open the clients list or the payments ledger just because the
+             * person behind it is an admin. Tokens issued before abilities
+             * existed hold `*` and pass, so no live session breaks on deploy.
+             */
+            || ! $user->currentAccessToken()?->can(AuthController::ABILITY)
         ) {
             // One message for all three failures. Telling a caller which check
             // they failed confirms whether an account exists, what role it

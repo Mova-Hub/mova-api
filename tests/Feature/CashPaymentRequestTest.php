@@ -279,7 +279,7 @@ class CashPaymentRequestTest extends TestCase
             'status' => 'active',
         ]);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBackOffice($admin);
 
         $this->getJson('/api/admin/payments/pending-count')
             ->assertOk()
@@ -298,7 +298,7 @@ class CashPaymentRequestTest extends TestCase
             'status' => 'active',
         ]);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBackOffice($admin);
 
         $this->getJson('/api/admin/payments/pending-count')->assertOk();
     }

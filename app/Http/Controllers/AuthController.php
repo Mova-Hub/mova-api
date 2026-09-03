@@ -10,6 +10,19 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    /**
+     * The ability every back-office token carries.
+     *
+     * Named rather than `*`, so a token minted for `manager/` cannot be used
+     * against the field surface and vice versa. The pairing lives in
+     * `EnsureStaff` and `EnsureField`.
+     *
+     * Backwards compatible: every token issued before this change holds `*`,
+     * and Sanctum's `tokenCan` returns true for it, so nobody is signed out by
+     * the deploy.
+     */
+    public const ABILITY = 'back-office';
+
     public function register(Request $request)
     {
         $data = $request->validate([
@@ -24,7 +37,7 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        $token = $user->createToken('api-token', ['*'])->plainTextToken;
+        $token = $user->createToken('api-token', [self::ABILITY])->plainTextToken;
 
         return response()->json([
             'user'       => $this->formatUser($user),
@@ -76,7 +89,7 @@ class AuthController extends Controller
         $deviceName = $credentials['device'] ?? 'web';
         $user->tokens()->where('name', $deviceName)->delete();
 
-        $token = $user->createToken($deviceName, ['*'])->plainTextToken;
+        $token = $user->createToken($deviceName, [self::ABILITY])->plainTextToken;
 
         // `forceFill`+`saveQuietly`: a sign-in is not a change to the account,
         // and once the activity observer lands (Phase 2) a normal save here
