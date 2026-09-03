@@ -75,7 +75,7 @@ class ReservationCoordinatorTest extends TestCase
     {
         // The reported bug: assigned, and the screen still said "Non assigné"
         // with an Assigner button, because show() never loaded the relation.
-        Sanctum::actingAs($this->staff());
+        $this->actingAsBackOffice($this->staff());
 
         $coordinator = $this->coordinator();
         $reservation = $this->reservation($coordinator);
@@ -88,7 +88,7 @@ class ReservationCoordinatorTest extends TestCase
 
     public function test_the_list_endpoint_names_the_assigned_coordinator(): void
     {
-        Sanctum::actingAs($this->staff());
+        $this->actingAsBackOffice($this->staff());
 
         $coordinator = $this->coordinator();
         $this->reservation($coordinator);
@@ -106,7 +106,7 @@ class ReservationCoordinatorTest extends TestCase
          * office has to be able to tell "nobody is assigned" from "the server
          * did not say".
          */
-        Sanctum::actingAs($this->staff());
+        $this->actingAsBackOffice($this->staff());
 
         $reservation = $this->reservation(null);
 
@@ -122,7 +122,7 @@ class ReservationCoordinatorTest extends TestCase
         // Every write returns the resource and the screen refetches from it, so
         // an omitted relation on any one of them makes an assigned trip look
         // unassigned again the moment anything else is touched.
-        Sanctum::actingAs($this->staff());
+        $this->actingAsBackOffice($this->staff());
 
         $coordinator = $this->coordinator();
         $reservation = $this->reservation($coordinator);

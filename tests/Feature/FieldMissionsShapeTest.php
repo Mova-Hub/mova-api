@@ -61,7 +61,7 @@ class FieldMissionsShapeTest extends TestCase
         $coordinator = $this->coordinator();
         $this->mission($coordinator);
 
-        Sanctum::actingAs($coordinator);
+        $this->actingAsField($coordinator);
 
         $response = $this->getJson('/api/field/missions')->assertOk();
 
@@ -87,7 +87,7 @@ class FieldMissionsShapeTest extends TestCase
         $coordinator = $this->coordinator();
         $this->mission($coordinator);
 
-        Sanctum::actingAs($coordinator);
+        $this->actingAsField($coordinator);
 
         $id = $this->getJson('/api/field/missions')->json('data.0.id');
 
@@ -108,7 +108,7 @@ class FieldMissionsShapeTest extends TestCase
         $this->mission($coordinator, 'confirmed');
         $this->mission($coordinator, 'in_progress');
 
-        Sanctum::actingAs($coordinator);
+        $this->actingAsField($coordinator);
 
         $statuses = $this->getJson('/api/field/missions')->json('data.*.status');
 
@@ -132,7 +132,7 @@ class FieldMissionsShapeTest extends TestCase
         $this->mission($mine);
         $this->mission($theirs);
 
-        Sanctum::actingAs($mine);
+        $this->actingAsField($mine);
 
         $this->assertCount(1, $this->getJson('/api/field/missions')->json('data'));
     }

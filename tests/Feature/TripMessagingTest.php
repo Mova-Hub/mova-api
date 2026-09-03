@@ -104,6 +104,8 @@ class TripMessagingTest extends TestCase
 
         $order = $this->trip($theirs, $this->coordinator());
 
+        // A Client, not a User: passengers hold no ability-scoped token, and the
+        // client routes have no ability gate.
         Sanctum::actingAs($mine);
 
         $this->getJson("/api/app/v1/orders/{$order->id}/messages")->assertNotFound();
@@ -174,7 +176,7 @@ class TripMessagingTest extends TestCase
         $order = $this->trip($client, $coordinator);
         $reservation = $order->reservation;
 
-        Sanctum::actingAs($coordinator);
+        $this->actingAsField($coordinator);
 
         $this->postJson("/api/field/missions/{$reservation->id}/messages", ['body' => 'Nous sommes la'])
             ->assertCreated()
@@ -189,7 +191,7 @@ class TripMessagingTest extends TestCase
         $order = $this->trip($client, $this->coordinator());
         $reservation = $order->reservation;
 
-        Sanctum::actingAs($this->coordinator());
+        $this->actingAsField($this->coordinator());
 
         $this->getJson("/api/field/missions/{$reservation->id}/messages")->assertNotFound();
         $this->postJson("/api/field/missions/{$reservation->id}/messages", ['body' => 'x'])->assertNotFound();

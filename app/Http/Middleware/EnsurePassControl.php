@@ -33,6 +33,21 @@ class EnsurePassControl
      */
     private const ROLES = ['controller', ...User::STAFF_ROLES];
 
+    /*
+     * No token-ability check here, unlike EnsureField and EnsureStaff, and that
+     * is deliberate.
+     *
+     * These four endpoints have TWO legitimate callers with different tokens.
+     * `control/` reads them over a field token to work offline on a bus, and
+     * `manager/` reads the same three from its Contrôle page over a back-office
+     * token, see `manager/src/api/pass-control.ts`. Requiring either ability
+     * would break one of the two, and requiring "field" specifically would break
+     * a working back-office screen.
+     *
+     * The role check below is the real gate, and it is the narrow one: a
+     * coordinator is refused whichever app they are holding.
+     */
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();

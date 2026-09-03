@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V2\Calendar\CalendarFeedController;
 // Aliased: `DeviceController` and `MissionController` are field-app concerns and
 // the names are generic enough that an unqualified import would be ambiguous
 // the moment a second one appears.
+use App\Http\Controllers\Field\AuthController as FieldAuthController;
 use App\Http\Controllers\Field\DeviceController as FieldDeviceController;
 use App\Http\Controllers\Field\MissionController;
 use App\Http\Controllers\Field\MissionMessageController;
@@ -408,6 +409,30 @@ Route::middleware(['auth:sanctum', 'pass.control'])->prefix('pass')->group(funct
     // Bulk upload of a shift's scans. Idempotent on client_reference, so a
     // retried upload cannot double-count a day's boardings.
     Route::post('/scans/bulk', [PassControlController::class, 'uploadScans']);
+});
+
+/*
+ * Signing in to the field app.
+ *
+ * A separate door from `/api/auth/login`, which `manager/` uses and which is
+ * restricted to `admin` and `agent`. That restriction is why this exists: until
+ * now NO coordinator and NO controller could obtain a token anywhere in the
+ * system, so `control/` was unreachable by the two roles it was built for.
+ * Widening the back-office endpoint instead would have let a coordinator sign in
+ * to the web back-office.
+ *
+ * Throttled per minute. It is an unauthenticated endpoint that checks a
+ * password, which makes it the one route in the field surface worth guessing at,
+ * and every other sensitive route in this file already carries a limit.
+ */
+Route::prefix('field/auth')->group(function () {
+    Route::post('/login', [FieldAuthController::class, 'login'])
+        ->middleware('throttle:5,1');
+
+    Route::middleware(['auth:sanctum', 'field'])->group(function () {
+        Route::post('/logout', [FieldAuthController::class, 'logout']);
+        Route::get('/me', [FieldAuthController::class, 'me']);
+    });
 });
 
 Route::middleware(['auth:sanctum', 'field'])->prefix('field')->group(function () {

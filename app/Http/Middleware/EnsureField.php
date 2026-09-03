@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Field\AuthController as FieldAuthController;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -49,8 +50,20 @@ class EnsureField
         if (! $user instanceof User
             || ! in_array($user->role, [...User::FIELD_ROLES, ...User::STAFF_ROLES], true)
             || $user->status !== 'active'
+            /*
+             * Fourth check: the TOKEN is a field token, not merely the user a
+             * field user.
+             *
+             * An admin holds a back-office token in `manager/` and a field token
+             * in `control/`, and the two must not be interchangeable. The phone
+             * is the thing that gets left on a bus, so its credential must not
+             * reach the clients list even though the person's role would allow
+             * it. Tokens issued before abilities existed hold `*` and `can()`
+             * returns true for those, so no live session breaks on deploy.
+             */
+            || ! $user->currentAccessToken()?->can(FieldAuthController::ABILITY)
         ) {
-            // One message for all three failures. Telling a caller which check
+            // One message for all four failures. Telling a caller which check
             // they failed confirms whether an account exists, what role it
             // holds, and whether it is suspended.
             return response()->json(['message' => 'Accès refusé.'], 403);
