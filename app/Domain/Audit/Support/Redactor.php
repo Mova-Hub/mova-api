@@ -55,6 +55,30 @@ class Redactor
         'credentials',
     ];
 
+    /**
+     * Free text a person typed. Replaced with a note of its size.
+     *
+     * Support tickets, trip messages and the subject line of either are text a
+     * customer wrote to us, and it routinely carries an amount, a phone number,
+     * a description of a photograph of an identity card. The audit table is
+     * append-only and retained for months, so a copy landing here is a copy
+     * nobody can delete afterwards, and it adds nothing: the message lives in
+     * its own table, which no endpoint can edit. "Who replied, when" is the
+     * question an audit answers; "what did they say" is not.
+     *
+     * **Matched EXACTLY, unlike the two lists above.** As a substring, `message`
+     * would also catch `error_message`, `message_id` and `messaging_channel`,
+     * and redacting those costs the log its debugging value while protecting
+     * nothing. Anything genuinely secret is in SECRET_KEYS and is caught before
+     * this list is reached.
+     */
+    private const TEXT_KEYS = [
+        'body',
+        'message',
+        'subject',
+        'comment',
+    ];
+
     /** Kept, but only the tail. */
     private const MASKED_KEYS = [
         'phone',
@@ -85,6 +109,18 @@ class Redactor
 
             if ($this->matches($lower, self::SECRET_KEYS)) {
                 $out[$key] = self::REDACTED;
+                continue;
+            }
+
+            /*
+             * Before the recursion, on purpose.
+             *
+             * A `body` that arrives as an array is still the thing this list
+             * exists to keep out, and walking into it would put its leaves in
+             * the log one key at a time.
+             */
+            if (in_array($lower, self::TEXT_KEYS, true)) {
+                $out[$key] = $this->summarise($value);
                 continue;
             }
 
@@ -120,6 +156,29 @@ class Redactor
         }
 
         return str_repeat('*', strlen($value) - 4) . substr($value, -4);
+    }
+
+    /**
+     * Replaces free text with the fact that there was some, and how much.
+     *
+     * The LENGTH is kept because it is the part with audit value and no privacy
+     * cost: "the reply grew from 40 characters to 900" is a real signal when
+     * somebody asks what changed, and it says nothing about the content. Null
+     * stays null, so "was empty, now has text" is still readable.
+     */
+    private function summarise(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value)) {
+            return self::REDACTED;
+        }
+
+        return $value === ''
+            ? ''
+            : self::REDACTED . ' (' . mb_strlen($value) . ' caractères)';
     }
 
     private function matches(string $key, array $needles): bool

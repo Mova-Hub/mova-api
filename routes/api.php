@@ -26,8 +26,11 @@ use App\Http\Controllers\Api\V2\Admin\SettingsController;
 // Aliased for the same reason as the field controllers above: there is already
 // an Api\V2\Trip\TripRatingController serving the passenger side, and an
 // unqualified import would be ambiguous.
+use App\Http\Controllers\Api\V2\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\V2\Admin\TripRatingController as AdminTripRatingController;
 use App\Http\Controllers\Api\V2\Admin\WalletAdminController;
+use App\Http\Controllers\Api\V2\Support\SupportAttachmentController;
+use App\Http\Controllers\Api\V2\Support\SupportTicketController;
 use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
 use App\Http\Controllers\Api\V2\Payment\InvoiceController;
 use App\Http\Controllers\Api\V2\Payment\PaymentController;
@@ -235,6 +238,43 @@ Route::prefix('app/v1')->group(function () {
         Route::get('/orders/{id}/invoice-link', [InvoiceController::class, 'link'])
             ->whereNumber('id');
 
+        /*
+         * ── Support ───────────────────────────────────────────────────────
+         *
+         * Writing to a human at Mova. Distinct from the trip conversation,
+         * which is a passenger talking to the coordinator running one journey:
+         * a support ticket belongs to the CLIENT and outlives any booking, so
+         * somebody can still ask about a refund three weeks later.
+         *
+         * Every handler scopes on `$request->user()->id`. An id in the URL is a
+         * claim, not an authorisation, and this is the most sensitive free text
+         * in the system.
+         */
+        Route::prefix('support')->group(function () {
+            Route::get('/tickets', [SupportTicketController::class, 'index']);
+
+            // Multipart, and throttled: each one wakes every active agent by
+            // mail and by push, so an unbounded endpoint is a way to spam the
+            // whole team.
+            Route::post('/tickets', [SupportTicketController::class, 'store'])
+                ->middleware('throttle:10,1');
+
+            Route::get('/tickets/{id}', [SupportTicketController::class, 'show'])
+                ->whereNumber('id');
+
+            // Looser than opening one: replying in a live conversation is
+            // normal, and only a reopen notifies anybody.
+            Route::post('/tickets/{id}/messages', [SupportTicketController::class, 'storeMessage'])
+                ->whereNumber('id')
+                ->middleware('throttle:30,1');
+
+            // Mints a short-lived SIGNED url for one attachment. The file
+            // itself is on the `local` disk and is served by the public signed
+            // route below, never by a guessable path.
+            Route::get('/attachments/{id}/link', [SupportAttachmentController::class, 'link'])
+                ->whereNumber('id');
+        });
+
         // Saved addresses (Domicile / Travail / École + custom).
         // Always scoped to the authenticated client inside the controller.
         Route::get('/addresses', [SavedAddressController::class, 'index']);
@@ -353,6 +393,22 @@ Route::get('/app/v1/invoices/{order}', [InvoiceController::class, 'download'])
     ->middleware('signed')
     ->whereNumber('order')
     ->name('invoice.download');
+
+/*
+ * Support attachments.
+ *
+ * Outside the Sanctum group for the same reason as the invoice above: the image
+ * is opened by a browser or rendered by an `<Image>` tag, neither of which sends
+ * an Authorization header. The signature is what authorises it, and it is minted
+ * only by the scoped `/support/attachments/{id}/link` routes.
+ *
+ * No path collision with that link route: this ends at the id, that one has a
+ * further `/link` segment after it.
+ */
+Route::get('/app/v1/support/attachments/{attachment}', [SupportAttachmentController::class, 'download'])
+    ->middleware('signed')
+    ->whereNumber('attachment')
+    ->name('support.attachment');
 
 /*
  * Provider callbacks.
@@ -707,6 +763,43 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::post('/{id}/confirm', [AdminPaymentController::class, 'confirm'])->whereNumber('id');
         Route::post('/{id}/fail', [AdminPaymentController::class, 'fail'])->whereNumber('id');
         Route::post('/{id}/refund', [AdminPaymentController::class, 'refund'])->whereNumber('id');
+    });
+
+    /*
+     * ── Support ───────────────────────────────────────────────────────────
+     *
+     * `staff`, not `admin`: answering tickets is agent work, and putting the
+     * queue behind the admin gate would mean the people who do the job cannot
+     * see it. `auth:sanctum` alone would not do either, Client owns tokens too
+     * and these routes read every customer's support history.
+     *
+     * There is no delete route here, deliberately. A support thread is the
+     * record of what a customer was told.
+     */
+    Route::prefix('admin/support')->group(function () {
+        Route::get('/tickets', [AdminSupportTicketController::class, 'index']);
+
+        /*
+         * The sidebar badge. Declared BEFORE `/tickets/{id}`, or `pending-count`
+         * is read as a ticket id and the numeric constraint is the only thing
+         * standing between this route and a 404. The same trap is documented on
+         * the payments group above.
+         */
+        Route::get('/tickets/pending-count', [AdminSupportTicketController::class, 'pendingCount']);
+
+        Route::get('/tickets/{id}', [AdminSupportTicketController::class, 'show'])
+            ->whereNumber('id');
+        Route::post('/tickets/{id}/reply', [AdminSupportTicketController::class, 'reply'])
+            ->whereNumber('id');
+        Route::post('/tickets/{id}/assign', [AdminSupportTicketController::class, 'assign'])
+            ->whereNumber('id');
+        Route::post('/tickets/{id}/resolve', [AdminSupportTicketController::class, 'resolve'])
+            ->whereNumber('id');
+
+        // Same signed-url mint as the client side, without the ownership scope:
+        // the `staff` gate is what authorises this one. See the controller.
+        Route::get('/attachments/{id}/link', [SupportAttachmentController::class, 'staffLink'])
+            ->whereNumber('id');
     });
 
     /*
