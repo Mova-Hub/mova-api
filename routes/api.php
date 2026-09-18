@@ -23,6 +23,10 @@ use App\Http\Controllers\Api\V2\Admin\PassSubscriptionController as AdminPassSub
 use App\Http\Controllers\Api\V2\Admin\PaymentProviderController;
 use App\Http\Controllers\Api\V2\Admin\PricingSimulatorController;
 use App\Http\Controllers\Api\V2\Admin\SettingsController;
+// Aliased for the same reason as the field controllers above: there is already
+// an Api\V2\Trip\TripRatingController serving the passenger side, and an
+// unqualified import would be ambiguous.
+use App\Http\Controllers\Api\V2\Admin\TripRatingController as AdminTripRatingController;
 use App\Http\Controllers\Api\V2\Admin\WalletAdminController;
 use App\Http\Controllers\Api\V2\Pass\CardController as PassCardController;
 use App\Http\Controllers\Api\V2\Payment\InvoiceController;
@@ -34,6 +38,7 @@ use App\Http\Controllers\Api\V2\Pass\PlanController as PassPlanController;
 use App\Http\Controllers\Api\V2\Pass\SubscriptionController as PassSubscriptionController;
 use App\Http\Controllers\Api\V2\QuoteController as MobileQuoteController;
 use App\Http\Controllers\Api\V2\Trip\TripMessageController;
+use App\Http\Controllers\Api\V2\Trip\TripRatingController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusController;
@@ -171,6 +176,25 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/orders/{id}/messages', [TripMessageController::class, 'store'])
             ->whereNumber('id')
             ->middleware('throttle:60,1');
+
+        /*
+         * ── Rating the trip ───────────────────────────────────────────────
+         *
+         * By ORDER id, like messages and for the same reason: `Trip.id` is the
+         * order id everywhere in the app and has never been the reservation
+         * uuid.
+         *
+         * The GET exists so the screen can render a read-only summary when a
+         * trip has already been rated, rather than inviting a second submission
+         * the POST would refuse. Both scope on `client_id` in the controller.
+         */
+        Route::get('/orders/{id}/rating', [TripRatingController::class, 'show'])
+            ->whereNumber('id');
+        Route::post('/orders/{id}/rating', [TripRatingController::class, 'store'])
+            ->whereNumber('id')
+            // Lower than messages: a trip is rated once, so anything beyond a
+            // retry or two is a client bug or somebody probing.
+            ->middleware('throttle:10,1');
 
         /*
          * ── Paying ────────────────────────────────────────────────────────
@@ -747,12 +771,20 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
          * below supersedes them, and breaking a working endpoint to remove a
          * duplicate is not a trade worth making mid-migration.
          */
+        /*
+         * The ratings feed for the back office. Read only: a rating is a
+         * customer's statement, and a bad score that staff can delete is a
+         * score nobody can trust. See the controller.
+         */
+        Route::get('/admin/ratings', [AdminTripRatingController::class, 'index']);
+
         Route::prefix('admin/analytics')->group(function () {
             Route::get('/overview', [AnalyticsController::class, 'overview']);
             Route::get('/revenue', [AnalyticsController::class, 'revenue']);
             Route::get('/operations', [AnalyticsController::class, 'operations']);
             Route::get('/fleet', [AnalyticsController::class, 'fleet']);
             Route::get('/pass', [AnalyticsController::class, 'pass']);
+            Route::get('/ratings', [AnalyticsController::class, 'ratings']);
             Route::get('/clients', [AnalyticsController::class, 'clients']);
         });
     });

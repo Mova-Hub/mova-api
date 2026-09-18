@@ -12,6 +12,7 @@ use App\Models\PassScan;
 use App\Models\PassSubscription;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\TripRating;
 use App\Models\WalletAccount;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -331,6 +332,107 @@ class AnalyticsController extends Controller
                 ->map(fn ($r) => ['verdict' => $r->verdict, 'count' => (int) $r->count]),
 
             'cards' => $this->countBy(\App\Models\PassCard::query(), 'status'),
+        ]);
+    }
+
+    /**
+     * What passengers thought of their trips.
+     *
+     * Averages are rounded to one decimal because a service score reported to
+     * four places invites arguments about noise. `count` travels beside every
+     * average for the same reason: 5.0 from one rating is not a result.
+     */
+    public function ratings(Request $request)
+    {
+        [$start, $end, $prevStart, $prevEnd] = $this->window($request);
+
+        $window = TripRating::whereBetween('created_at', [$start, $end]);
+
+        $average = (float) (clone $window)->avg('stars');
+        $previous = (float) TripRating::whereBetween('created_at', [$prevStart, $prevEnd])->avg('stars');
+
+        /*
+         * Zero-filled, 1 to 5.
+         *
+         * A raw groupBy omits any score nobody gave, so a week with no
+         * one-star ratings would render a four-bar chart and read as though the
+         * axis had changed.
+         */
+        $counts = (clone $window)->selectRaw('stars, COUNT(*) as count')
+            ->groupBy('stars')->pluck('count', 'stars');
+
+        $distribution = [];
+        for ($star = 1; $star <= 5; $star++) {
+            $distribution[] = ['stars' => $star, 'count' => (int) ($counts[$star] ?? 0)];
+        }
+
+        $criteria = [];
+        foreach (TripRating::CRITERIA as $field) {
+            $value = (clone $window)->avg($field);
+            $criteria[] = [
+                'key' => $field,
+                // Null, not zero. "Nobody answered this" and "everybody scored
+                // it zero" are different, and zero is not even a legal score.
+                'average' => $value === null ? null : round((float) $value, 1),
+                'count' => (clone $window)->whereNotNull($field)->count(),
+            ];
+        }
+
+        return response()->json([
+            'kpis' => [
+                'average' => $this->kpi('Note moyenne', round($average, 1), round($previous, 1), 'number'),
+                'count' => $this->kpi('Évaluations', (clone $window)->count(),
+                    TripRating::whereBetween('created_at', [$prevStart, $prevEnd])->count(), 'number'),
+            ],
+
+            'distribution' => $distribution,
+            'criteria' => $criteria,
+
+            'daily' => $this->dailySeries(
+                TripRating::whereBetween('created_at', [$start, $end]),
+                'created_at', $start, $end
+            ),
+
+            /*
+             * Per coordinator, and only past three ratings.
+             *
+             * An average over one or two is noise, and publishing it next to a
+             * colleague's average over forty invites a judgement the data does
+             * not support. Somebody below the threshold is absent rather than
+             * shown as zero.
+             */
+            'by_coordinator' => TripRating::query()
+                ->whereBetween('trip_ratings.created_at', [$start, $end])
+                ->whereNotNull('coordinator_id')
+                ->join('users', 'users.id', '=', 'trip_ratings.coordinator_id')
+                ->selectRaw('users.id, users.name, AVG(stars) as average, COUNT(*) as count')
+                ->groupBy('users.id', 'users.name')
+                ->havingRaw('COUNT(*) >= 3')
+                ->orderByDesc('average')
+                ->get()
+                ->map(fn ($row) => [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                    'average' => round((float) $row->average, 1),
+                    'count' => (int) $row->count,
+                ]),
+
+            // The comments are the part ops actually read. Capped, newest first.
+            'recent_comments' => TripRating::query()
+                ->whereBetween('created_at', [$start, $end])
+                ->whereNotNull('comment')
+                ->with(['coordinator:id,name'])
+                ->latest()
+                ->limit(20)
+                ->get()
+                ->map(fn (TripRating $r) => [
+                    'id' => $r->id,
+                    'order_id' => $r->order_id,
+                    'stars' => $r->stars,
+                    'comment' => $r->comment,
+                    'coordinator' => $r->coordinator?->name,
+                    'created_at' => $r->created_at?->toIso8601String(),
+                ]),
         ]);
     }
 
