@@ -24,7 +24,7 @@ class Reservation extends Model implements Payable
     protected $fillable = [
         'order_id',
         'client_id',
-        // Who is responsible for delivering this trip — gathers the vehicles,
+        // Who is responsible for delivering this trip, gathers the vehicles,
         // meets the client, rides with the convoy. See the migration.
         'coordinator_id',
         'code',
@@ -38,7 +38,7 @@ class Reservation extends Model implements Payable
         'passenger_phone',
         'passenger_email',
         // Capacity attached (`seats`) and head count expected (`passengers`).
-        // Two different facts — see the migration that added `passengers`.
+        // Two different facts, see the migration that added `passengers`.
         'seats',
         'passengers',
         'price_total',
@@ -50,6 +50,8 @@ class Reservation extends Model implements Payable
         'internal_notes',
         'started_at',
         'completed_at',
+        'closing_notified_at',
+        'auto_closed_at',
         // 'trip_id', // uncomment if/when you add a trips table
     ];
 
@@ -64,6 +66,14 @@ class Reservation extends Model implements Payable
         'deleted_at'     => 'datetime',
         'started_at'     => 'datetime',
         'completed_at'   => 'datetime',
+        // When the "this trip should be closed" notice went out, so it goes out
+        // once rather than every night between the trip end and the auto-close.
+        'closing_notified_at' => 'datetime',
+        // Set only when `trips:sweep` closed the trip. A trip a coordinator
+        // actually finished leaves this null, and downstream features depend on
+        // the difference: nobody should be asked to rate a journey that was
+        // closed by a cron because it was forgotten.
+        'auto_closed_at' => 'datetime',
     ];
 
     // Default status
@@ -89,7 +99,7 @@ class Reservation extends Model implements Payable
     /**
      * The person accountable for this trip actually happening.
      *
-     * A `User`, not a `Client` — a coordinator is staff with a login, and the
+     * A `User`, not a `Client`, a coordinator is staff with a login, and the
      * one whose phone reports the convoy's position while the trip runs.
      */
     public function coordinator(): BelongsTo
@@ -163,7 +173,7 @@ class Reservation extends Model implements Payable
      * `ReservationController`, which was fine while the back-office was the only
      * thing that moved a reservation. It is not any more: a coordinator now
      * starts and completes trips from `control/`, and a second copy of these
-     * rules is a second copy that gets edited alone — the first time somebody
+     * rules is a second copy that gets edited alone, the first time somebody
      * relaxes one, a mission reaches `completed` without ever having started and
      * `started_at` is null on a trip that supposedly ran.
      *
@@ -180,6 +190,20 @@ class Reservation extends Model implements Payable
             'cancelled'   => in_array($from, ['pending', 'confirmed', 'in_progress'], true),
             'confirmed'   => $from === 'pending',
             'pending'     => $from === 'confirmed',
+            /*
+             * Lapsed, and only from a trip that never left.
+             *
+             * `expired` is reachable from `pending` and `confirmed` because
+             * those are the states a trip can sit in while its travel date goes
+             * past. It is deliberately NOT reachable from `in_progress`: a trip
+             * that started and was never closed is a different problem with a
+             * different answer, and `trips:sweep` completes it rather than
+             * expiring it. See ExpireStaleOrders and SweepRunningTrips.
+             *
+             * Nothing reopens an expired trip. Ops re-book it, which is honest
+             * about the fact that the original journey did not happen.
+             */
+            'expired'     => in_array($from, ['pending', 'confirmed'], true),
             default       => false,
         };
     }
@@ -194,7 +218,7 @@ class Reservation extends Model implements Payable
                 $model->id = (string) Str::uuid();
             }
             if (empty($model->code)) {
-                // e.g., BZV-000123 — adapt prefix to your locale/brand
+                // e.g., BZV-000123, adapt prefix to your locale/brand
                 $model->code = self::generateCode();
             }
         });
@@ -220,7 +244,7 @@ class Reservation extends Model implements Payable
      * to land.
      *
      * Cash taken at a counter used to become a `transactions` row, invisible to
-     * the payments ledger — which is why the dashboard's revenue figure could
+     * the payments ledger, which is why the dashboard's revenue figure could
      * never see an app payment and vice versa. Both now write here.
      */
     public function paymentAmount(): int
@@ -241,7 +265,7 @@ class Reservation extends Model implements Payable
     /**
      * Cancelled reservations refuse money; everything else accepts it.
      *
-     * Looser than Order's rule on purpose — an agent taking cash at a counter
+     * Looser than Order's rule on purpose, an agent taking cash at a counter
      * is looking at the client, and the app-side guards (is the vehicle
      * available, has ops confirmed) have already been exercised by the fact
      * that a human is standing there.

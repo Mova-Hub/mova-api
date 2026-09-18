@@ -59,7 +59,7 @@ Schedule::command('payments:reconcile')
 /*
  * Mova Credit expiry.
  *
- * Sweeps lapsed promotional credit by writing an explicit `expired` debit —
+ * Sweeps lapsed promotional credit by writing an explicit `expired` debit,
  * the ledger is append-only, so nothing is deleted. 03:30, between the Pass
  * sweep and the audit prune.
  */
@@ -71,8 +71,8 @@ Schedule::command('wallet:expire')
  * GPS trail retention.
  *
  * `reservation_positions` is a minute-by-minute record of where a named
- * employee was. It has a job — the client's live map, and settling a route
- * dispute a few days later — and once that job is done, keeping it is a
+ * employee was. It has a job, the client's live map, and settling a route
+ * dispute a few days later, and once that job is done, keeping it is a
  * liability. Seven days is the window in which a dispute realistically lands;
  * the threshold lives in the command so changing it is not a schedule edit.
  *
@@ -85,7 +85,7 @@ Schedule::command('positions:prune')
 /*
  * Payment reminders.
  *
- * Once a day, mid-morning — a dunning SMS at 04:00 is how a brand teaches
+ * Once a day, mid-morning, a dunning SMS at 04:00 is how a brand teaches
  * people to mute it. Frequency-capped per client inside the command.
  */
 Schedule::command('payments:remind')
@@ -121,4 +121,20 @@ Schedule::command('trips:remind')
  */
 Schedule::command('orders:expire')
     ->dailyAt('02:00')
+    ->withoutOverlapping();
+
+/*
+ * Trips left running past their end.
+ *
+ * Two stages a day apart, both driven by this one command: a notice to both
+ * sides when a trip passes its end time, then an automatic close a day later if
+ * nobody acted. See SweepRunningTrips.
+ *
+ * 09:00, deliberately NOT with the 02:00 overnight block. The first stage sends
+ * a push to a client and to staff, and "please close this trip" arriving at two
+ * in the morning is the exact failure the trips:remind docblock above argues
+ * against. The auto-close half is not urgent enough to justify waking anyone.
+ */
+Schedule::command('trips:sweep')
+    ->dailyAt('09:00')
     ->withoutOverlapping();
