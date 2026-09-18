@@ -86,6 +86,39 @@ class OrderHistoryResource extends JsonResource
                 'is_estimate' => ! $res && $this->quoted_total !== null,
                 'is_paid' => $res?->payment_status === 'paid',
             ],
+            /*
+             * The coordinator, on the BOOKING rather than only on tracking.
+             *
+             * This lived solely on `GET /orders/{id}/tracking`, which the app
+             * only calls once a trip is confirmed or running. A reservation
+             * defaults to `pending` (see Reservation::$attributes), and ops
+             * assign a coordinator at conversion, so for the whole window
+             * between "assigned" and "confirmed" the client was shown nobody to
+             * call. That is the window in which somebody most wants to ring and
+             * ask where to wait, and it looked from the app exactly like an
+             * unassigned trip.
+             *
+             * A coordinator is a property of the booking, not of a live
+             * tracking session, so it belongs here. `tracking` keeps serving it
+             * too: that endpoint is polled while the trip runs and the app
+             * should not have to refetch the order to keep the name on screen.
+             *
+             * NOT `whenLoaded`. An unloaded relation makes the key ABSENT
+             * rather than null, which the back-office already read once as
+             * "nobody assigned" and drew an Assigner button on a trip that had
+             * one. Both callers eager-load it; a plain null is the honest
+             * answer if either ever stops.
+             *
+             * Deliberately no e-mail and no id. A phone number to call is what
+             * this screen needs; the rest is an employee's contact details on a
+             * customer's device.
+             */
+            'coordinator' => $res?->coordinator ? [
+                'name' => $res->coordinator->name,
+                'phone' => $res->coordinator->phone,
+                'avatar_url' => $res->coordinator->avatar_url ?? null,
+            ] : null,
+
             'started_at' => $res?->started_at,
             'completed_at' => $res?->completed_at,
             'internal_notes' => $this->internal_notes,
