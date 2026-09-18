@@ -138,3 +138,17 @@ Schedule::command('orders:expire')
 Schedule::command('trips:sweep')
     ->dailyAt('09:00')
     ->withoutOverlapping();
+
+/*
+ * Asking how a finished trip went.
+ *
+ * 10:00, an hour after `trips:sweep`, so a trip auto-closed at 09:00 has already
+ * been stamped with `auto_closed_at` and is excluded before this runs. The other
+ * order would ask about it and then close it, which is the wrong way round.
+ *
+ * Daytime, like `payments:remind`. A push asking for a favour is not worth
+ * sending at two in the morning. See RequestTripReviews.
+ */
+Schedule::command('trips:request-reviews')
+    ->dailyAt('10:00')
+    ->withoutOverlapping();

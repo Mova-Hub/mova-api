@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -52,6 +53,7 @@ class Reservation extends Model implements Payable
         'completed_at',
         'closing_notified_at',
         'auto_closed_at',
+        'review_requested_at',
         // 'trip_id', // uncomment if/when you add a trips table
     ];
 
@@ -74,6 +76,8 @@ class Reservation extends Model implements Payable
         // the difference: nobody should be asked to rate a journey that was
         // closed by a cron because it was forgotten.
         'auto_closed_at' => 'datetime',
+        // When the review request went out, so the sweep asks once.
+        'review_requested_at' => 'datetime',
     ];
 
     // Default status
@@ -105,6 +109,19 @@ class Reservation extends Model implements Payable
     public function coordinator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'coordinator_id');
+    }
+
+    /**
+     * The passenger's verdict on this trip, if they gave one.
+     *
+     * `HasOne` rather than `HasMany`: the unique index on
+     * `trip_ratings.reservation_id` makes a second one impossible, and typing it
+     * as a collection would invite code that handles a case the database
+     * forbids.
+     */
+    public function rating(): HasOne
+    {
+        return $this->hasOne(TripRating::class);
     }
 
     /**
