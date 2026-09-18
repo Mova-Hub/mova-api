@@ -16,7 +16,7 @@ use App\Domain\Pass\DTOs\Entitlement;
  *
  * This class is the server's half of a format the app and Mova Control also
  * implement (mobile/src/features/pass/card-payload.ts). **All three must agree
- * byte for byte** — the signature is over exactly this string minus its last
+ * byte for byte**, the signature is over exactly this string minus its last
  * field, so a difference of one character is a card nobody can verify.
  */
 class CardPayloadCodec
@@ -101,7 +101,7 @@ class CardPayloadCodec
         $raw = @hex2bin($hex);
 
         if ($raw === false || strlen($raw) !== 16) {
-            // Not a UUID — fall back to hashing it to 16 bytes so the format
+            // Not a UUID, fall back to hashing it to 16 bytes so the format
             // stays fixed-width rather than silently producing a short id.
             $raw = substr(hash('sha256', $uuid, true), 0, 16);
         }

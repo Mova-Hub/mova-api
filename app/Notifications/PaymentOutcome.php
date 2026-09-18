@@ -57,7 +57,7 @@ class PaymentOutcome extends Notification implements ShouldQueue
         }
 
         $mail = (new MailMessage)
-            ->subject("Paiement reçu — {$amount}")
+            ->subject("Paiement reçu : {$amount}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Nous avons bien reçu votre paiement de **{$amount}** pour {$what}.")
             ->line('Moyen de paiement : ' . ($this->payment->provider?->label ?? $this->payment->provider_code));

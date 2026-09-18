@@ -14,7 +14,7 @@ use App\Models\Payment;
  * Spending Mova Credit.
  *
  * A driver rather than a special case in PaymentService, so credit appears in
- * the one ledger exactly like any other payment — same row, same statuses, same
+ * the one ledger exactly like any other payment, same row, same statuses, same
  * invoice line. A client who paid half with credit and half with MoMo has two
  * payment records, not one payment and one mysterious discount.
  *
@@ -23,7 +23,7 @@ use App\Models\Payment;
  * `capabilities()->synchronous` to skip its "confirmez sur votre téléphone"
  * screen, which would otherwise flash for a fifth of a second and read as a bug.
  *
- * @see MOVA-WALLET-AND-PAYMENTS.md §3 — closed-loop, and why there is no top-up.
+ * @see MOVA-WALLET-AND-PAYMENTS.md §3, closed-loop, and why there is no top-up.
  */
 class MovaCreditDriver extends BaseDriver
 {
@@ -41,7 +41,7 @@ class MovaCreditDriver extends BaseDriver
             // Reversible in full: putting credit back is a ledger entry, not a
             // network call to anyone.
             refund: true,
-            // Nothing to poll and no callback to receive — it either debited
+            // Nothing to poll and no callback to receive, it either debited
             // inside our own transaction or it did not.
             statusPoll: false,
             webhook: false,
@@ -65,7 +65,7 @@ class MovaCreditDriver extends BaseDriver
                 $payment->payable?->paymentDescription(),
             );
         } catch (WalletException $e) {
-            // Already French and client-safe — WalletException exists for
+            // Already French and client-safe, WalletException exists for
             // exactly this, so it passes through rather than being flattened
             // into a generic failure that hides "solde insuffisant".
             return ChargeResult::failed($e->getMessage());
@@ -106,6 +106,6 @@ class MovaCreditDriver extends BaseDriver
     {
         // Nothing external to reach. Saying so beats a "Tester" button that
         // spins and then claims success without having done anything.
-        return HealthResult::ok('Le solde Mova est interne — aucun service externe à joindre.');
+        return HealthResult::ok('Le solde Mova est interne, aucun service externe à joindre.');
     }
 }

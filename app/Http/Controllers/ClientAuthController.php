@@ -100,7 +100,7 @@ class ClientAuthController extends Controller
          *
          * Blocking already revokes existing tokens (ClientController::block),
          * so without this the block would last exactly until the customer
-         * signed in again — which is the first thing anyone does when an app
+         * signed in again, which is the first thing anyone does when an app
          * logs them out.
          */
         if ($client->isBlocked()) {
@@ -342,7 +342,7 @@ class ClientAuthController extends Controller
          * This line used to be `Log::info("PASSWORD RESET OTP for {$phone}: {$otp}")`.
          * With LOG_LEVEL=debug and a single unrotated file, every password-reset
          * code in the system was sitting in plaintext in storage/logs alongside
-         * the phone number it belonged to — enough, on its own, to take over any
+         * the phone number it belonged to, enough, on its own, to take over any
          * account. Anyone who can read the log can reset any password.
          *
          * The phone is recorded so the flow is still traceable; the code is not.
@@ -352,7 +352,7 @@ class ClientAuthController extends Controller
         return response()->json([
             'status'  => true,
             'message' => 'Code OTP envoyé sur votre téléphone.',
-            // Local only, and `isLocal()` reads APP_ENV — never true in production.
+            // Local only, and `isLocal()` reads APP_ENV, never true in production.
             'debug_otp' => app()->isLocal() ? $otp : null
         ]);
     }
@@ -406,7 +406,7 @@ class ClientAuthController extends Controller
         $request->validate([
             // E.164: a leading +, a non-zero country code, 8-15 digits total.
             // Previously only `string|unique`, which accepted "abc" or a local
-            // number with no country code — and the SMS would then silently
+            // number with no country code, and the SMS would then silently
             // fail to deliver.
             'phone' => [
                 'required',
@@ -440,7 +440,7 @@ class ClientAuthController extends Controller
             ], 500);
         }
 
-        // Never the code itself — see the note on the password-reset OTP above.
+        // Never the code itself, see the note on the password-reset OTP above.
         Log::info('Phone update OTP issued', ['phone' => $this->maskPhone($phone)]);
 
         return response()->json([
@@ -474,7 +474,7 @@ class ClientAuthController extends Controller
         //
         // The OTP round-trip proves the user controls this number, so record
         // that. The column already existed but was never written, which meant
-        // an OTP-verified phone was indistinguishable from an unverified one —
+        // an OTP-verified phone was indistinguishable from an unverified one,
         // and social sign-ups arrive with no phone at all.
         $user->forceFill([
             'phone'             => $cachedData['phone'],

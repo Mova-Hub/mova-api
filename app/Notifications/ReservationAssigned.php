@@ -14,14 +14,14 @@ use Illuminate\Notifications\Notification;
 /**
  * "You are running this trip."
  *
- * Sent to a coordinator the moment a reservation becomes theirs, and — with
- * `$released` — to the person it was taken from. Both halves matter: an
+ * Sent to a coordinator the moment a reservation becomes theirs, and, with
+ * `$released`, to the person it was taken from. Both halves matter: an
  * assignment nobody was told about is the same as no assignment, and a
  * reassignment nobody was told about means two people show up or nobody does.
  *
  * Carries what someone needs to act on it from a phone at six in the morning:
  * the code, the route, when, how many vehicles, and the client's number. The
- * client's PHONE specifically — a coordinator's first action is to call them,
+ * client's PHONE specifically, a coordinator's first action is to call them,
  * and making them open the back-office to find it defeats the point.
  *
  * Queued, like `ReservationStatusUpdated`, so a slow mail server never holds up
@@ -44,7 +44,7 @@ class ReservationAssigned extends Notification implements ShouldQueue
      * Database always; mail and push where the account can receive them.
      *
      * Mirrors `ReservationStatusUpdated::via()`, minus its duplicated FCM block
-     * — that file adds `FcmChannel` twice, which sends every push twice.
+     *, that file adds `FcmChannel` twice, which sends every push twice.
      */
 
     public function toMail(object $notifiable): MailMessage
@@ -53,20 +53,20 @@ class ReservationAssigned extends Notification implements ShouldQueue
 
         if ($this->released) {
             return (new MailMessage)
-                ->subject("Mission retirée — {$r->code}")
+                ->subject("Mission retirée : {$r->code}")
                 ->greeting("Bonjour {$notifiable->name},")
                 ->line("La mission **{$r->code}** ({$r->from_location} → {$r->to_location}) a été confiée à quelqu’un d’autre.")
                 ->line('Vous n’avez plus rien à préparer pour ce trajet.');
         }
 
         $mail = (new MailMessage)
-            ->subject("Nouvelle mission — {$r->code}")
+            ->subject("Nouvelle mission : {$r->code}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Vous coordonnez le trajet **{$r->code}**.")
             ->line("**Trajet :** {$r->from_location} → {$r->to_location}")
             ->line('**Départ :** ' . $this->departure())
             ->line("**Véhicules :** {$this->vehicleCount()}")
-            ->line("**Client :** {$r->passenger_name} — {$r->passenger_phone}");
+            ->line("**Client :** {$r->passenger_name}, {$r->passenger_phone}");
 
         if ($r->return_date) {
             $mail->line('**Retour :** ' . $r->return_date->format('d/m/Y à H:i'));
@@ -112,7 +112,7 @@ class ReservationAssigned extends Notification implements ShouldQueue
             'android' => [
                 'notification' => ['channel_id' => 'missions_channel'],
                 // A mission assignment is time-critical in a way a marketing
-                // push is not — it may arrive while the phone is dozing.
+                // push is not, it may arrive while the phone is dozing.
                 'priority' => 'high',
             ],
             'apns' => [
@@ -144,8 +144,8 @@ class ReservationAssigned extends Notification implements ShouldQueue
     /**
      * `loadCount` rather than `->buses->count()`.
      *
-     * The relation is usually not loaded when this fires — the notification is
-     * queued and rehydrates the model from the database — so counting through
+     * The relation is usually not loaded when this fires, the notification is
+     * queued and rehydrates the model from the database, so counting through
      * the collection would load every bus row to produce one integer.
      */
     private function vehicleCount(): int

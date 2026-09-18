@@ -15,7 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * shape that was never sent), and adding a column to `orders` silently changed
  * the API.
  *
- * Not to be confused with `OrderHistoryResource`, which is the MOBILE shape —
+ * Not to be confused with `OrderHistoryResource`, which is the MOBILE shape,
  * client-facing, itinerary-centric, and deliberately hides internal notes.
  * This one is the staff view: it shows what the client cannot see.
  */

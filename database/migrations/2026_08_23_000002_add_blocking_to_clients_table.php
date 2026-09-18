@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Suspending a customer account.
      *
-     * There was no way to stop a client using the app short of deleting them —
+     * There was no way to stop a client using the app short of deleting them,
      * which destroys their order history, and that history is accounting data.
      * A nullable timestamp instead: reversible, and the reason travels with it
      * so the next agent to look does not have to ask why.

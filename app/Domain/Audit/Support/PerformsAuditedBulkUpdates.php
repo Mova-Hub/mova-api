@@ -6,7 +6,7 @@ use App\Domain\Audit\Services\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Bulk mutations that Eloquent — and therefore the audit trail — can see.
+ * Bulk mutations that Eloquent, and therefore the audit trail, can see.
  *
  * `Builder::update()` and `Builder::delete()` issue one SQL statement and never
  * hydrate a model, so no observer fires. Every bulk endpoint in this codebase
@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
  *
  * The loop is slower. That is the right trade here: these operate on rows an
  * agent hand-picked in a table view, so the counts are tens. The endpoints cap
- * their input to keep it that way — if a genuine mass migration is ever needed,
+ * their input to keep it that way, if a genuine mass migration is ever needed,
  * it should be a command with its own single summary entry, not this.
  */
 trait PerformsAuditedBulkUpdates

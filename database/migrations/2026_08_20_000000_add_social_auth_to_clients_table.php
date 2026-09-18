@@ -20,7 +20,7 @@ return new class extends Migration
         /**
          * Phone was NOT NULL: sign-up always collected it. Social sign-in has no
          * phone number to offer, and demanding one before the account exists
-         * would defeat the point of one-tap sign-in — so it becomes optional and
+         * would defeat the point of one-tap sign-in, so it becomes optional and
          * is collected later, when a booking actually needs a contact number.
          *
          * Remains UNIQUE. MySQL and Postgres both allow multiple NULLs in a

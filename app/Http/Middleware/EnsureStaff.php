@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * This exists because `auth:sanctum` alone does NOT mean "a staff member".
  * `App\Models\Client` also uses `HasApiTokens`, and Sanctum resolves whichever
- * model owns the presented token — so before this middleware, every customer's
+ * model owns the presented token, so before this middleware, every customer's
  * mobile token authenticated successfully against the entire back-office API:
  * `GET /clients` (every customer's name, phone and email), `GET /reservations`,
  * `GET /staff`, and `POST /quote`, which returns Mova's commission and the
@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Three things are checked, and all three matter:
  *
- *  1. **The token belongs to a `User`.** An instanceof check, not a role check —
+ *  1. **The token belongs to a `User`.** An instanceof check, not a role check,
  *     roles are strings and `Client` has no `role` column at all, so comparing
  *     one would read `null` and could be made to pass by accident later.
  *  2. **The role is a back-office role.** `users.role` also covers `driver`,

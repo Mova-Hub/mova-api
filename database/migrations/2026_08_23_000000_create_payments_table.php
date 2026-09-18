@@ -7,18 +7,18 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Money movements — the single ledger.
+     * Money movements, the single ledger.
      *
      * A table, not a column on `orders`, because a payment has a life of its
      * own: it is attempted, it fails, it is retried on another number, it
      * eventually succeeds, and months later it may be refunded. Collapsing that
-     * into `orders.paid_at` throws away every attempt but the last — which is
+     * into `orders.paid_at` throws away every attempt but the last, which is
      * exactly the history support needs when a client says they were debited.
      *
      * **Polymorphic, not `order_id`.** The same flow has to collect for a
      * charter booking and for a Mova Pass subscription. A foreign key to one of
      * them would mean a second payment system for the other, which is how a
-     * codebase ends up with three ledgers that disagree — see the `transactions`
+     * codebase ends up with three ledgers that disagree, see the `transactions`
      * table this one absorbs.
      */
     public function up(): void
@@ -28,13 +28,13 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
 
             /*
-             * Order | PassSubscription | Reservation — anything implementing
+             * Order | PassSubscription | Reservation, anything implementing
              * the Payable contract. See App\Domain\Payment\Contracts\Payable.
              *
              * `payable_id` is a STRING, not the unsignedBigInteger `morphs()`
              * would give. Orders and subscriptions have integer keys but
              * Reservation uses HasUuids, and a bigint column cannot hold a
-             * UUID — the row would be silently truncated to 0 and every
+             * UUID, the row would be silently truncated to 0 and every
              * reservation payment would point at the same phantom record.
              */
             $table->string('payable_type');
@@ -54,12 +54,12 @@ return new class extends Migration
              *
              * Providers are rows in `payment_providers`, added by ops without a
              * deploy. A PHP enum here would mean every new provider needs a
-             * code change — the exact thing the driver registry exists to
+             * code change, the exact thing the driver registry exists to
              * avoid. Validity is checked against the providers table.
              */
             $table->string('provider_code')->index();
 
-            /** app | back_office | system — where the attempt came from. */
+            /** app | back_office | system, where the attempt came from. */
             $table->string('channel')->default('app');
 
             /** full | deposit | balance | refund */
@@ -72,8 +72,8 @@ return new class extends Migration
             $table->string('status')->default('pending');
 
             /*
-             * Whole francs, as integers. XAF has no subunit — the smallest coin
-             * is one franc — so a decimal would only invite the rounding errors
+             * Whole francs, as integers. XAF has no subunit, the smallest coin
+             * is one franc, so a decimal would only invite the rounding errors
              * money-as-float is famous for, for a fractional part that cannot
              * exist.
              */
@@ -85,7 +85,7 @@ return new class extends Migration
             $table->string('currency', 3)->default('XAF');
 
             // The number the prompt was pushed to. May differ from the account
-            // phone — people pay from a spouse's or an employer's wallet.
+            // phone, people pay from a spouse's or an employer's wallet.
             $table->string('payer_phone')->nullable();
 
             /*

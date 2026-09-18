@@ -11,8 +11,8 @@ use Illuminate\Support\Str;
  * Checks an MTN MoMo integration, one layer at a time.
  *
  * The reason this exists rather than "just try a payment": MoMo returns 401 for
- * at least four unrelated causes — wrong subscription key, wrong API user,
- * wrong API key, wrong `X-Target-Environment` — and the body says nothing about
+ * at least four unrelated causes, wrong subscription key, wrong API user,
+ * wrong API key, wrong `X-Target-Environment`, and the body says nothing about
  * which. Testing through the app gives you one opaque failure at the end of a
  * five-step chain. This walks the chain and stops at the first broken link.
  *
@@ -43,7 +43,7 @@ class MomoDoctor extends Command
         $credentials = $provider->credentials ?? [];
 
         $this->line('');
-        $this->info('MTN MoMo — diagnostic');
+        $this->info('MTN MoMo : diagnostic');
         $this->line('  Mode      ' . strtoupper($mode) . ($provider->enabled ? ' · enabled' : ' · DISABLED'));
         $this->line('  Endpoint  ' . $baseUrl);
         $this->line('');
@@ -57,7 +57,7 @@ class MomoDoctor extends Command
             $this->line('');
             $this->line($mode === 'test'
                 ? '  Run: php artisan momo:provision'
-                : '  Production credentials come from MTN onboarding — there is no self-service.');
+                : '  Production credentials come from MTN onboarding, there is no self-service.');
 
             return self::FAILURE;
         }
@@ -71,7 +71,7 @@ class MomoDoctor extends Command
          * A mismatch here is subtle and worth calling out.
          *
          * `X-Target-Environment` must match the environment the API user was
-         * created in. A sandbox user with `mtncongo` set — or the reverse —
+         * created in. A sandbox user with `mtncongo` set, or the reverse,
          * yields a 401 identical to a wrong password.
          */
         if ($mode === 'test' && $targetEnvironment !== 'sandbox') {
@@ -109,12 +109,12 @@ class MomoDoctor extends Command
             ->get($baseUrl . '/collection/v1_0/account/balance');
 
         if ($balance->successful()) {
-            $this->line('  ✓ Account reachable — balance ' . ($balance->json('availableBalance') ?? '?')
+            $this->line('  ✓ Account reachable, balance ' . ($balance->json('availableBalance') ?? '?')
                 . ' ' . ($balance->json('currency') ?? ''));
         } else {
             // Not fatal: some sandbox subscriptions do not expose balance, and
             // collection still works. Said plainly rather than failing the run.
-            $this->warn('  ! Balance unavailable (HTTP ' . $balance->status() . '). Not fatal — '
+            $this->warn('  ! Balance unavailable (HTTP ' . $balance->status() . '). Not fatal, '
                 . 'collection can still work.');
         }
 
@@ -134,7 +134,7 @@ class MomoDoctor extends Command
          * The sandbox settles in EUR whatever you send.
          *
          * XAF is correct in production and rejected here, which is the classic
-         * first-integration failure — the driver already encodes this rule.
+         * first-integration failure, the driver already encodes this rule.
          */
         $currency = $mode === 'live' ? 'XAF' : 'EUR';
 
@@ -163,7 +163,7 @@ class MomoDoctor extends Command
             ]);
 
         // 202 Accepted with an empty body is the success case. There is no id
-        // in the response — the reference we generated IS the transaction id.
+        // in the response, the reference we generated IS the transaction id.
         if ($charge->status() !== 202) {
             $this->error('✗ requestToPay failed (HTTP ' . $charge->status() . ')');
             $this->line('  ' . ($charge->body() ?: '(empty body)'));
@@ -196,7 +196,7 @@ class MomoDoctor extends Command
 
             $state = (string) $status->json('status');
             $this->line('  poll ' . $i . ': ' . $state
-                . ($status->json('reason') ? ' — ' . json_encode($status->json('reason')) : ''));
+                . ($status->json('reason') ? ', ' . json_encode($status->json('reason')) : ''));
 
             if ($state !== 'PENDING') {
                 $this->line('');
@@ -211,7 +211,7 @@ class MomoDoctor extends Command
 
         $this->line('');
         $this->warn('Still PENDING after ' . $attempts . ' polls.');
-        $this->line('  Not a failure — this is exactly the asynchrony the driver is built around.');
+        $this->line('  Not a failure, this is exactly the asynchrony the driver is built around.');
         $this->line('  In the app the payment stays "en cours" and `payments:reconcile` settles it.');
         $this->line('');
 

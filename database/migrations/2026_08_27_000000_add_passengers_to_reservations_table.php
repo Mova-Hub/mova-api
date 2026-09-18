@@ -7,15 +7,15 @@ use Illuminate\Support\Facades\Schema;
 /**
  * How many people are actually travelling.
  *
- * `orders.passengers` has been collected since 2026-08-21 — validated
+ * `orders.passengers` has been collected since 2026-08-21, validated
  * `min:1|max:300` and used at booking to check the requested fleet has enough
- * seats — and then **dropped on the floor at conversion**. `reservations` had
+ * seats, and then **dropped on the floor at conversion**. `reservations` had
  * no equivalent column, so the head count survived only via `order_id`, and
  * every screen built on a reservation had to either join back or show nothing.
  *
  * **Not the same thing as `seats`.** `seats` is the capacity of the vehicles
  * attached; `passengers` is how many people are expected. The pair is the whole
- * point — "22 passagers · 30 places" is the sentence dispatch needs, and either
+ * point, "22 passagers · 30 places" is the sentence dispatch needs, and either
  * number alone hides the question of whether everybody has a seat.
  *
  * **Also not `passenger_name`.** Those columns describe ONE named contact for
@@ -35,7 +35,7 @@ return new class extends Migration
         }
 
         Schema::table('reservations', function (Blueprint $table) {
-            // Mirrors `orders.passengers` exactly — same type, same nullability,
+            // Mirrors `orders.passengers` exactly, same type, same nullability,
             // so copying one to the other at conversion cannot truncate.
             $table->unsignedSmallInteger('passengers')->nullable()->after('seats');
         });

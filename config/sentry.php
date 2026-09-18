@@ -18,11 +18,11 @@ return [
      *
      * With this on, Sentry attaches request bodies, cookies and the
      * authenticated user's full record to every event. This API handles phone
-     * numbers, home addresses, Mobile Money numbers and password-reset flows —
+     * numbers, home addresses, Mobile Money numbers and password-reset flows,
      * an error report is not a place any of that should end up, and once it is
      * in a third party's store it is not straightforwardly deletable.
      *
-     * The user is still identified, but only by id and role — see the
+     * The user is still identified, but only by id and role, see the
      * `before_send` hook below. That is enough to answer "is this happening to
      * one account or all of them" without shipping the account itself.
      */
@@ -33,7 +33,7 @@ return [
         'cache' => false,
         'livewire' => false,
         'sql_queries' => true,
-        // Bindings would carry the values being queried — phone numbers,
+        // Bindings would carry the values being queried, phone numbers,
         // tokens, OTP hashes. The statement alone is enough to locate a bug.
         'sql_bindings' => false,
         'queue_info' => true,
@@ -58,7 +58,7 @@ return [
      *
      * Performance data is sampled because it is billed per transaction and
      * because a fifth of the traffic is more than enough to see that an
-     * endpoint has become slow. ERRORS are never sampled — every one is sent.
+     * endpoint has become slow. ERRORS are never sampled, every one is sent.
      */
     'traces_sample_rate' => (float) env('SENTRY_TRACES_SAMPLE_RATE', 0.2),
 

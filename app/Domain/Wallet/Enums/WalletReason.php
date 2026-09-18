@@ -8,7 +8,7 @@ namespace App\Domain\Wallet\Enums;
  * **This enum IS the compliance boundary.** Every value originates with Mova,
  * so no entry can represent customer funds received and held. That is precisely
  * what keeps Mova Credit outside the definition of electronic money under
- * Règlement 04/18/CEMAC/UMAC/COBAC — which would otherwise require an
+ * Règlement 04/18/CEMAC/UMAC/COBAC, which would otherwise require an
  * établissement de paiement licence.
  *
  * **There is deliberately no `top_up`.** Adding one is not a feature, it is a
@@ -32,7 +32,7 @@ enum WalletReason: string
      *
      * The closest of these to the regulatory line, because money genuinely
      * arrives first. It stays outside because it settles a commercial invoice
-     * for identified future services with a named business counterparty — a
+     * for identified future services with a named business counterparty, a
      * trade prepayment, not a deposit. If it ever becomes open-ended,
      * unallocated, or refundable in cash, the analysis fails.
      */
@@ -41,7 +41,7 @@ enum WalletReason: string
     /** Support gesture. Admin-granted, audited, ceiling-capped. */
     case Goodwill = 'goodwill';
 
-    /** Reversal of a debit — a payment that used credit and then failed. */
+    /** Reversal of a debit, a payment that used credit and then failed. */
     case SpendReversed = 'spend_reversed';
 
     /* ── Debits. ──────────────────────────────────────────────────────── */

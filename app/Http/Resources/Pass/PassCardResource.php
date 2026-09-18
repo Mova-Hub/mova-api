@@ -15,7 +15,7 @@ class PassCardResource extends JsonResource
             'uuid' => $this->uuid,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
-            // Masked, always. The full serial is an activation credential — it
+            // Masked, always. The full serial is an activation credential, it
             // is printed on the card the owner is holding, so showing it back
             // in an API response adds nothing and puts it in logs, caches and
             // screenshots.

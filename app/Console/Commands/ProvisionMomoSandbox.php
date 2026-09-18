@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  *   1. Subscribe to the **Collections** product on momodeveloper.mtn.com.
  *      That gives you the `Ocp-Apim-Subscription-Key` (its "Primary Key").
  *   2. `POST /v1_0/apiuser` with an `X-Reference-Id` you generate. That UUID
- *      *becomes* the API user — the endpoint returns 201 and an EMPTY body,
+ *      *becomes* the API user, the endpoint returns 201 and an EMPTY body,
  *      which is why people think it failed.
  *   3. `POST /v1_0/apiuser/{apiUser}/apikey` returns the API key. It is shown
  *      **once**; there is no endpoint to read it back.
@@ -86,7 +86,7 @@ class ProvisionMomoSandbox extends Command
         /*
          * The callback host is a HOST, not a URL.
          *
-         * MTN rejects anything with a scheme or a path — "https://x.com/hook"
+         * MTN rejects anything with a scheme or a path, "https://x.com/hook"
          * fails validation with a message that does not say why. It is also
          * only advisory in the sandbox: callbacks are not reliably delivered
          * there, which is exactly why the driver polls rather than waiting.
@@ -98,7 +98,7 @@ class ProvisionMomoSandbox extends Command
         $apiUser = (string) Str::uuid();
 
         $this->line('');
-        $this->info('MTN MoMo — sandbox provisioning');
+        $this->info('MTN MoMo : sandbox provisioning');
         $this->line('  Endpoint      ' . $baseUrl);
         $this->line('  Callback host ' . $callbackHost);
         $this->line('  API user      ' . $apiUser);
@@ -158,7 +158,7 @@ class ProvisionMomoSandbox extends Command
             return self::FAILURE;
         }
 
-        $this->line('  ✓ Token obtained — the credentials work');
+        $this->line('  ✓ Token obtained, the credentials work');
 
         /*
          * Written only after the round trip succeeds.

@@ -64,7 +64,7 @@ class SubscriptionController extends Controller
      * Subscribes to a plan.
      *
      * Created as PENDING and conferring nothing until payment settles. That is
-     * not a placeholder for missing payment code — it is the correct shape:
+     * not a placeholder for missing payment code, it is the correct shape:
      * mobile-money confirmation is asynchronous and arrives minutes later, so
      * an endpoint that granted travel synchronously would be handing out free
      * subscriptions to anyone who abandons the payment sheet.
@@ -120,7 +120,7 @@ class SubscriptionController extends Controller
     /**
      * Turns auto-renewal on or off.
      *
-     * The ONLY field a subscriber may change on their own subscription — hence
+     * The ONLY field a subscriber may change on their own subscription, hence
      * a dedicated method rather than a general update. Price, dates and trip
      * count are derived at purchase and must not be reachable from a client
      * request; a generic `update` accepting `$request->all()` is how they would

@@ -74,7 +74,7 @@ return [
         ],
 
         /*
-         * Structured logs — the production channel.
+         * Structured logs, the production channel.
          *
          * One JSON object per line, with `request_id` as a top-level field, so
          * it can be filtered rather than grepped for. Use it by setting
@@ -82,7 +82,7 @@ return [
          *
          * `LOG_LEVEL` defaults to `info` HERE, not `debug`. The .env currently
          * runs debug against a single unrotated file, which writes every query
-         * and every framework notice to one ever-growing log — and debug is
+         * and every framework notice to one ever-growing log, and debug is
          * exactly the level at which careless code writes secrets. (Two OTP
          * log lines were doing precisely that until 2026-08-23.)
          */
@@ -98,7 +98,7 @@ return [
         /*
          * Same formatting, straight to stderr.
          *
-         * For any host that collects container output rather than files — no
+         * For any host that collects container output rather than files, no
          * disk to fill, no rotation to configure.
          */
         'json_stderr' => [

@@ -53,7 +53,7 @@ class TripQuoteService
             return [
                 'distance_km' => round($route['distance_m'] / 1000, 1),
                 // Google's duration is a car. This is a bus, and it stops to
-                // pick people up — see App\Domain\Booking\BusTravelTime.
+                // pick people up, see App\Domain\Booking\BusTravelTime.
                 'duration_minutes' => (int) round(
                     BusTravelTime::fromCarSeconds(
                         $route['duration_s'],
@@ -165,7 +165,7 @@ class TripQuoteService
                 array_values($fleet)
             ),
             // Only the three lines the customer is actually paying. Commission
-            // and operator payout stay server-side — see the class docblock.
+            // and operator payout stay server-side, see the class docblock.
             'breakdown' => [
                 'transport'        => round($result->base + $result->motivation, 2),
                 'event_supplement' => round($result->event, 2),

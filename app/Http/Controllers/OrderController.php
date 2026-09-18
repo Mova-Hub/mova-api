@@ -20,13 +20,13 @@ class OrderController extends Controller
     use PerformsAuditedBulkUpdates;
 
     /**
-     * List orders — the lead pipeline.
+     * List orders, the lead pipeline.
      *
      * Two fixes here, both of which the back-office was working around:
      *
      *  1. **`status` is now an optional filter.** It used to default to
      *     `pending` and always apply, so there was literally no way to list
-     *     every order — a request without the parameter silently returned a
+     *     every order, a request without the parameter silently returned a
      *     subset. The list page's "Tous" option could not work.
      *  2. **Returns a Resource collection**, so the response carries a `meta`
      *     block. `response()->json($paginator)` emits Laravel's raw paginator
@@ -76,7 +76,7 @@ class OrderController extends Controller
         ];
 
         return response()->json([
-            // A Resource now, not the raw model — see OrderResource's docblock.
+            // A Resource now, not the raw model, see OrderResource's docblock.
             'order' => new OrderResource($order),
             'actions' => $actions,
         ]);
@@ -101,7 +101,7 @@ class OrderController extends Controller
          * `converted` is deliberately NOT settable here.
          *
          * Converting a lead creates a reservation, assigns vehicles and prices
-         * the trip — that is `convertToReservation`, not a status flip. Allowing
+         * the trip, that is `convertToReservation`, not a status flip. Allowing
          * it in bulk would mark orders converted with no booking behind them.
          */
         if ($data['status'] === 'converted') {
@@ -155,7 +155,7 @@ class OrderController extends Controller
         // Comprehensive validation matching the Reservation requirements
         $data = $request->validate([
             'trip_date'      => 'required|date',
-            // The return leg. Must not precede departure — a reservation that
+            // The return leg. Must not precede departure, a reservation that
             // comes back before it leaves is unschedulable, and dispatch would
             // only find out on the day.
             'return_date'    => 'nullable|date|after:trip_date',
@@ -170,14 +170,14 @@ class OrderController extends Controller
             'waypoints'      => 'nullable|array',
             'distance_km'    => 'nullable|numeric',
             'event'          => 'nullable|string',
-            // Head count. Defaults to the order's own figure below — the client
+            // Head count. Defaults to the order's own figure below, the client
             // already told us, and re-asking an agent to retype it is how the
             // two records end up disagreeing.
             'passengers'     => 'nullable|integer|min:1|max:300',
             /*
              * Who will actually run this trip.
              *
-             * Constrained to accounts that can LOG IN and are ACTIVE — handing a
+             * Constrained to accounts that can LOG IN and are ACTIVE, handing a
              * convoy to a suspended account, or to a `driver` record that has no
              * password, produces a reservation nobody can open in the field app.
              * `exists` alone would accept both.
@@ -200,7 +200,7 @@ class OrderController extends Controller
          * AFTER it commits.
          *
          * Notifying inside would mean a coordinator can be told to run a trip
-         * that a later failure rolls back — a phone call at six in the morning
+         * that a later failure rolls back, a phone call at six in the morning
          * about a booking that does not exist. Queued notifications make it
          * worse, not better: the job can be picked up before the commit lands
          * and rehydrate a model the worker cannot find.
@@ -212,7 +212,7 @@ class OrderController extends Controller
                 'client_id'       => $order->client_id,
                 'trip_date'       => $data['trip_date'],
                 // Null = one way. The same rule the order path uses, so a
-                // request and the booking it becomes agree on what was sold —
+                // request and the booking it becomes agree on what was sold,
                 // a round trip converted without this became a one-way booking
                 // that dispatch had no way to know needed a return.
                 'return_date'     => $data['return_date'] ?? null,
@@ -224,7 +224,7 @@ class OrderController extends Controller
                  * `?? null` on every optional key, and that is not belt and
                  * braces.
                  *
-                 * `validate()` returns only the keys the request actually sent —
+                 * `validate()` returns only the keys the request actually sent,
                  * a `nullable` rule does NOT put an absent field in the result.
                  * So converting an order with no e-mail (the field is optional
                  * in the dialog, and most leads have none) raised "Undefined
@@ -244,7 +244,7 @@ class OrderController extends Controller
                 /*
                  * The head count, carried across at last.
                  *
-                 * Collected and validated at booking, then dropped here — the
+                 * Collected and validated at booking, then dropped here, the
                  * reservation had no column for it, so "how many people are
                  * travelling" was only answerable by joining back to the order.
                  */
@@ -254,13 +254,13 @@ class OrderController extends Controller
                  * The person who will actually deliver this.
                  *
                  * Until now a converted order became a booking that was nobody's
-                 * job — vehicles attached, and then silence until the morning it
+                 * job, vehicles attached, and then silence until the morning it
                  * was supposed to leave.
                  */
                 'coordinator_id'  => $data['coordinator_id'] ?? null,
 
                 // Set from the attached vehicles immediately below, once the
-                // pivot exists. Never left at 0 — see the note there.
+                // pivot exists. Never left at 0, see the note there.
                 'seats'           => 0,
             ]);
 
@@ -271,7 +271,7 @@ class OrderController extends Controller
              * 2b. Capacity, from the vehicles actually attached.
              *
              * This line used to read `'seats' => 0, // Pivot logic handles
-             * actual capacity` — and that pivot logic never existed.
+             * actual capacity`, and that pivot logic never existed.
              * `reservation_buses` carries only the two foreign keys, and nothing
              * anywhere recomputed the figure, so EVERY converted reservation
              * showed "Places: 0" for good.
@@ -281,7 +281,7 @@ class OrderController extends Controller
              * untouched converted booking failed validation on a field the agent
              * never touched.
              *
-             * Must run after `sync()` — the relation is the source of truth, and
+             * Must run after `sync()`, the relation is the source of truth, and
              * summing the request's ids instead would drift the moment a vehicle
              * is detached later.
              */
@@ -317,7 +317,7 @@ class OrderController extends Controller
          * 5. Notify the coordinator.
          *
          * Wrapped, because a mail server that is down must not turn a
-         * successful conversion into a 500 — the booking is already committed,
+         * successful conversion into a 500, the booking is already committed,
          * and telling the agent it failed would have them convert it twice.
          * A coordinator who was not reached is recoverable; a duplicate
          * reservation is not.

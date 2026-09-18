@@ -32,7 +32,7 @@ class LocationController extends Controller
      * the other proxies so the Maps key never leaves the server.
      *
      * A route Google cannot compute returns 200 with `route: null`, not an
-     * error — the app falls back to straight segments, which is a degraded
+     * error, the app falls back to straight segments, which is a degraded
      * picture rather than a broken screen.
      */
     public function directions(Request $request)
@@ -48,7 +48,7 @@ class LocationController extends Controller
         if ($route !== null) {
             /*
              * Google's duration is a CAR. The app shows this figure next to a
-             * bus booking, so it is adjusted before it leaves the server —
+             * bus booking, so it is adjusted before it leaves the server,
              * see App\Domain\Booking\BusTravelTime for the model.
              *
              * Both numbers are returned, named for what they are. Overwriting

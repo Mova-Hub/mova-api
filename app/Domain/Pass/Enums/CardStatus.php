@@ -5,7 +5,7 @@ namespace App\Domain\Pass\Enums;
 /**
  * Physical card lifecycle.
  *
- * A card leaves the counter ENCODED, not ACTIVE — PRD §5.1. That is what makes
+ * A card leaves the counter ENCODED, not ACTIVE, PRD §5.1. That is what makes
  * a stolen blank batch worthless: the chip carries a valid signed payload, but
  * no account owns it and the server refuses it until a real subscriber binds it
  * to themselves.

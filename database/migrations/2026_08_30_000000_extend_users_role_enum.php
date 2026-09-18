@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Schema;
  * the first migration. Neither of the people who actually deliver the service
  * appears in it:
  *
- *  - **coordinator** — owns one reservation end to end. Gathers the vehicles,
+ *  - **coordinator**, owns one reservation end to end. Gathers the vehicles,
  *    meets the client, rides with the convoy. Nothing recorded who this was, so
  *    "who is running the Pointe-Noire trip on Saturday" was a WhatsApp question.
- *  - **controller** — rides a bus and checks Pass subscriptions. This is what
+ *  - **controller**, rides a bus and checks Pass subscriptions. This is what
  *    `control/` already does, and inspectors have been signing in as `agent` to
- *    do it — which hands a bus inspector the clients list, the payments ledger
+ *    do it, which hands a bus inspector the clients list, the payments ledger
  *    and the settings screen, because `agent` is a back-office role.
  *
  * **Deliberately not reusing `conductor`.** In this schema a conductor is a
@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Schema;
  * It does not: Laravel's SQLite grammar renders an enum as
  * `varchar check ("role" in ('driver','owner',...))`, and inserting
  * `coordinator` fails with `CHECK constraint failed: role`. Laravel 12 changes
- * columns natively — no doctrine/dbal — and knows how to rebuild an SQLite
+ * columns natively, no doctrine/dbal, and knows how to rebuild an SQLite
  * table to replace that constraint, which is exactly the work nobody should be
  * writing by hand.
  */
@@ -54,7 +54,7 @@ return new class extends Migration
     {
         /*
          * Anyone already holding a role that is about to disappear is parked as
-         * `agent` FIRST — before the constraint narrows. Reversing straight into
+         * `agent` FIRST, before the constraint narrows. Reversing straight into
          * a constraint violation is how a rollback becomes an outage, and on
          * SQLite the table rebuild would fail outright with rows it cannot
          * re-insert.

@@ -11,7 +11,7 @@ use Throwable;
 /**
  * Asks providers about payments we never heard back about.
  *
- * **Not optional, and not a nicety.** Mobile-money webhooks get lost — dropped
+ * **Not optional, and not a nicety.** Mobile-money webhooks get lost, dropped
  * in transit, delivered while the API was restarting, sent to a URL that was
  * briefly wrong. Without this, those payments sit at `processing` forever: the
  * client is debited, the order stays unpaid, and the in-flight guard blocks any

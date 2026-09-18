@@ -33,7 +33,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Back-office roles — the console, the ledger, the settings.
+     * Back-office roles, the console, the ledger, the settings.
      *
      * **This list must not grow.** `EnsureStaff` gates every back-office route on
      * it, so adding a role here silently hands that role the clients list, the
@@ -43,7 +43,7 @@ class User extends Authenticatable
     public const STAFF_ROLES = ['admin', 'agent'];
 
     /**
-     * Field roles — they log in, but only to `control/`.
+     * Field roles, they log in, but only to `control/`.
      *
      * A coordinator owns one reservation end to end; a controller checks Pass
      * subscriptions on a bus. Both need a token and neither has any business in
@@ -55,13 +55,13 @@ class User extends Authenticatable
     /**
      * Everyone who can authenticate at all.
      *
-     * The set the back-office may CREATE and MANAGE — which is broader than the
+     * The set the back-office may CREATE and MANAGE, which is broader than the
      * set that may reach the back-office. `StaffController` uses this; the
      * middleware uses the two lists above.
      */
     public const LOGIN_ROLES = ['admin', 'agent', 'coordinator', 'controller'];
 
-    /** Fleet people — they appear in the system, they do not log into it. */
+    /** Fleet people, they appear in the system, they do not log into it. */
     public const FLEET_ROLES = ['driver', 'conductor', 'owner'];
 
     protected $hidden = [
@@ -91,7 +91,7 @@ class User extends Authenticatable
     /**
      * May this account use `control/`?
      *
-     * Staff pass too — an admin has to be able to open the field app to
+     * Staff pass too, an admin has to be able to open the field app to
      * reproduce what an inspector is reporting. Mirrors `EnsureField` exactly,
      * so the two cannot drift.
      */
@@ -120,7 +120,7 @@ class User extends Authenticatable
      * Devices this account can be reached on.
      *
      * The staff mirror of `Client::fcmTokens()`. Until this existed, a
-     * coordinator handed a convoy could only be told by e-mail — see the
+     * coordinator handed a convoy could only be told by e-mail, see the
      * `user_fcm_tokens` migration.
      */
     public function fcmTokens(): HasMany

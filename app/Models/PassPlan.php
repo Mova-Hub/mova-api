@@ -51,7 +51,7 @@ class PassPlan extends Model
      * A trip bundle cannot be verified offline.
      *
      * Decrementing a counter needs shared state, and an inspector's phone has
-     * none — two buses would each accept the last trip. PRD §6 flags this as
+     * none, two buses would each accept the last trip. PRD §6 flags this as
      * unresolved; until it is, bundles must be gated to online verification
      * rather than assumed to work.
      */

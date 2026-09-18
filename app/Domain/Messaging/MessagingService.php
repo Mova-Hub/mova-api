@@ -36,7 +36,7 @@ class MessagingService
     /**
      * Sends a message, walking the chain until one lands.
      *
-     * @param  string  $event  otp | payment | reminder — selects the chain.
+     * @param  string  $event  otp | payment | reminder, selects the chain.
      * @param  array<string, string>  $variables  Template placeholders.
      */
     public function send(string $to, string $event, string $body, array $variables = []): SendResult
@@ -73,7 +73,7 @@ class MessagingService
             /*
              * A bad number fails identically everywhere. Stopping here saves
              * two more providers' rate limits and, more usefully, keeps the
-             * error specific — "numéro invalide" rather than a chain of
+             * error specific, "numéro invalide" rather than a chain of
              * timeouts that says nothing about the cause.
              */
             if (! $result->retryable) {
@@ -129,7 +129,7 @@ class MessagingService
             return $chain;
         }
 
-        // WhatsApp first — cheaper, richer, and it reaches people who have run
+        // WhatsApp first, cheaper, richer, and it reaches people who have run
         // out of SMS credit, which in this market is a lot of people.
         return ['whatsapp', 'sms'];
     }

@@ -110,7 +110,7 @@ class PassSubscription extends Model implements Payable
      * What the subscription costs.
      *
      * `price_paid` is stamped from the plan when the subscription is created,
-     * so it is the price the client was actually shown — a later plan price
+     * so it is the price the client was actually shown, a later plan price
      * change must not silently re-price a purchase already in progress. The
      * plan is only a fallback for rows predating that stamp.
      */
@@ -132,7 +132,7 @@ class PassSubscription extends Model implements Payable
     /**
      * Only a subscription awaiting payment may be paid for.
      *
-     * An active one is already settled, and an expired one must be renewed —
+     * An active one is already settled, and an expired one must be renewed,
      * which creates a NEW subscription rather than paying for the dead one, so
      * that the purchase history stays a list of distinct periods.
      */

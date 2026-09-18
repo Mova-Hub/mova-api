@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 
 /**
- * One attempt to move money — the single ledger.
+ * One attempt to move money, the single ledger.
  *
  * Polymorphic on purpose: an Order, a PassSubscription and a Reservation are
  * all Payables, and one payment flow serves all three. See
@@ -45,7 +45,7 @@ class Payment extends Model
 
     /**
      * Raw provider payloads can contain identifiers; never serialise them.
-     * `idempotency_key` is hidden too — it is sent to providers as a request
+     * `idempotency_key` is hidden too, it is sent to providers as a request
      * id, so it is a credential of sorts and has no business in a response.
      */
     protected $hidden = ['meta', 'idempotency_key'];
@@ -58,7 +58,7 @@ class Payment extends Model
         });
     }
 
-    /** Order | PassSubscription | Reservation — anything Payable. */
+    /** Order | PassSubscription | Reservation, anything Payable. */
     public function payable(): MorphTo
     {
         return $this->morphTo();
@@ -92,7 +92,7 @@ class Payment extends Model
     /**
      * A payment that is still going somewhere.
      *
-     * Used to stop a second attempt while one is live — mobile-money prompts
+     * Used to stop a second attempt while one is live, mobile-money prompts
      * sit on a handset for a minute or two, and a client who taps again in that
      * window must not be debited twice.
      */
@@ -110,7 +110,7 @@ class Payment extends Model
     }
 
     /**
-     * Money that actually arrived in a window — the revenue rule, in one place.
+     * Money that actually arrived in a window, the revenue rule, in one place.
      *
      * Three conditions that must always travel together, and were being
      * written out by hand at every call site:

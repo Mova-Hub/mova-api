@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
  * Self-service blocking (PC-1).
  *
  * A subscriber must be able to kill a lost card immediately, without a phone
- * call and without waiting for a guichet to open — the window between losing a
+ * call and without waiting for a guichet to open, the window between losing a
  * card and reporting it is the whole exposure, and every hour of it is free
  * rides on their subscription.
  */

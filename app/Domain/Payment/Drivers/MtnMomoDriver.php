@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
- * MTN MoMo — Collections.
+ * MTN MoMo, Collections.
  *
  * Docs: https://momodeveloper.mtn.com/
  *
@@ -165,7 +165,7 @@ class MtnMomoDriver extends BaseDriver
         $latency = (int) round((microtime(true) - $started) * 1000);
 
         // Named per credential, because an operator pasting four values needs
-        // to know which one is wrong — that is the whole value of this button.
+        // to know which one is wrong, that is the whole value of this button.
         return match (true) {
             $response->successful() => HealthResult::ok('Jeton MTN obtenu.', $latency),
             $response->status() === 401 => HealthResult::fail(
@@ -229,7 +229,7 @@ class MtnMomoDriver extends BaseDriver
     /**
      * A refusal, in words the reader can act on.
      *
-     * `400` used to say, flatly, "Numéro MTN invalide." — which in the sandbox
+     * `400` used to say, flatly, "Numéro MTN invalide.", which in the sandbox
      * is simply untrue and cost real debugging time. MoMo's sandbox accepts
      * only ITS OWN test MSISDNs, so a perfectly good Congolese number is
      * rejected there by design; telling an operator their number is malformed
@@ -242,7 +242,7 @@ class MtnMomoDriver extends BaseDriver
      */
     private function clientMessage(int $httpStatus, ?string $code = null): string
     {
-        // MTN's own reason wins — it is the only thing here that knows WHY.
+        // MTN's own reason wins, it is the only thing here that knows WHY.
         if (is_string($code) && $code !== '') {
             return $this->reasonMessage($code);
         }
@@ -252,7 +252,7 @@ class MtnMomoDriver extends BaseDriver
         return match ($httpStatus) {
             400 => $sandbox
                 ? 'Numéro refusé par le bac à sable MTN. En mode test, seuls les numéros de test MTN '
-                    . '(par ex. 46733123450) sont acceptés — un vrai numéro congolais est rejeté. '
+                    . '(par ex. 46733123450) sont acceptés, un vrai numéro congolais est rejeté. '
                     . 'Passez le fournisseur en production pour encaisser de vrais paiements.'
                 : 'Numéro MTN invalide.',
             409 => 'Une demande identique est déjà en cours.',

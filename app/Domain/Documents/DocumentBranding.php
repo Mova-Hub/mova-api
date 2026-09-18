@@ -10,13 +10,13 @@ use Throwable;
 /**
  * Mova's marks on a generated document.
  *
- * Used by every PDF — invoice, quotation, receipt — so a brand change is one
+ * Used by every PDF, invoice, quotation, receipt, so a brand change is one
  * edit rather than a hunt through Blade files.
  *
  * **The logo is a base64 data URI, not a URL.** dompdf is not a browser: with
  * `isRemoteEnabled` off it will not fetch anything, and with it on the PDF
  * silently loses its logo whenever the network is slow or the storage host is
- * unreachable — which is exactly when an invoice is most likely to be generated
+ * unreachable, which is exactly when an invoice is most likely to be generated
  * from a queue worker. Embedding makes the file self-contained and identical
  * offline, which is also the property that lets it be emailed as an attachment.
  *
@@ -28,10 +28,10 @@ class DocumentBranding
     private const CACHE_KEY = 'mova:branding:logo';
     private const CACHE_TTL = 86400;
 
-    /** Mova green — the wordmark, and the rule under the header. */
+    /** Mova green, the wordmark, and the rule under the header. */
     public const GREEN = '#4CAF50';
 
-    /** Mova orange — the accent over the "o". Used sparingly. */
+    /** Mova orange, the accent over the "o". Used sparingly. */
     public const ORANGE = '#F57C00';
 
     /** Deep green for text on light backgrounds; contrast-safe at 10pt. */
@@ -55,8 +55,8 @@ class DocumentBranding
         /*
          * The cache is an OPTIMISATION, not a dependency.
          *
-         * Wrapping the whole thing in one try/catch — which is what this did
-         * first — means a cache outage silently strips the logo from every
+         * Wrapping the whole thing in one try/catch, which is what this did
+         * first, means a cache outage silently strips the logo from every
          * invoice generated while it lasts. Reading a 60 KB file is cheap; the
          * cache only saves the base64 pass, so when it is unavailable we do the
          * work rather than degrade the document.
@@ -82,7 +82,7 @@ class DocumentBranding
         $uri = $bytes ? 'data:image/png;base64,' . base64_encode($bytes) : null;
 
         try {
-            // `?? false` so a genuine "no logo" is cached too — otherwise every
+            // `?? false` so a genuine "no logo" is cached too, otherwise every
             // invoice re-reads a file that is not there.
             Cache::put(self::CACHE_KEY, $uri ?? false, self::CACHE_TTL);
         } catch (Throwable) {

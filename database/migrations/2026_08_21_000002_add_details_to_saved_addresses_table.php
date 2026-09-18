@@ -19,7 +19,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('saved_addresses', function (Blueprint $table) {
-            /** Building, floor, door — the "apt 4B" line. */
+            /** Building, floor, door, the "apt 4B" line. */
             $table->string('detail')->nullable()->after('address');
             /** Free-text landmark or directions for the driver. */
             $table->text('directions')->nullable()->after('detail');

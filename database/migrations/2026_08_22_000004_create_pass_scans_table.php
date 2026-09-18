@@ -12,7 +12,7 @@ return new class extends Migration
      * Refusals are the valuable rows. An accepted scan says the system worked;
      * a run of INVALID verdicts on one line at one hour is how forged cards get
      * noticed, and it is the only signal available for the cloning risk PRD
-     * §4.3 accepts rather than prevents — the same subscriber appearing on two
+     * §4.3 accepts rather than prevents, the same subscriber appearing on two
      * buses at once shows up here or nowhere.
      */
     public function up(): void
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->foreignId('pass_subscription_id')->nullable()
                 ->constrained('pass_subscriptions')->nullOnDelete();
 
-            // Denormalised ON PURPOSE — kept even when no card matches, which
+            // Denormalised ON PURPOSE, kept even when no card matches, which
             // is the case that matters most for fraud analysis.
             $table->string('chip_uid')->nullable();
 
@@ -51,7 +51,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 10, 7)->nullable();
 
-            // Device clock, which is not trustworthy — see PRD §4.4. Kept
+            // Device clock, which is not trustworthy, see PRD §4.4. Kept
             // alongside the server's own timestamps so a manipulated device
             // shows up as a discrepancy rather than as clean data.
             $table->timestamp('scanned_at');

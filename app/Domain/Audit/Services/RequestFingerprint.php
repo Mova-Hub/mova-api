@@ -14,7 +14,7 @@ use Throwable;
 /**
  * Turns the two forensic fields on an audit entry into something readable.
  *
- * `user_agent` and `ip` are stored raw and never interpreted at write time —
+ * `user_agent` and `ip` are stored raw and never interpreted at write time,
  * an audit record must keep exactly what arrived. This service interprets them
  * at READ time, which means a better parser next year improves every historical
  * entry instead of only new ones.
@@ -28,7 +28,7 @@ use Throwable;
  *    are cached for a week, so a given address is disclosed to ipinfo once
  *    rather than once per page view. Switching `config('location.driver')` to
  *    `MaxMind::class` moves the lookup to a local database file and removes the
- *    outbound call altogether — see the note in `config/location.php`.
+ *    outbound call altogether, see the note in `config/location.php`.
  *
  * Neither result is treated as fact. A user agent is a client-supplied header
  * and is trivially forged; an IP locates a network, not a person. The response
@@ -48,16 +48,16 @@ class RequestFingerprint
      *
      * Two sources, and the order between them matters:
      *
-     *  - **`$declaredClient`** — the `X-Mova-Client` header, when one of Mova's
+     *  - **`$declaredClient`**, the `X-Mova-Client` header, when one of Mova's
      *    own apps sent the request. It is the ONLY reliable way to know an
      *    action came from the passenger app rather than a browser or a script:
      *    React Native's user agent says "OkHttp 4.12" on Android and nothing at
      *    all on iOS, and Expo Go's says "Chrome Webview".
-     *  - **`$userAgent`** — still parsed, because it is where the OS version
+     *  - **`$userAgent`**, still parsed, because it is where the OS version
      *    and the handset model come from.
      *
      * The declared identity wins for *who is calling*; the parsed agent wins for
-     * *what they are calling from*. Neither is treated as fact — both are
+     * *what they are calling from*. Neither is treated as fact, both are
      * client-supplied.
      *
      * @return array<string, mixed>
@@ -71,7 +71,7 @@ class RequestFingerprint
             // knows its own hardware far better than a UA string does), falling
             // back to the parsed agent for anything it omitted.
             //
-            // Through the memo, and NOT via `device()` — recursing into it with
+            // Through the memo, and NOT via `device()`, recursing into it with
             // the declared client still in scope would loop. Fifty rows from
             // the app share one user agent, so this must not re-parse per row.
             $parsed = $userAgent && trim($userAgent) !== ''
@@ -99,7 +99,7 @@ class RequestFingerprint
 
         if (! $userAgent || trim($userAgent) === '') {
             // No user agent at all: a queued job, an artisan command, or a
-            // direct API call. Worth naming — "no browser" is itself a fact
+            // direct API call. Worth naming, "no browser" is itself a fact
             // about how the action happened.
             return [
                 'known' => false,
@@ -110,7 +110,7 @@ class RequestFingerprint
         }
 
         /*
-         * Memoised per request, in memory — NOT through the cache store.
+         * Memoised per request, in memory, NOT through the cache store.
          *
          * DeviceDetector matches several hundred regexes, so repeat parsing
          * matters; but a fifty-row audit page comes from a handful of distinct
@@ -285,7 +285,7 @@ class RequestFingerprint
         }
 
         // Loopback and RFC1918. Geolocating a private address is meaningless
-        // rather than merely imprecise — it designates no public place.
+        // rather than merely imprecise, it designates no public place.
         if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return ['resolvable' => false, 'reason' => 'private_ip', 'ip' => $ip];
         }
@@ -308,7 +308,7 @@ class RequestFingerprint
             if (! $position || ! $position->latitude || ! $position->longitude) {
                 return [
                     'resolvable' => false,
-                    // ipinfo answers for most public addresses but not all —
+                    // ipinfo answers for most public addresses but not all,
                     // some ranges genuinely carry no coordinates, which is a
                     // lookup that succeeded and had nothing to say.
                     'reason' => $this->notConfigured() ? 'not_configured' : 'lookup_failed',
@@ -357,7 +357,7 @@ class RequestFingerprint
     /**
      * Distinguishes "never set up" from "set up and could not answer".
      *
-     * Only the MaxMind driver has a setup step that can be missing — its local
+     * Only the MaxMind driver has a setup step that can be missing, its local
      * `.mmdb` file. ipinfo.io needs nothing to start working, so a failure
      * there is a genuine lookup failure (rate limit, network, unknown address)
      * and must not be reported to the operator as "configure a provider", which

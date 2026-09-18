@@ -18,7 +18,7 @@ use Throwable;
 /**
  * Buying, renewing and ending a Mova Pass.
  *
- * The subscription is the authority on whether someone may travel — not the
+ * The subscription is the authority on whether someone may travel, not the
  * card. That resolves PRD open decision D2 in favour of the server snapshot:
  * renewing extends a row here, and inspectors validate against a downloaded
  * copy of it, so a subscriber who renews in the app never has to remember to
@@ -37,7 +37,7 @@ class SubscriptionService
      * Idempotent per (client, plan, pending) is deliberately NOT attempted:
      * buying two months in a row is a legitimate thing to do. What IS
      * guaranteed is that concurrent calls cannot both read the same expiry and
-     * both extend from it — the client row is locked for the duration.
+     * both extend from it, the client row is locked for the duration.
      *
      * @param  bool  $activate  false while payment is pending; the row exists but confers nothing.
      */
@@ -50,7 +50,7 @@ class SubscriptionService
         return DB::transaction(function () use ($client, $plan, $activate) {
             // Serialises concurrent renewals for this client. Without it, two
             // requests arriving together both read the old expiry and the
-            // second silently overwrites the first — a month the client paid
+            // second silently overwrites the first, a month the client paid
             // for and never receives.
             $client = Client::whereKey($client->getKey())->lockForUpdate()->firstOrFail();
 
@@ -61,7 +61,7 @@ class SubscriptionService
              * Renewing early extends from the CURRENT expiry, not from today.
              *
              * The alternative throws away the unused remainder every time
-             * somebody renews before they lapse — punishing precisely the
+             * somebody renews before they lapse, punishing precisely the
              * customers who renew on time.
              */
             $startsAt = ($current && config('pass.subscriptions.extend_from_current_expiry', true))
@@ -96,7 +96,7 @@ class SubscriptionService
     /**
      * Marks a pending subscription paid.
      *
-     * Separate from `subscribe` because payment is asynchronous — a mobile-money
+     * Separate from `subscribe` because payment is asynchronous, a mobile-money
      * callback lands minutes later, and the entitlement must not be signed
      * before the money is real.
      */
@@ -105,8 +105,8 @@ class SubscriptionService
         /*
          * `$wasAlreadyActive` is what keeps the notification honest.
          *
-         * `activate()` is idempotent by design — the payment hook calls it, and
-         * a re-delivered webhook calls it again — so without this a client
+         * `activate()` is idempotent by design, the payment hook calls it, and
+         * a re-delivered webhook calls it again, so without this a client
          * would be told their Pass is active once per webhook retry.
          */
         $wasAlreadyActive = false;
@@ -273,7 +273,7 @@ class SubscriptionService
      *
      * Stored on the subscription rather than only on the card so that a
      * renewal produces a fresh signed snapshot without anyone touching the
-     * chip — the point of choosing D2 option (b).
+     * chip, the point of choosing D2 option (b).
      */
     public function signEntitlement(Client $client, PassSubscription $subscription): PassSubscription
     {
@@ -299,7 +299,7 @@ class SubscriptionService
      * The client's Pass identifier, created on first use.
      *
      * Lazy because the overwhelming majority of clients only ever charter a
-     * bus and will never own a card — there is no reason to mint an identifier
+     * bus and will never own a card, there is no reason to mint an identifier
      * for all of them.
      */
     public function ensurePassUuid(Client $client): string

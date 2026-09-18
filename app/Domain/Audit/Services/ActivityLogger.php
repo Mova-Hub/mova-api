@@ -12,7 +12,7 @@ use Throwable;
 /**
  * The one writer for the audit trail.
  *
- * Everything that records an action goes through here — the model observer, the
+ * Everything that records an action goes through here, the model observer, the
  * bulk-operation call sites, and the sensitive-read middleware. One writer means
  * one place where redaction happens and one place where the actor is resolved,
  * rather than each caller getting it subtly differently.
@@ -42,7 +42,7 @@ class ActivityLogger
     /**
      * Milliseconds from the start of the request to this moment.
      *
-     * For a mutation this is time-to-the-change, not total request time — the
+     * For a mutation this is time-to-the-change, not total request time, the
      * observer fires while the response is still being built, so the request
      * has not finished and its real duration is unknowable here. The
      * sensitive-read middleware passes the true figure explicitly because it
@@ -107,8 +107,8 @@ class ActivityLogger
                 /*
                  * What the calling application says it is.
                  *
-                 * A native app's user agent is whatever its HTTP stack picked —
-                 * "OkHttp 4.12" on Android, nothing at all on iOS — so the Mova
+                 * A native app's user agent is whatever its HTTP stack picked,
+                 * "OkHttp 4.12" on Android, nothing at all on iOS, so the Mova
                  * apps send this header instead. Kept raw and truncated, never
                  * trusted: it is as forgeable as the user agent above it, and
                  * `declared_` in the column name is there to keep that visible.
@@ -123,7 +123,7 @@ class ActivityLogger
                  * First-class columns, not buried in `context`.
                  *
                  * They were created, made fillable and cast, and then nothing
-                 * ever wrote to them — the sensitive-read middleware put both
+                 * ever wrote to them, the sensitive-read middleware put both
                  * inside the `context` JSON instead, so "show me every action
                  * that took over two seconds" was not a query anyone could
                  * write. That is the entire reason a column was chosen over a
@@ -134,7 +134,7 @@ class ActivityLogger
                 'context' => $context ?: null,
             ]);
         } catch (Throwable $e) {
-            // Deliberately swallowed — see the class docblock.
+            // Deliberately swallowed, see the class docblock.
             Log::warning('Activity log write failed', [
                 'action' => $action,
                 'error' => $e->getMessage(),
@@ -169,7 +169,7 @@ class ActivityLogger
      *
      * `Auth::user()` would resolve only the default guard. Both `User` (staff)
      * and `Client` (customers) own Sanctum tokens, and both mutate data worth
-     * auditing — a customer editing a saved address is as much an actor as an
+     * auditing, a customer editing a saved address is as much an actor as an
      * agent editing a reservation.
      */
     private function resolveActor(): ?Model
@@ -183,7 +183,7 @@ class ActivityLogger
      * A human label, resolved once at write time.
      *
      * Falls back through the fields a Mova model is likely to have, then to the
-     * class and key — never to nothing, because a log entry that cannot say
+     * class and key, never to nothing, because a log entry that cannot say
      * what it refers to is not worth having written.
      */
     private function labelFor(?Model $model): ?string

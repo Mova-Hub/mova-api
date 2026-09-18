@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
  * The subscriber's own cards.
  *
  * Every query in this controller starts from `$request->user()->...` or filters
- * on `client_id`. No route takes a card id it then trusts — an id in a request
+ * on `client_id`. No route takes a card id it then trusts, an id in a request
  * body is an assertion by the caller, not an authorisation.
  */
 class CardController extends Controller
@@ -66,7 +66,7 @@ class CardController extends Controller
     }
 
     /**
-     * Declares a card lost or stolen — the blacklist entry (PC-1).
+     * Declares a card lost or stolen, the blacklist entry (PC-1).
      *
      * Effective immediately server-side. Inspectors pick it up on their next
      * sync, which PRD §4.5 accepts as a window of up to 24 hours; that is an
@@ -79,7 +79,7 @@ class CardController extends Controller
      */
     public function block(BlockCardRequest $request, int $id)
     {
-        // Scoped, not `findOrFail($id)` — otherwise any authenticated client
+        // Scoped, not `findOrFail($id)`, otherwise any authenticated client
         // could block a stranger's card by guessing an integer.
         $card = PassCard::where('client_id', $request->user()->id)->findOrFail($id);
 
@@ -96,7 +96,7 @@ class CardController extends Controller
      * Records the subscriber reading their own card.
      *
      * Logged like any other scan, but with `source: app`, which keeps it out of
-     * the boarding figures — someone checking their card at home is not a trip,
+     * the boarding figures, someone checking their card at home is not a trip,
      * and counting it would inflate every ridership number the business plans
      * against.
      */
@@ -131,7 +131,7 @@ class CardController extends Controller
      *
      * Paginated rather than a flat `limit(100)`. The old cap was silent: a
      * daily commuter passes a hundred boardings in under two months, and from
-     * then on the screen showed a truncated history with nothing to say so —
+     * then on the screen showed a truncated history with nothing to say so,
      * the rows simply stopped, which reads as "Mova lost my trips".
      *
      * `per_page` is clamped. An unbounded value here is a way to pull an entire

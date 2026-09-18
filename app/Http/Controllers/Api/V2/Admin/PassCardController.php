@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Card administration — the counter's HTTP surface.
+ * Card administration, the counter's HTTP surface.
  *
  * `CardService` already owns every operation here and is verified end to end;
  * PRD §12.4 listed this controller as deliberately deferred until the counter
@@ -77,7 +77,7 @@ class PassCardController extends Controller
      *    leaves the server and the back-office never holds it.
      *  - **It does not activate the card.** The chip leaves the counter
      *    `encoded` and unowned even when a client is named, which is what makes
-     *    a stolen blank batch worthless — the server refuses every one of them
+     *    a stolen blank batch worthless, the server refuses every one of them
      *    until a real subscriber claims it.
      */
     public function issue(Request $request)
@@ -107,7 +107,7 @@ class PassCardController extends Controller
             'message' => 'Carte enregistrée. Écrivez le contenu ci-dessous sur la puce.',
             'data' => [
                 'card' => new AdminPassCardResource($issued['card']->load('client')),
-                // Hand this to the bridge script verbatim — it is the exact
+                // Hand this to the bridge script verbatim, it is the exact
                 // NDEF URI record that goes on the chip.
                 'payload' => $issued['payload'],
             ],
@@ -150,7 +150,7 @@ class PassCardController extends Controller
     }
 
     /**
-     * Blocks a card. Terminal — a blocked card is replaced, never un-blocked.
+     * Blocks a card. Terminal, a blocked card is replaced, never un-blocked.
      *
      * Staff get `fraud` as a reason, which the client-facing endpoint
      * deliberately withholds: it is an investigator's determination, and

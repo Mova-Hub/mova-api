@@ -9,7 +9,7 @@ use RuntimeException;
  *
  * Carries a French message safe to show a customer and an HTTP status, so
  * controllers translate rather than invent. The messages are deliberately
- * uniform where they touch someone else's card — see CardService for why.
+ * uniform where they touch someone else's card, see CardService for why.
  */
 class PassException extends RuntimeException
 {

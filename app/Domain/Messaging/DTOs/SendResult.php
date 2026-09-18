@@ -8,7 +8,7 @@ namespace App\Domain\Messaging\DTOs;
  * Carries `retryable` because the failover chain needs to distinguish two very
  * different failures: "WhatsApp is down" (try SMS) from "this number is not on
  * WhatsApp" (also try SMS, but never retry WhatsApp for this person) from
- * "the number is malformed" (stop — every channel will fail identically, and
+ * "the number is malformed" (stop, every channel will fail identically, and
  * walking the chain just burns three providers' rate limits on a typo).
  */
 final class SendResult

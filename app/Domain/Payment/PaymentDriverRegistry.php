@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
  * This class is what replaced `PaymentService::driverFor()`'s hardcoded
  * `match`, and the difference is the whole point of the rebuild: that match
  * meant every new provider was a code change in the service that owns the money
- * state machine — the last file that should be edited casually.
+ * state machine, the last file that should be edited casually.
  *
  * Rows are cached for the request only. A provider disabled in Settings must
  * stop being offered on the next request, not in five minutes; and the cost
@@ -58,7 +58,7 @@ class PaymentDriverRegistry
 
         if (! $class || ! class_exists($class)) {
             /*
-             * A row pointing at a driver that no longer exists — someone
+             * A row pointing at a driver that no longer exists, someone
              * renamed a key in config/payment.php, or deployed a config that
              * dropped a class. Loud, because the alternative is a payment
              * method that silently stops working.

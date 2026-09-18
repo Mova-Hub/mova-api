@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * start it, report where the convoy is, finish it.
  *
  * **Every lookup goes through `mission()`, which scopes to `coordinator_id`.**
- * The `field` middleware answers "may this person use the app at all" — it does
+ * The `field` middleware answers "may this person use the app at all", it does
  * NOT answer "is this mission theirs". A controller who checks Pass cards passes
  * the same gate as a coordinator, and an id in a URL is a claim rather than a
  * permission. Without the scope, any field account could read every client's
@@ -34,7 +34,7 @@ class MissionController extends Controller
     /**
      * My missions.
      *
-     * Everything still to run, soonest first, plus what finished recently —
+     * Everything still to run, soonest first, plus what finished recently,
      * because "what did I do yesterday" is a real question and a coordinator
      * whose list empties at midnight assumes the app has lost their work.
      */
@@ -80,7 +80,7 @@ class MissionController extends Controller
      * The convoy is rolling.
      *
      * Goes through the same state machine `setStatus` uses, so a mission cannot
-     * be started twice or started after it finished — and `started_at` records
+     * be started twice or started after it finished, and `started_at` records
      * when it ACTUALLY left, which is the figure nobody could produce before.
      */
     public function start(Request $request, string $reservation)
@@ -131,7 +131,7 @@ class MissionController extends Controller
     /**
      * Where the convoy is.
      *
-     * Accepts a BATCH, and that is not an optimisation — it is the offline case.
+     * Accepts a BATCH, and that is not an optimisation, it is the offline case.
      * A coordinator on the Brazzaville–Pointe-Noire road loses signal for
      * twenty minutes and the app queues fixes; sending them one request at a
      * time on reconnect would be forty round trips and would still lose the
@@ -220,7 +220,7 @@ class MissionController extends Controller
     /**
      * One mission, or a 404.
      *
-     * `firstOrFail` on a query already scoped to the caller — never `find()`
+     * `firstOrFail` on a query already scoped to the caller, never `find()`
      * followed by a check, which leaks existence through timing and through the
      * difference between 403 and 404. Somebody else's mission should look like
      * no mission at all.

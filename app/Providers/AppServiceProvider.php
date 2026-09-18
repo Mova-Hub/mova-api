@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PricingEngine::class, fn() => new PricingEngine());
 
         /*
-         * Settings are read many times per request — the payment sheet alone
+         * Settings are read many times per request, the payment sheet alone
          * touches half a dozen. A singleton means one query and one in-memory
          * map per request instead of a cache round trip per lookup.
          */
@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Apple is not a first-party Socialite driver — SocialiteProviders adds
+        // Apple is not a first-party Socialite driver, SocialiteProviders adds
         // it through this event rather than a service provider entry.
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('apple', \SocialiteProviders\Apple\Provider::class);
@@ -48,7 +48,7 @@ class AppServiceProvider extends ServiceProvider
         // Remove the {"data":{...}} envelope from single-resource responses.
         //
         // NOTE: this also unwraps RESOURCE COLLECTIONS, which the original
-        // comment did not account for — `SomeResource::collection(...)` emits a
+        // comment did not account for, `SomeResource::collection(...)` emits a
         // bare array here, and only a *paginated* collection keeps a `data`
         // key (from the paginator, not the resource). The mobile client handles
         // both shapes via `unwrap`/`unwrapList`; manager/ must do the same.
@@ -62,7 +62,7 @@ class AppServiceProvider extends ServiceProvider
          * have no business being duplicated into an append-only store.
          *
          * These cover mutations that go through Eloquent. Bulk endpoints use
-         * the query builder and bypass model events entirely — they call
+         * the query builder and bypass model events entirely, they call
          * ActivityLogger directly. See ActivityObserver's docblock.
          */
         foreach ([
@@ -81,13 +81,13 @@ class AppServiceProvider extends ServiceProvider
              * in the system: changing a fee or an API key silently would be
              * indistinguishable from a compromise. The Redactor strips the
              * secrets themselves, so what lands is "who changed which key,
-             * when" — which is exactly the question worth answering.
+             * when", which is exactly the question worth answering.
              */
             \App\Models\Setting::class,
             \App\Models\PaymentProvider::class,
             /*
              * WalletEntry is append-only, so the observer only ever records
-             * creations — but a credit granted by hand is money, and it must be
+             * creations, but a credit granted by hand is money, and it must be
              * as attributable as any other payment.
              */
             \App\Models\WalletEntry::class,

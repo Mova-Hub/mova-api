@@ -44,14 +44,14 @@ class ClientOrderController extends Controller
      * Positions arrive over Reverb while the socket is up, but a websocket
      * cannot paint the first frame and cannot survive a tunnel. This is the
      * initial state, the reconnect state, and the fallback a client on a bad
-     * connection polls — the same payload either way, so the map component
+     * connection polls, the same payload either way, so the map component
      * never learns which one it got.
      *
      * **A position is served only while the trip is `in_progress`.** That is a
      * privacy rule, not a UI one: the stream is a named employee's live
      * location, and where the coordinator went after dropping everyone off is
      * their own business. Before and after, this returns the trip's state and a
-     * null position rather than 404 — the screen still wants to say "en attente
+     * null position rather than 404, the screen still wants to say "en attente
      * du départ".
      */
     public function tracking(Request $request, $id)
@@ -83,7 +83,7 @@ class ClientOrderController extends Controller
                 ] : null,
 
                 /*
-                 * Name, phone and photo — the person to call if the coach is
+                 * Name, phone and photo, the person to call if the coach is
                  * late, and now the face beside their messages on the live
                  * trip screen. Shown to a customer, so nothing else about the
                  * employee goes out: no e-mail, no id, no role.

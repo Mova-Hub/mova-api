@@ -39,7 +39,7 @@ class QuoteController extends Controller
             );
         } catch (InvalidArgumentException $e) {
             // The engine rejects unknown vehicle/event keys. The form request
-            // already screens both, so reaching here means a config drift —
+            // already screens both, so reaching here means a config drift,
             // report it as a 422 rather than a 500 the app cannot explain.
             return response()->json([
                 'status'  => false,

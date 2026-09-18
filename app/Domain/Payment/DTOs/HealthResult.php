@@ -6,11 +6,11 @@ namespace App\Domain\Payment\DTOs;
  * The answer to Settings → Paiement → "Tester".
  *
  * Worth its own type rather than a boolean because the useful part is *why*.
- * "Échec" tells an operator nothing; "401 — la clé d'abonnement est refusée"
+ * "Échec" tells an operator nothing; "401, la clé d'abonnement est refusée"
  * tells them which of the four credentials they pasted wrong, which is the
  * difference between a two-minute fix and a support ticket to MTN.
  *
- * The message is shown to staff, so it may name a provider status code — unlike
+ * The message is shown to staff, so it may name a provider status code, unlike
  * ChargeResult's, which is shown to a client and must never leak one.
  */
 final class HealthResult

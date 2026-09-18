@@ -18,7 +18,7 @@ return [
     /*
      * ipinfo.io, over HTTPS.
      *
-     * Works with no setup at all — ipinfo answers unauthenticated requests at a
+     * Works with no setup at all, ipinfo answers unauthenticated requests at a
      * low daily rate, so the map is live as soon as this deploys. Set
      * IPINFO_TOKEN for a real quota.
      *
@@ -108,7 +108,7 @@ return [
          *
          * When enabled, any private or loopback IP is swapped for a Google
          * address in the United States. On an analytics page that is a harmless
-         * convenience; on an AUDIT page it fabricates evidence — a local admin's
+         * convenience; on an AUDIT page it fabricates evidence, a local admin's
          * action would render as having come from the US, on a map, beside
          * their name.
          */

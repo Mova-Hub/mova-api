@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 /**
  * The subscription catalogue.
  *
- * Editable by ops on purpose — the plan model is `interval` + `interval_count`
+ * Editable by ops on purpose, the plan model is `interval` + `interval_count`
  * rather than a MONTHLY/ANNUAL enum precisely so a two-week student pass or a
  * ten-day pilgrimage pass is a row, not a migration and a deploy.
  */
@@ -22,7 +22,7 @@ class PassPlanController extends Controller
     {
         $query = PassPlan::query()->orderBy('sort_order')->orderBy('price');
 
-        // Unlike the client-facing endpoint, staff see inactive plans too —
+        // Unlike the client-facing endpoint, staff see inactive plans too,
         // that is how a plan gets brought back.
         if ($request->boolean('active_only')) {
             $query->where('is_active', true);
@@ -68,7 +68,7 @@ class PassPlanController extends Controller
      *
      * Soft delete, and `restrictOnDelete` on the subscription foreign key backs
      * it up: a plan that has ever been sold cannot be erased, because the
-     * purchase history references it. Deactivating is the normal path — it
+     * purchase history references it. Deactivating is the normal path, it
      * removes the plan from the app immediately while leaving every existing
      * subscriber untouched.
      */
@@ -106,7 +106,7 @@ class PassPlanController extends Controller
             'interval' => [$ignoreId ? 'sometimes' : 'required', Rule::in(array_column(PlanInterval::cases(), 'value'))],
             'interval_count' => ['nullable', 'integer', 'min:1', 'max:60'],
             // NULL = unlimited. A number makes this a trip bundle, which PRD §6
-            // flags as NOT offline-verifiable — decrementing a counter needs
+            // flags as NOT offline-verifiable, decrementing a counter needs
             // shared state an inspector's phone does not have.
             'trips' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],

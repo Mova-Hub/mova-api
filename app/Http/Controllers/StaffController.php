@@ -19,14 +19,14 @@ class StaffController extends Controller
     public function index(Request $request)
     {
         /*
-         * Every account that can log in — including the field roles.
+         * Every account that can log in, including the field roles.
          *
          * `LOGIN_ROLES`, not `STAFF_ROLES`, and the difference is the point of
          * the split: the back-office CREATES coordinators and controllers, but
          * those accounts cannot reach the back-office themselves. Who may
          * manage them is one question; what they may open is another.
          *
-         * Fleet records (`driver`, `conductor`, `owner`) stay out — they are
+         * Fleet records (`driver`, `conductor`, `owner`) stay out, they are
          * people in the system, not accounts, and `PersonController` owns them.
          */
         $q = User::query()
@@ -45,7 +45,7 @@ class StaffController extends Controller
         }
 
         /*
-         * Optional role filter — and it accepts a COMMA-SEPARATED list.
+         * Optional role filter, and it accepts a COMMA-SEPARATED list.
          *
          * The manager's coordinator picker asks for `role=coordinator,admin,agent`:
          * a coordinator is the obvious choice, but an agent covering a Saturday
@@ -123,7 +123,7 @@ class StaffController extends Controller
 
         /*
          * Suspending staff in bulk is among the most consequential actions in
-         * the system — it revokes back-office access — and it produced no audit
+         * the system, it revokes back-office access, and it produced no audit
          * record at all, because `Builder::update()` fires no model events.
          *
          * It also reported `count($ids)` as the number updated regardless of
@@ -169,7 +169,7 @@ class StaffController extends Controller
      * 404, not 403, for anyone this endpoint does not own.
      *
      * A fleet record reached through /staff should look absent rather than
-     * forbidden — a 403 confirms the id exists, which turns the endpoint into a
+     * forbidden, a 403 confirms the id exists, which turns the endpoint into a
      * membership oracle over the whole users table.
      */
     private function assertStaff(User $staff): void

@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 /**
  * Default business rules.
  *
- * The system runs correctly with an EMPTY settings table — SettingsRepository
+ * The system runs correctly with an EMPTY settings table, SettingsRepository
  * falls back to config, and every `Settings::x()` call names its own default.
  * This seeder exists so the Settings page opens with real values in the fields
  * rather than a grid of blanks that an operator has to guess at.
@@ -54,7 +54,7 @@ class SettingsSeeder extends Seeder
                 'allow_deposit' => true,
                 'deposit_percent' => 0.3,
 
-                // Below this, a deposit is more friction than it is worth —
+                // Below this, a deposit is more friction than it is worth,
                 // two payments to collect 15 000 F helps nobody.
                 'deposit_min_amount' => 50_000,
 
@@ -69,7 +69,7 @@ class SettingsSeeder extends Seeder
             'wallet' => [
                 /*
                  * Closed-loop. There is no `allow_top_up` key, and adding one
-                 * would not enable anything — WalletService has no method to
+                 * would not enable anything, WalletService has no method to
                  * flag. See MOVA-WALLET-AND-PAYMENTS.md §3.3.
                  */
                 'enabled' => true,
@@ -101,7 +101,7 @@ class SettingsSeeder extends Seeder
             'billing' => [
                 'invoice_prefix' => 'MOVA',
                 'quote_prefix' => 'DEV',
-                'legal_mentions' => 'Mova Mobility SARL — RCCM CG-BZV-…  ·  NIU …',
+                'legal_mentions' => 'Mova Mobility SARL, RCCM CG-BZV-…  ·  NIU …',
                 'footer_note' => 'Merci de votre confiance.',
                 'show_logo' => true,
             ],

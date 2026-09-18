@@ -28,12 +28,12 @@ class DashboardController extends Controller
          *
          * Reads `payments`, which since the ledger unification holds BOTH
          * back-office collections (formerly `transactions`) and payments made
-         * in the app. Before that, this figure counted only counter cash — so
+         * in the app. Before that, this figure counted only counter cash, so
          * every franc taken through the app was missing from it.
          *
          * `paid_at`, not `created_at`: an attempt started on the 30th and
          * confirmed on the 1st is revenue for the month it actually landed in.
-         * Refund rows are excluded — a refund flips its parent out of
+         * Refund rows are excluded, a refund flips its parent out of
          * `succeeded`, so counting both would deduct the same money twice.
          */
         $collected = Payment::where('status', PaymentStatus::Succeeded->value)
@@ -66,7 +66,7 @@ class DashboardController extends Controller
         $prevConvRate = $prevLeads > 0 ? ($prevConverted / $prevLeads) * 100 : 0;
 
         /*
-         * 3. FLEET DEMAND — which vehicle clients are actually asking for.
+         * 3. FLEET DEMAND, which vehicle clients are actually asking for.
          *
          * The previous version was wrong in a way that made this card noise:
          *
@@ -80,7 +80,7 @@ class DashboardController extends Controller
          * `orWhereRaw`, so it counted every order ever placed. The "Véhicule
          * Tendance" card has been comparing two all-time totals.
          *
-         * Counting ORDERS is also the wrong unit — an order for four Coasters
+         * Counting ORDERS is also the wrong unit, an order for four Coasters
          * counted the same as an order for one. This sums the quantities.
          */
         $demandFor = function (string $type, $from, $to): int {
@@ -129,7 +129,7 @@ class DashboardController extends Controller
                     'delta_pct' => $this->pctDelta($topDemand, $prevTopDemand),
                     /*
                      * Parenthesised. `$a + $b . " x"` parses as `($a + $b) . " x"`
-                     * here only by luck of PHP 8's precedence change — before
+                     * here only by luck of PHP 8's precedence change, before
                      * 8.0 it concatenated first and summed a string. Being
                      * explicit costs nothing and survives a downgrade.
                      */

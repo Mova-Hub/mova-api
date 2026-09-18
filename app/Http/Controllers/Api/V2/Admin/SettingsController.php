@@ -32,7 +32,7 @@ class SettingsController extends Controller
 
     public function __construct(private SettingsRepository $settings) {}
 
-    /** Everything, grouped — one request fills the whole page. */
+    /** Everything, grouped, one request fills the whole page. */
     public function index()
     {
         $out = [];
@@ -54,7 +54,7 @@ class SettingsController extends Controller
     /**
      * Writes one group.
      *
-     * Values are not schema-validated per key on purpose — the settings table
+     * Values are not schema-validated per key on purpose, the settings table
      * is deliberately open, and a hardcoded schema here would put a deploy
      * between ops and a new setting, which is the thing this whole subsystem
      * exists to avoid. The *consumers* validate: `Settings::float()` clamps,
@@ -106,7 +106,7 @@ class SettingsController extends Controller
      * Tests the messaging provider currently configured.
      *
      * Credentials come from the request so a key can be checked BEFORE it is
-     * saved — testing only what is already stored means the broken value has to
+     * saved, testing only what is already stored means the broken value has to
      * be persisted first.
      */
     public function testMessaging(Request $request, MessagingService $messaging)

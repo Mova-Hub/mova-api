@@ -15,14 +15,14 @@ use SensitiveParameter;
  *  - **Asymmetric, not HMAC.** Mova Control verifies with a key that ships
  *    inside an APK, and an APK is decompilable. With HMAC that same key signs,
  *    so extracting it lets anyone mint an entitlement with any expiry they
- *    like — and offline is precisely where no server check can catch it. A
+ *    like, and offline is precisely where no server check can catch it. A
  *    public key gains an attacker nothing.
  *  - **The private key never leaves this server.** Not to the back-office, not
  *    into a response, not into a log. The counter asks the API for a signature;
  *    it never signs anything itself.
  *  - **Never APP_KEY.** That key already protects sessions and cookies. One key
  *    across unrelated domains means one leak compromises everything and
- *    rotation becomes impossible. A missing dedicated key throws — it does not
+ *    rotation becomes impossible. A missing dedicated key throws, it does not
  *    quietly fall back.
  *
  * Ed25519 also happens to fit the product: 64-byte signatures (the byte budget
@@ -41,7 +41,7 @@ class EntitlementSigner
      * Injected rather than reimplemented: the signed message must be *exactly*
      * the card fragment minus its signature, so the expiry has to be encoded by
      * the same code that writes it to the chip. An earlier draft packed the
-     * expiry here as big-endian bytes while the codec wrote base-64 digits —
+     * expiry here as big-endian bytes while the codec wrote base-64 digits,
      * every signature would have verified against a message no reader could
      * reconstruct, and nothing would have caught it until a card failed on a
      * bus. One implementation, one chance to be wrong.
@@ -80,7 +80,7 @@ class EntitlementSigner
     /**
      * Verifies a base64url signature against an entitlement.
      *
-     * Returns false — never throws — for an unknown key id, malformed base64,
+     * Returns false, never throws, for an unknown key id, malformed base64,
      * or the wrong signature length. A caller checking a card must not be able
      * to tell those apart from a bad signature, and must not have to catch
      * anything to reach a verdict.
@@ -123,7 +123,7 @@ class EntitlementSigner
     }
 
     /**
-     * Every public key, base64, keyed by id — the bootstrap payload for Mova
+     * Every public key, base64, keyed by id, the bootstrap payload for Mova
      * Control. Only ever public halves; see `secretKey()` for the other one.
      *
      * @return array<string, string>
@@ -159,7 +159,7 @@ class EntitlementSigner
      *
      * This is the security-critical detail of the whole scheme. The signed
      * message must be reconstructible by an offline verifier from nothing but
-     * the card, and must be unambiguous — otherwise two different entitlements
+     * the card, and must be unambiguous, otherwise two different entitlements
      * could produce the same message and a signature would transfer between
      * them.
      *

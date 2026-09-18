@@ -20,7 +20,7 @@ use Throwable;
  *
  *  1. **Fixed days, not "every day it is late".** D+1 and D+3 for an unpaid
  *     order, D-7 and D-1 for an expiring pass. A daily message teaches people
- *     to mute the sender, after which nothing gets through — including the
+ *     to mute the sender, after which nothing gets through, including the
  *     messages that matter.
  *  2. **Capped per client per day**, across every reminder type. Someone with
  *     three unpaid orders gets one message, not three.
@@ -65,7 +65,7 @@ class SendPaymentReminders extends Command
         $dueDays = Settings::int('rules.payment_due_days', 3);
 
         // Only orders confirmed long enough ago to be genuinely late, and only
-        // on the two chosen days — a range would fire every day in between.
+        // on the two chosen days, a range would fire every day in between.
         $targets = [1, $dueDays];
 
         // `reservation.buses` is loaded because `isPayable()` now counts the
@@ -127,7 +127,7 @@ class SendPaymentReminders extends Command
     /**
      * Sends one reminder, subject to the daily cap.
      *
-     * The cap key is the client, not the message — so the three reminder types
+     * The cap key is the client, not the message, so the three reminder types
      * compete for one slot rather than each having their own.
      */
     private function dispatch(MessagingService $messaging, $client, string $event, string $body): void
