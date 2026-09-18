@@ -162,18 +162,39 @@ class TripLifecycleTest extends TestCase
         $this->assertNotSame('cancelled', $order->fresh()->status);
     }
 
-    public function test_a_confirmed_booking_that_never_ran_is_left_alone(): void
+    /**
+     * A confirmed booking that never ran now expires, LOUDLY.
+     *
+     * This test used to assert the opposite, and its reasoning was sound: a
+     * confirmed booking that failed to run is an operational incident with money
+     * attached, and a cron must not quietly relabel it and hide it from whoever
+     * has to issue the refund.
+     *
+     * The flaw was in the remedy, not the concern. Leaving it alone meant the
+     * trip sat under "A venir" in the client's app months after its date, which
+     * hid it just as effectively and confused the customer as well. So the trip
+     * lapses AND both the client and staff are told, which is what makes the
+     * relabel not quiet.
+     *
+     * The notification half is asserted in `TripSweepTest`. If it is ever
+     * removed, this behaviour should be reverted rather than patched: without
+     * the alert, the original objection stands.
+     */
+    public function test_a_confirmed_booking_that_never_ran_expires_and_is_announced(): void
     {
-        // An operational incident with money attached. A cron must not quietly
-        // relabel it overnight and hide it from whoever has to refund it.
+        Notification::fake();
+
         $order = $this->order($this->client(), [
             'pickup_date' => now()->subDays(10)->toDateString(),
         ]);
-        $this->reservation($order, 'confirmed');
+        $reservation = $this->reservation($order, 'confirmed');
 
         $this->artisan('orders:expire')->assertSuccessful();
 
-        $this->assertSame('converted', $order->fresh()->status);
+        $this->assertSame('expired', $reservation->fresh()->status);
+        $this->assertSame(Order::STATUS_EXPIRED, $order->fresh()->status);
+
+        Notification::assertSentTo($order->client, \App\Notifications\TripExpired::class);
     }
 
     public function test_a_future_lead_is_left_alone(): void
