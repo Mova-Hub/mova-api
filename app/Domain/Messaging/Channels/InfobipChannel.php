@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
- * Infobip — SMS and WhatsApp through one API.
+ * Infobip, SMS and WhatsApp through one API.
  *
  * Chosen over Twilio for Congo-Brazzaville: direct MNO connections in Central
  * Africa mean OTPs land rather than being routed through aggregator hops, and
@@ -54,7 +54,7 @@ class InfobipChannel implements MessagingChannel
         }
 
         /*
-         * 400 means Infobip rejected the request itself — almost always a
+         * 400 means Infobip rejected the request itself, almost always a
          * malformed destination. Marked non-retryable so the chain stops
          * instead of putting the same bad number through SMS and push.
          */
@@ -95,7 +95,7 @@ class InfobipChannel implements MessagingChannel
                     'content' => [
                         'templateName' => $template,
                         // Positional against the template's registration in
-                        // Infobip's console — order matters more than keys.
+                        // Infobip's console, order matters more than keys.
                         'templateData' => ['body' => ['placeholders' => array_values($variables)]],
                         'language' => $this->credential('whatsapp_language', 'fr') ?? 'fr',
                     ],
@@ -121,7 +121,7 @@ class InfobipChannel implements MessagingChannel
 
         try {
             // Reads the account balance: authenticated, cheap, and sends
-            // nothing — a health check that texts someone is not a health check.
+            // nothing, a health check that texts someone is not a health check.
             $response = $this->client($baseUrl, $apiKey)->get('/account/1/balance');
         } catch (Throwable $e) {
             return SendResult::failed('infobip', $e->getMessage());

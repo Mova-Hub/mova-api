@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Saved addresses — the Domicile / Travail / École shortcuts, plus any custom
+ * Saved addresses, the Domicile / Travail / École shortcuts, plus any custom
  * places the client adds.
  *
  * Every query is scoped through `$request->user()`, never by an id from the
@@ -36,7 +36,7 @@ class SavedAddressController extends Controller
 
         /**
          * A client may only hold one home, one work and one school. Rather than
-         * rejecting a second one, the existing entry is updated — which is what
+         * rejecting a second one, the existing entry is updated, which is what
          * "set my home address" means from the user's side, and avoids a
          * confusing "already exists" error for what feels like an edit.
          */
@@ -78,7 +78,7 @@ class SavedAddressController extends Controller
             // the app so the wording stays consistent and translatable.
             'label'    => ['nullable', 'required_if:kind,custom', 'string', 'max:60'],
             'address'  => ['required', 'string', 'max:255'],
-            // Extra precision for the driver — see the migration for why this
+            // Extra precision for the driver, see the migration for why this
             // is stored apart from the geocoded address.
             'detail'     => ['nullable', 'string', 'max:120'],
             'directions' => ['nullable', 'string', 'max:500'],

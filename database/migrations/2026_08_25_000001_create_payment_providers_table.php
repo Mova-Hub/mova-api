@@ -12,7 +12,7 @@ return new class extends Migration
      * This table is half of the "add a provider without a deploy" promise. The
      * other half is a class implementing PaymentDriver, named by `driver` and
      * resolved through config/payment.php's map. Everything that varies between
-     * two MTN-shaped providers — label, logo, credentials, fees, limits — is a
+     * two MTN-shaped providers, label, logo, credentials, fees, limits, is a
      * column here rather than a constant in PHP.
      *
      * The mobile app reads its whole method list from this table, logo and
@@ -23,7 +23,7 @@ return new class extends Migration
         Schema::create('payment_providers', function (Blueprint $table) {
             $table->id();
 
-            /** Stable machine name — `payments.provider_code` points at this. */
+            /** Stable machine name, `payments.provider_code` points at this. */
             $table->string('code')->unique();
 
             /*
@@ -44,12 +44,12 @@ return new class extends Migration
             $table->string('brand_color', 7)->nullable();
 
             $table->boolean('enabled')->default(false);
-            /** test | live — selects the driver's base URL. */
+            /** test | live, selects the driver's base URL. */
             $table->string('mode')->default('test');
 
             /*
              * Encrypted at rest (see the model's `encrypted:array` cast) and
-             * never returned by a read endpoint — the API answers
+             * never returned by a read endpoint, the API answers
              * `has_credentials: true` plus a masked tail instead.
              */
             $table->text('credentials')->nullable();
@@ -60,21 +60,21 @@ return new class extends Migration
              *
              * NOTE: config/pricing.php already carries
              * mobile_money_client_percent (0.04) inside the quote. These two
-             * must not disagree — see MOVA-WALLET-AND-PAYMENTS.md §4.4.
+             * must not disagree, see MOVA-WALLET-AND-PAYMENTS.md §4.4.
              */
             $table->decimal('fee_percent', 6, 4)->default(0);
             $table->unsignedInteger('fee_fixed')->default(0);
-            /** client | merchant — who the fee is added to. */
+            /** client | merchant, who the fee is added to. */
             $table->string('fee_bearer')->default('merchant');
 
             $table->unsignedInteger('min_amount')->default(0);
             $table->unsignedInteger('max_amount')->nullable();
 
-            /** ["XAF"] — a provider offered outside its currency is a failure. */
+            /** ["XAF"], a provider offered outside its currency is a failure. */
             $table->json('currencies')->nullable();
-            /** ["CG"] — ISO-2, for filtering by the client's country. */
+            /** ["CG"], ISO-2, for filtering by the client's country. */
             $table->json('countries')->nullable();
-            /** ["06"] — advisory prefixes. NEVER used to block a payment. */
+            /** ["06"], advisory prefixes. NEVER used to block a payment. */
             $table->json('phone_prefixes')->nullable();
 
             /*
@@ -86,7 +86,7 @@ return new class extends Migration
              */
             $table->json('fields')->nullable();
 
-            /** collect | refund | status_poll | webhook — reported by the driver. */
+            /** collect | refund | status_poll | webhook, reported by the driver. */
             $table->json('capabilities')->nullable();
 
             $table->unsignedSmallInteger('sort_order')->default(0);

@@ -96,7 +96,7 @@ class PaymentProviderSeeder extends Seeder
                 'currencies' => ['XAF'],
                 'countries' => ['CG'],
                 // Advisory only. Numbers get ported between operators, so a
-                // mismatch WARNS and never blocks — telling a client their own
+                // mismatch WARNS and never blocks, telling a client their own
                 // phone number is wrong is worse than a failed attempt.
                 'phone_prefixes' => ['06'],
                 'fields' => [
@@ -213,7 +213,7 @@ class PaymentProviderSeeder extends Seeder
                 'code' => 'card',
                 'driver' => 'card',
                 'label' => 'Carte bancaire',
-                'description' => 'Visa / Mastercard — pour la diaspora',
+                'description' => 'Visa / Mastercard, pour la diaspora',
                 'brand_color' => '#1A1F71',
                 // No acquirer contracted. See MOVA-WALLET-AND-PAYMENTS.md §2.
                 'enabled' => false,
@@ -245,7 +245,7 @@ class PaymentProviderSeeder extends Seeder
             ],
 
             /*
-             * Back-office only. Not offered in the app — an agent selects these
+             * Back-office only. Not offered in the app, an agent selects these
              * when recording money that arrived outside the system.
              *
              * `mobile_money_manual` is deliberately NOT `mtn_momo`: money a

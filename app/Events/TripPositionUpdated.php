@@ -16,20 +16,20 @@ use Illuminate\Queue\SerializesModels;
  * passenger's map over Reverb.
  *
  * **`ShouldBroadcastNow`, not `ShouldBroadcast`.** The queued variant would put
- * a position behind whatever else is in the queue — a batch of assignment
- * e-mails, a PDF invoice — and arrive after the bus had already turned the
+ * a position behind whatever else is in the queue, a batch of assignment
+ * e-mails, a PDF invoice, and arrive after the bus had already turned the
  * corner. A position that is thirty seconds late is not tracking. It is also
  * cheap to send synchronously: one small payload to an already-open socket.
  *
  * **Two channels, because the two audiences hold different keys for the same
- * trip.** The passenger app is entirely order-centric — `Trip.id` IS the order
- * id, and it has never been given the reservation's UUID — so it subscribes to
+ * trip.** The passenger app is entirely order-centric, `Trip.id` IS the order
+ * id, and it has never been given the reservation's UUID, so it subscribes to
  * `trip.{order}`. Staff work in reservations, so the back-office gets
  * `reservation.{uuid}`. Broadcasting to both costs one extra publish and saves
  * teaching the app a second identifier for a thing it already has.
  *
  * A reservation created at a counter has no order, so the first channel is
- * omitted rather than emitted as `trip.` with nothing after it — which would be
+ * omitted rather than emitted as `trip.` with nothing after it, which would be
  * a channel any client could guess.
  */
 class TripPositionUpdated implements ShouldBroadcastNow
@@ -72,7 +72,7 @@ class TripPositionUpdated implements ShouldBroadcastNow
             'lat'         => (float) $this->position->lat,
             'lng'         => (float) $this->position->lng,
             'heading'     => $this->position->heading !== null ? (float) $this->position->heading : null,
-            // The DEVICE's clock — see the migration. A client showing "mis à
+            // The DEVICE's clock, see the migration. A client showing "mis à
             // jour il y a 3s" for a fix taken four minutes ago in a dead zone
             // is worse than showing the truth.
             'recorded_at' => $this->position->recorded_at?->toIso8601String(),

@@ -9,7 +9,7 @@ enum SubscriptionStatus: string
 
     case Active = 'active';
 
-    /** Ran past its expiry. Kept, not deleted — it is the purchase history. */
+    /** Ran past its expiry. Kept, not deleted, it is the purchase history. */
     case Expired = 'expired';
 
     /** Ended early by the subscriber. */
@@ -21,7 +21,7 @@ enum SubscriptionStatus: string
     /**
      * Whether this status alone permits travel.
      *
-     * Status is necessary but NOT sufficient — the expiry is checked separately,
+     * Status is necessary but NOT sufficient, the expiry is checked separately,
      * because a row can sit at `active` until the nightly sweep runs. Anything
      * deciding a fare must ask the subscription, not this enum.
      */

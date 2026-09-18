@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
- * Airtel Money — Collections.
+ * Airtel Money, Collections.
  *
  * Docs: https://developers.airtel.africa/
  *
- * Shaped like MTN's — request, prompt on the handset, asynchronous outcome —
+ * Shaped like MTN's, request, prompt on the handset, asynchronous outcome,
  * but different in three ways that matter:
  *
  *  1. **OAuth2 client credentials**, not basic auth plus a subscription key.
@@ -25,8 +25,8 @@ use Throwable;
  *     the transaction status lives at a different depth than the HTTP status.
  *
  * Some Airtel flows require an **RSA-encrypted PIN block** against Airtel's
- * public key. Mova's collection flow does not — the customer approves on their
- * own handset — and `encryptPin()` exists only so a later flow that needs it
+ * public key. Mova's collection flow does not, the customer approves on their
+ * own handset, and `encryptPin()` exists only so a later flow that needs it
  * has one correct implementation instead of three guesses.
  *
  * @see MOVA-WALLET-AND-PAYMENTS.md §4.2 and §4.3 for onboarding.
@@ -106,7 +106,7 @@ class AirtelMoneyDriver extends BaseDriver
             ->get($this->baseUrl() . '/standard/v1/payments/' . $reference);
 
         if (! $response->successful()) {
-            // Unknown is not failed — see the same note in MtnMomoDriver.
+            // Unknown is not failed, see the same note in MtnMomoDriver.
             return new ChargeResult($payment->status, $reference);
         }
 
@@ -148,7 +148,7 @@ class AirtelMoneyDriver extends BaseDriver
     /**
      * Airtel signs callbacks with an HMAC over the raw body.
      *
-     * Compared with `hash_equals` — a plain `===` on a signature is timing-
+     * Compared with `hash_equals`, a plain `===` on a signature is timing-
      * attackable, and while the practical risk here is small the correct
      * comparison costs nothing.
      */
@@ -159,7 +159,7 @@ class AirtelMoneyDriver extends BaseDriver
         if (! $secret) {
             /*
              * No secret configured means we cannot tell a real callback from a
-             * forged one, so we refuse. The payment still settles — status
+             * forged one, so we refuse. The payment still settles, status
              * polling picks it up within the reconcile window. A slower correct
              * answer beats a fast forgeable one.
              */
@@ -269,7 +269,7 @@ class AirtelMoneyDriver extends BaseDriver
                 ]);
 
                 if (! $response->successful()) {
-                    // Never cache a failure — see MtnMomoDriver::token().
+                    // Never cache a failure, see MtnMomoDriver::token().
                     throw new \RuntimeException('Airtel token request failed: ' . $response->status());
                 }
 
@@ -308,7 +308,7 @@ class AirtelMoneyDriver extends BaseDriver
      * flow that later needs it has one correct implementation rather than a
      * fresh guess. PKCS#1 v1.5 with base64 output is what Airtel documents.
      *
-     * A PIN passing through this method is never logged and never persisted —
+     * A PIN passing through this method is never logged and never persisted,
      * PaymentService::safeFields() strips anything PIN-shaped before `meta`.
      */
     protected function encryptPin(string $pin): ?string

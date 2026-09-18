@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
- * Twilio — the second adapter.
+ * Twilio, the second adapter.
  *
  * Replaces App\Services\SmsService, which was constructor-wired to Twilio and
  * logged a warning on every boot when credentials were missing. Kept as an
@@ -18,7 +18,7 @@ use Throwable;
  * registry abstraction actually holds.
  *
  * Uses the REST API over HTTP rather than the `twilio/sdk` package. The SDK
- * pulls a large dependency tree for two endpoints, and — more to the point — it
+ * pulls a large dependency tree for two endpoints, and, more to the point, it
  * throws on construction when credentials are absent, which is the default
  * state in development.
  */
@@ -67,7 +67,7 @@ class TwilioChannel implements MessagingChannel
 
         /*
          * 21211 is Twilio's "invalid To number". Non-retryable for the same
-         * reason as Infobip's 400 — every channel will reject it identically,
+         * reason as Infobip's 400, every channel will reject it identically,
          * so walking the chain only wastes rate limit on a typo.
          */
         $code = (int) $response->json('code', 0);
@@ -89,7 +89,7 @@ class TwilioChannel implements MessagingChannel
         }
 
         try {
-            // Fetches the account itself — authenticated, and sends nothing.
+            // Fetches the account itself, authenticated, and sends nothing.
             $response = Http::timeout(15)
                 ->withBasicAuth($sid, $token)
                 ->get(self::BASE . "/Accounts/{$sid}.json");

@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
  * A starting catalogue.
  *
  * Idempotent via updateOrCreate on `code`, so re-running never duplicates a
- * plan — and never overwrites a price ops has since changed in the back-office,
+ * plan, and never overwrites a price ops has since changed in the back-office,
  * because only rows that do not exist are inserted.
  *
  * Prices are whole francs. Placeholder values: they encode the intended SHAPE

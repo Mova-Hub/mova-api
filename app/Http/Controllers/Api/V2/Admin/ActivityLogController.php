@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
  * Reading the audit trail.
  *
  * **Read-only, and there is no write route anywhere in the application.** An
- * audit log an operator can edit or delete proves nothing — the first thing
+ * audit log an operator can edit or delete proves nothing, the first thing
  * anyone covering their tracks would reach for is the delete button. Rows leave
  * only by ageing out, through `activity:prune`, on a schedule.
  */
@@ -60,7 +60,7 @@ class ActivityLogController extends Controller
         }
 
         if ($search = $request->string('search')->trim()->toString()) {
-            // Against the denormalised labels, not a join — which is the whole
+            // Against the denormalised labels, not a join, which is the whole
             // reason they are stored: entries belonging to a deleted staff
             // member stay searchable.
             $query->where(function ($q) use ($search) {
@@ -106,7 +106,7 @@ class ActivityLogController extends Controller
      * Everything that happened in one request.
      *
      * The pivot from a Sentry event or a log line into the mutations that
-     * request produced — the reason `request_id` exists on all three.
+     * request produced, the reason `request_id` exists on all three.
      */
     public function byRequest(string $requestId)
     {

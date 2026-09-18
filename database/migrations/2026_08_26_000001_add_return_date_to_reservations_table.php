@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
  * The return leg of a round trip.
  *
  * `orders` has carried `return_date` and `return_time` since 2026-08-21 and the
- * app has collected them since — but `reservations` had nowhere to put them, so
+ * app has collected them since, but `reservations` had nowhere to put them, so
  * **converting a round-trip request silently produced a one-way booking**. The
  * customer had asked for a return, agreed a price that included it (the quote
  * engine bills a return leg as the same road driven twice), and the reservation
@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Schema;
  * the same idea in one table.
  *
  * **No `round_trip` boolean.** Whether a trip is a round trip is exactly
- * "does it have a return date" — the same rule `OrderRequestController` uses
+ * "does it have a return date", the same rule `OrderRequestController` uses
  * when pricing (`roundTrip: ! empty($data['return_date'])`). A separate flag
  * would be a second source of truth that can disagree with the first, and the
  * disagreement would show up as a billing dispute.

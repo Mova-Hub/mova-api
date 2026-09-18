@@ -11,8 +11,8 @@ use App\Models\PaymentProvider;
 /**
  * One payment provider.
  *
- * MTN and Airtel work the same way — request a collection, the customer
- * approves on their handset, a webhook lands some seconds or minutes later —
+ * MTN and Airtel work the same way, request a collection, the customer
+ * approves on their handset, a webhook lands some seconds or minutes later,
  * and the differences are entirely in request shape and status vocabulary.
  * Putting that boundary here means adding a provider is a class, and swapping
  * an aggregator for a direct integration does not touch a controller.
@@ -23,7 +23,7 @@ use App\Models\PaymentProvider;
  * auditing every integration.
  *
  * A driver is constructed with its PaymentProvider row, so credentials, mode
- * and fees come from the database rather than from config — two MTN merchant
+ * and fees come from the database rather than from config, two MTN merchant
  * accounts are two rows and one class.
  *
  * @see MOVA-WALLET-AND-PAYMENTS.md §5.4 for the add-a-provider checklist.
@@ -40,7 +40,7 @@ interface PaymentDriver
      * Ask the provider to collect.
      *
      * Returns immediately. For mobile money the honest answer is almost always
-     * `processing` — see ChargeResult for why that is not a boolean.
+     * `processing`, see ChargeResult for why that is not a boolean.
      */
     public function charge(Payment $payment): ChargeResult;
 

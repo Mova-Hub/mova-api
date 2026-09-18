@@ -10,8 +10,8 @@ use Illuminate\Console\Command;
  * Forgets where the buses went.
  *
  * `reservation_positions` is a minute-by-minute record of a named employee's
- * movements. It has a job — showing a client their coach approaching, and
- * settling a dispute about the route a week later — and once that job is done
+ * movements. It has a job, showing a client their coach approaching, and
+ * settling a dispute about the route a week later, and once that job is done
  * keeping it is a liability, not an asset.
  *
  * Seven days is the window a billing dispute realistically lands in. After
@@ -39,7 +39,7 @@ class PrunePositions extends Command
          * `completed_at` OR `updated_at` for cancelled trips.
          *
          * A cancelled reservation never gets a `completed_at`, so keying on that
-         * alone would keep the trail of every abandoned trip for ever — which is
+         * alone would keep the trail of every abandoned trip for ever, which is
          * precisely the data with the least reason to exist.
          */
         $stale = Reservation::query()

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Deciding a scan, and recording every one of them.
  *
- * The verdict order below is not arbitrary — it runs from "we are certain this
+ * The verdict order below is not arbitrary, it runs from "we are certain this
  * card is bad" to "this card is fine but the subscription lapsed", so the worst
  * true statement always wins. A blocked card whose subscription is also expired
  * must read BLOCKED, never EXPIRED, or a stolen card gets shown to the
@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Every scan is logged, accepted or refused. The refusals are the valuable
  * rows: they are the only signal available for the cloning risk PRD §4.3
- * accepts rather than prevents — the same subscriber on two buses at once shows
+ * accepts rather than prevents, the same subscriber on two buses at once shows
  * up here or nowhere.
  */
 class ScanService
@@ -48,7 +48,7 @@ class ScanService
 
         // A payload that decodes gives us a chip-independent identity, which is
         // what makes verification possible offline. Online we still prefer the
-        // database — see below.
+        // database, see below.
         $decoded = $payload !== null ? $this->codec->decode($payload) : null;
 
         $card = $chipUid !== null && $chipUid !== ''
@@ -98,7 +98,7 @@ class ScanService
          *
          * If the reader gave us a payload, its signature decides whether the
          * data is Mova's before anything else is considered. A card whose
-         * expiry has been rewritten with a public NFC app fails here — that is
+         * expiry has been rewritten with a public NFC app fails here, that is
          * criterion A1, and it is the whole reason the scheme is asymmetric.
          *
          * Note the check runs even when the chip UID is unknown to us: an
@@ -117,13 +117,13 @@ class ScanService
         }
 
         /*
-         * 3. Blocked beats everything that follows — including expiry.
+         * 3. Blocked beats everything that follows, including expiry.
          *
          * `blocked_at` is checked as well as the status, not instead of it: a
          * card reported lost is blocked and then REPLACED, and the replacement
          * overwrites its status. Reading status alone would downgrade a stolen
          * card from "Bloquée" to a generic "Carte invalide" the moment its
-         * owner was issued a new one — telling the inspector far less about the
+         * owner was issued a new one, telling the inspector far less about the
          * card most likely to be in the wrong hands.
          */
         if ($card->status === CardStatus::Blocked || $card->blocked_at !== null) {
@@ -163,7 +163,7 @@ class ScanService
      * Writes the log row.
      *
      * Idempotent on `client_reference`. Mova Control uploads a shift's scans in
-     * bulk over a connection that will drop, and those uploads get retried — so
+     * bulk over a connection that will drop, and those uploads get retried, so
      * without a device-generated key, one retry doubles the day's boardings.
      * That is criterion A6.
      */
@@ -183,7 +183,7 @@ class ScanService
             'pass_card_id' => $card?->id,
             'client_id' => $card?->client_id,
             'pass_subscription_id' => $subscription?->id,
-            // Kept even when no card matched — that is the row fraud analysis
+            // Kept even when no card matched, that is the row fraud analysis
             // needs most.
             'chip_uid' => $chipUid,
             'source' => $source,
@@ -194,7 +194,7 @@ class ScanService
             'device_id' => $context['device_id'] ?? null,
             'latitude' => $context['latitude'] ?? null,
             'longitude' => $context['longitude'] ?? null,
-            // Device clock — untrusted, see PRD §4.4 — defaulting to ours.
+            // Device clock, untrusted, see PRD §4.4, defaulting to ours.
             'scanned_at' => $context['scanned_at'] ?? $now,
             'synced_at' => $now,
             'offline_duration_minutes' => $context['offline_duration_minutes'] ?? null,

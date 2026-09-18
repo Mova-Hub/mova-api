@@ -11,11 +11,11 @@ class PaymentResource extends JsonResource
     /**
      * A payment, or a real `null`.
      *
-     * `PaymentResource::make(null)` does NOT produce null — Laravel wraps the
+     * `PaymentResource::make(null)` does NOT produce null, Laravel wraps the
      * null and calls `toArray()` on it anyway, which fatals here on
      * `$this->status->value`. Both "is anything in flight?" endpoints used it,
      * so `payment-options` threw a 500 in the ordinary case where nothing is
-     * pending — which is almost always.
+     * pending, which is almost always.
      *
      * Returning `null` rather than an empty object is the other half of the
      * fix: the app tests `options.pending` for truthiness, and `{}` is truthy,
@@ -68,7 +68,7 @@ class PaymentResource extends JsonResource
             'paid_at' => $this->paid_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
 
-            // `meta` and `idempotency_key` are never exposed — one holds raw
+            // `meta` and `idempotency_key` are never exposed, one holds raw
             // provider payloads, the other is sent to providers as a request id.
         ];
     }

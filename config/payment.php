@@ -20,7 +20,7 @@ return [
     |
     | Adding a provider is: a class implementing PaymentDriver, one line here,
     | one row in Settings → Paiement. If it ever needs a fourth step, the
-    | abstraction has failed — fix it rather than working around it.
+    | abstraction has failed, fix it rather than working around it.
     |
     | Keys are stable identifiers stored in the database. Renaming one orphans
     | every row that points at it, so treat them as you would a column name.
@@ -42,8 +42,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Base URLs per driver and mode. Here rather than in the database because
-    | they are a property of the provider's API, not of Mova's account with it
-    | — an operator changing a merchant id should not be able to point the
+    | they are a property of the provider's API, not of Mova's account with it.
+    | An operator changing a merchant id should not be able to point the
     | integration at an arbitrary host.
     |
     */

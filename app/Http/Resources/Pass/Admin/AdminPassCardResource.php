@@ -14,7 +14,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * makes that impossible.
  *
  * The signature is STILL never exposed. It is the offline-verification artefact
- * and belongs on the chip and in the database, nowhere else — a staff UI has no
+ * and belongs on the chip and in the database, nowhere else, a staff UI has no
  * use for it, and a back-office is a browser like any other.
  */
 class AdminPassCardResource extends JsonResource

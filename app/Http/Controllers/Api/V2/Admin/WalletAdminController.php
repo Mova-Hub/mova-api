@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
  *
  * There is no top-up route, no cash-out route and no transfer route, and their
  * absence is the compliance posture rather than an oversight. Staff may GRANT
- * credit — money Mova gives away — and they may freeze an account. They may not
+ * credit, money Mova gives away, and they may freeze an account. They may not
  * accept customer funds, which is what would make this electronic money under
  * Règlement 04/18/CEMAC/UMAC/COBAC.
  *
@@ -95,7 +95,7 @@ class WalletAdminController extends Controller
     /**
      * Grants credit.
      *
-     * The reason list is restricted to what a human may legitimately award —
+     * The reason list is restricted to what a human may legitimately award,
      * `refund_issued` and `spend_reversed` are system-generated and would let
      * an operator fabricate a refund that never happened.
      */
@@ -144,7 +144,7 @@ class WalletAdminController extends Controller
     /**
      * Freezes or unfreezes an account.
      *
-     * Blocks SPENDING only — the ledger keeps accepting entries, so a refund
+     * Blocks SPENDING only, the ledger keeps accepting entries, so a refund
      * owed to a frozen account still lands and is there when the freeze lifts.
      */
     public function setStatus(Request $request, int $clientId)

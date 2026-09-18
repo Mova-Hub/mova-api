@@ -94,7 +94,7 @@ class PaymentProviderController extends Controller
      * Enables or disables, as its own endpoint.
      *
      * Separate from `update` because it is the one control an operator reaches
-     * for in a hurry — a provider misbehaving at 9am should be one toggle away
+     * for in a hurry, a provider misbehaving at 9am should be one toggle away
      * from off, not a form submit that also re-validates fees and limits.
      */
     public function toggle(Request $request, int $id)
@@ -156,7 +156,7 @@ class PaymentProviderController extends Controller
         }
 
         // Recorded so the index can show when each provider was last known
-        // good — the question an operator actually has at 9am.
+        // good, the question an operator actually has at 9am.
         $provider->forceFill([
             'last_checked_at' => now(),
             'last_check_status' => $result->ok ? 'ok' : 'failed',
@@ -173,7 +173,7 @@ class PaymentProviderController extends Controller
         $request->validate([
             // Tight: this file is served to every app user, so it is both a
             // bandwidth cost and, if the mime check is loose, an upload
-            // primitive. SVG is excluded deliberately — it can carry script.
+            // primitive. SVG is excluded deliberately, it can carry script.
             'logo' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:512', 'dimensions:max_width=1024,max_height=1024'],
             /*
              * Which rail's logo, for an aggregator.
@@ -249,7 +249,7 @@ class PaymentProviderController extends Controller
          * Refused when payments reference it.
          *
          * `payments.provider_code` is a string, not a foreign key, so deleting
-         * would not error — it would silently orphan every historical payment
+         * would not error, it would silently orphan every historical payment
          * made through this provider, leaving blank rows in clients' history
          * and nothing to reconcile a statement against. Disable it instead.
          */

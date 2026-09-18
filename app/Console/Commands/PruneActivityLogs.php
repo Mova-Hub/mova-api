@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
  *
  * Two retentions, because the two halves have different value and different
  * risk. Mutations are the accountability record and are kept long. Sensitive
- * READS are far higher volume and far lower value after the fact — nobody asks
+ * READS are far higher volume and far lower value after the fact, nobody asks
  * who viewed an invoice nine months ago, and keeping those rows means keeping
  * a much larger map of who looked at whose data.
  *

@@ -6,7 +6,7 @@ namespace App\Domain\Booking;
  * Converts a car journey time into a bus journey time.
  *
  * Google Directions has no vehicle profile: `mode=driving` returns the time a
- * CAR would take. `mode=transit` is not the answer either — it routes against
+ * CAR would take. `mode=transit` is not the answer either, it routes against
  * published timetables, and Mova's buses are not in Google's transit feed for
  * Brazzaville, nor would a chartered vehicle follow a scheduled line.
  *
@@ -24,7 +24,7 @@ namespace App\Domain\Booking;
  *
  * **Both numbers are estimates and should be calibrated.** Once real trips are
  * logged, compare planned against actual and move them in `config/booking.php`
- * — which is why they are config and not constants here.
+ *, which is why they are config and not constants here.
  */
 final class BusTravelTime
 {

@@ -65,7 +65,7 @@ class PassSubscriptionController extends Controller
     /**
      * Sells a subscription at the counter.
      *
-     * `activate: true` is the cash-in-hand case — the agent has the money, so
+     * `activate: true` is the cash-in-hand case, the agent has the money, so
      * the subscription starts immediately. Left false it behaves exactly like
      * the app: created `pending`, conferring nothing until payment settles.
      */
@@ -103,7 +103,7 @@ class PassSubscriptionController extends Controller
         ], 201);
     }
 
-    /** Marks a pending subscription paid — the mobile-money callback, by hand. */
+    /** Marks a pending subscription paid, the mobile-money callback, by hand. */
     public function activate(int $id)
     {
         $subscription = PassSubscription::findOrFail($id);

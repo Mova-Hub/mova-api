@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * A scan reported by the app.
  *
  * Note what this request does NOT accept: a verdict. The device says what it
- * saw — a chip UID and, if it could read one, the payload — and the server
+ * saw, a chip UID and, if it could read one, the payload, and the server
  * decides what that means. A client-supplied verdict would be a self-issued
  * travel permit.
  */

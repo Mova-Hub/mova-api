@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * flight" identically, so those live here rather than being written three times
  * with three chances to disagree about whether a refund counts.
  *
- * The half that genuinely differs per model — what is owed, and whether
- * collection may start — stays in the model, where the answer depends on
+ * The half that genuinely differs per model, what is owed, and whether
+ * collection may start, stays in the model, where the answer depends on
  * reservation status or subscription state.
  */
 trait HasPayments

@@ -176,7 +176,7 @@ class BusController extends Controller
         ]);
 
         // Was a single Builder::update(), which fires no model events and so
-        // produced no audit record — see PerformsAuditedBulkUpdates.
+        // produced no audit record, see PerformsAuditedBulkUpdates.
         $count = $this->auditedBulkUpdate(
             Bus::whereIn('id', $validated['ids']),
             ['status' => $validated['status']],
@@ -198,7 +198,7 @@ class BusController extends Controller
         /*
          * Buses hard-delete, so this is the one bulk action that destroys data
          * outright. The observer's `deleted` hook captures each row's full
-         * state on the way out — without it a mass deletion is both
+         * state on the way out, without it a mass deletion is both
          * unrecoverable and unexplainable.
          */
         $count = $this->auditedBulkDelete(

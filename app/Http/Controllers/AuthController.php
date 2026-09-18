@@ -69,7 +69,7 @@ class AuthController extends Controller
          *
          * Deliberately worded differently from "identifiants incorrects": the
          * password was right, and telling someone their account is suspended is
-         * information they need — unlike telling an attacker which half of a
+         * information they need, unlike telling an attacker which half of a
          * failed login was wrong.
          */
         if ($user->status !== 'active') {
@@ -159,7 +159,7 @@ class AuthController extends Controller
          *
          * `users` had no `is_2fa_enabled` column, so the guard was permanently
          * false: the endpoint accepted the request, threw it away, and returned
-         * `two_fa_enabled: false` regardless — while the back-office rendered a
+         * `two_fa_enabled: false` regardless, while the back-office rendered a
          * working-looking toggle. A defensive check that silently turns a
          * feature off is worse than no feature.
          *

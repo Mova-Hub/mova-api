@@ -92,8 +92,8 @@ class Order extends Model implements Payable
      * What this charter costs.
      *
      * The confirmed reservation price wins; before conversion it falls back to
-     * what was quoted at submission. Both are SERVER-SET values — neither has
-     * ever been through a client — which is the property that lets
+     * what was quoted at submission. Both are SERVER-SET values, neither has
+     * ever been through a client, which is the property that lets
      * PaymentService trust this number.
      */
     public function paymentAmount(): int

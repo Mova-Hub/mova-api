@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Collecting money — for anything.
+ * Collecting money, for anything.
  *
  * The service owns the state machine; drivers only talk to providers. That
  * split is what keeps "when may a payment be marked paid" answerable by reading
@@ -43,7 +43,7 @@ use Throwable;
  *  3. **Terminal is terminal.** A late or duplicated webhook must never flip a
  *     refunded payment back to paid, and providers do re-deliver.
  *  4. **The success hook runs exactly once**, inside the transaction that
- *     records the success — so a subscription cannot be activated by a payment
+ *     records the success, so a subscription cannot be activated by a payment
  *     that then fails to save.
  */
 class PaymentService
@@ -81,7 +81,7 @@ class PaymentService
             /*
              * Lock the payable for the duration, so two taps cannot both pass
              * the "is anything in flight?" check below. Locking the payment
-             * rows instead would not help — the race is on their absence.
+             * rows instead would not help, the race is on their absence.
              */
             $payable = $payable->newQuery()->whereKey($payable->getKey())->lockForUpdate()->firstOrFail();
 
@@ -107,7 +107,7 @@ class PaymentService
 
             $existing = $this->inFlightFor($payable);
             if ($existing) {
-                // Not an error to the caller — the app shows the attempt that
+                // Not an error to the caller, the app shows the attempt that
                 // is already running rather than opening a competing debit.
                 return $existing;
             }
@@ -172,7 +172,7 @@ class PaymentService
      * Records what a provider reported.
      *
      * The one place a payment changes state. Refuses to move a payment that has
-     * already reached a terminal state — providers re-deliver webhooks, and a
+     * already reached a terminal state, providers re-deliver webhooks, and a
      * replayed `succeeded` must never resurrect a refunded payment.
      */
     public function apply(Payment $payment, ChargeResult $result): Payment
@@ -545,7 +545,7 @@ class PaymentService
      * Runs a driver call and turns any escape into a clean failure.
      *
      * A provider timing out, returning malformed JSON, or throwing must produce
-     * a French message the client can act on — never a stack trace, and never a
+     * a French message the client can act on, never a stack trace, and never a
      * raw provider code. The real error goes to the log and to Sentry, where it
      * is correlated by `request_id`.
      */
@@ -573,7 +573,7 @@ class PaymentService
      * Strips anything that must not be persisted from the collected fields.
      *
      * A PIN or an OTP must never reach `meta`, which is kept for years for
-     * reconciliation disputes. Providers should never ask us for one — but a
+     * reconciliation disputes. Providers should never ask us for one, but a
      * future adapter descriptor could, and this is where that stops.
      *
      * @param  array<string, mixed>  $fields

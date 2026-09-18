@@ -31,7 +31,7 @@ class DeviceController extends Controller
          * `user_fcm_tokens.fcm_token` is globally unique, so a phone handed from
          * one inspector to the next re-registers the same token and it MOVES to
          * the new owner. Keying on the user instead would leave the previous
-         * holder receiving the new one's missions — and `create()` alone would
+         * holder receiving the new one's missions, and `create()` alone would
          * just fail the unique constraint on every app launch.
          */
         UserFcmToken::updateOrCreate(

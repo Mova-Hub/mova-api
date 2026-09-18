@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
  * line up.
  *
  * An inbound `X-Request-Id` is honoured so a value set at the load balancer or
- * by the mobile client survives — but only if it looks like a uuid, because it
+ * by the mobile client survives, but only if it looks like a uuid, because it
  * is echoed back in a header and written into a log, and an unvalidated
  * client-supplied string in both is how log injection happens.
  */
@@ -41,7 +41,7 @@ class AssignRequestId
 
         $response = $next($request);
 
-        // Echoed so a client — or a user pasting a screenshot into support —
+        // Echoed so a client, or a user pasting a screenshot into support,
         // can quote the exact request.
         $response->headers->set('X-Request-Id', $id);
 

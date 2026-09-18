@@ -23,7 +23,7 @@ class OrderRequestController extends Controller
      *
      * The same vehicle and crew serve both, so a return booked an hour after
      * departure describes a dispatch that cannot physically happen. Mirrors
-     * MIN_RETURN_GAP_HOURS in mobile/src/features/booking/constants.ts — if one
+     * MIN_RETURN_GAP_HOURS in mobile/src/features/booking/constants.ts, if one
      * moves, move the other.
      */
     private const MIN_RETURN_GAP_HOURS = 3;
@@ -52,7 +52,7 @@ class OrderRequestController extends Controller
              * `$request->validate()` returns only the keys it was given rules
              * for. The app posts `{label, lat, lng}` per stop, and with rules
              * for `lat`/`lng` alone Laravel handed `Order::create` bare
-             * coordinates — so every waypoint name a customer picked
+             * coordinates, so every waypoint name a customer picked
              * ("Aéroport Maya-Maya", "Église Saint-Esprit") was discarded at
              * the moment the order was created, and the back-office could only
              * ever show numbers.
@@ -123,7 +123,7 @@ class OrderRequestController extends Controller
             }
         }
 
-        // Capacity. Seats are read from config, never from the request — a
+        // Capacity. Seats are read from config, never from the request, a
         // client claiming its Hiace seats 200 must not be believed.
         if (empty($errors['fleet'])) {
             $seats = 0;
@@ -151,7 +151,7 @@ class OrderRequestController extends Controller
          * Storing that number as sent would make the order total a client-
          * controlled field. This re-derives it from the same service, over the
          * same waypoints, and the Directions call is a cache hit from the
-         * quote the app just requested — so it is accurate without being slow.
+         * quote the app just requested, so it is accurate without being slow.
          */
         $quote = null;
         $located = collect($data['waypoints'] ?? [])
@@ -170,7 +170,7 @@ class OrderRequestController extends Controller
                     hintKm:    isset($data['distance_km']) ? (float) $data['distance_km'] : null,
                 );
             } catch (InvalidArgumentException $e) {
-                // An unpriceable order is still a lead worth capturing — the
+                // An unpriceable order is still a lead worth capturing, the
                 // team quotes it by hand rather than losing the request.
                 $quote = null;
             }

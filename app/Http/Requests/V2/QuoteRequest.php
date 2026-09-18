@@ -37,7 +37,7 @@ class QuoteRequest extends FormRequest
             'waypoints.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'waypoints.*.lng' => ['required', 'numeric', 'between:-180,180'],
 
-            // { "hiace": 2, "coaster": 1 } — keys checked against the pricing
+            // { "hiace": 2, "coaster": 1 }, keys checked against the pricing
             // config below, so an unknown type is a 422, never a 500 from the
             // engine's InvalidArgumentException.
             'fleet'   => ['required', 'array', 'min:1'],

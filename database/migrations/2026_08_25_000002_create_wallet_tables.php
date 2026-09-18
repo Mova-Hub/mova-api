@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Mova Credit — a CLOSED-LOOP balance.
+     * Mova Credit, a CLOSED-LOOP balance.
      *
      * Read MOVA-WALLET-AND-PAYMENTS.md §3 before changing anything here.
      *
      * Credit is spendable on Mova services and nothing else. There is no
-     * top-up, no cash-out and no transfer between clients — not disabled,
+     * top-up, no cash-out and no transfer between clients, not disabled,
      * ABSENT. Adding any of the three turns this into electronic money, which
      * under Règlement 04/18/CEMAC/UMAC/COBAC requires an établissement de
      * paiement licence (roughly seven exist in the entire CEMAC zone).
@@ -39,7 +39,7 @@ return new class extends Migration
             $table->integer('balance')->default(0);
             $table->string('currency', 3)->default('XAF');
 
-            /** active | frozen — frozen blocks spending, never the ledger. */
+            /** active | frozen, frozen blocks spending, never the ledger. */
             $table->string('status')->default('active');
 
             $table->timestamps();
@@ -64,7 +64,7 @@ return new class extends Migration
              */
             $table->string('reason');
 
-            /** Payment | Order | PassSubscription — whatever caused it. */
+            /** Payment | Order | PassSubscription, whatever caused it. */
             $table->nullableMorphs('source');
 
             $table->string('note')->nullable();
@@ -76,7 +76,7 @@ return new class extends Migration
                 ->constrained('users')->nullOnDelete();
 
             /*
-             * created_at only. THIS TABLE IS APPEND-ONLY — an entry is never
+             * created_at only. THIS TABLE IS APPEND-ONLY, an entry is never
              * updated and never deleted, so `updated_at` would be a column that
              * can only ever lie. A disputed balance has to be reconstructable
              * from entries alone; without that, a bug is indistinguishable from

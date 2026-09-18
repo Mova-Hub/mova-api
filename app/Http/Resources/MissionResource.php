@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A reservation as the coordinator holding the phone needs it.
  *
  * Not `ReservationResource`. That one serves the back-office and carries the
- * price, the payment status and the client's account link — a coordinator
+ * price, the payment status and the client's account link, a coordinator
  * gathering three coaches at dawn needs none of it, and money on a screen used
  * in public is a liability, not a feature.
  *
@@ -35,7 +35,7 @@ class MissionResource extends JsonResource
              *
              * The rules live in `Reservation::canTransitionTo()`, and an app
              * that re-implements them is an app that disagrees with the server
-             * the first time either changes — offering a Démarrer button that
+             * the first time either changes, offering a Démarrer button that
              * returns 422 when tapped.
              */
             'can_start'    => $this->canTransitionTo('in_progress'),

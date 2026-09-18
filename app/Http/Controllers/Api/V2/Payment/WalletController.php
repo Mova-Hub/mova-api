@@ -32,7 +32,7 @@ class WalletController extends Controller
         $account = $this->wallet->accountFor($client);
 
         // The next credit to lapse, so the app can warn rather than let it
-        // vanish silently — promotional credit disappearing with no notice is
+        // vanish silently, promotional credit disappearing with no notice is
         // how a goodwill gesture becomes a complaint.
         $expiring = WalletEntry::where('wallet_account_id', $account->id)
             ->where('direction', 'credit')
@@ -72,7 +72,7 @@ class WalletController extends Controller
                 'reason' => $e->reason->value,
                 'label' => $e->reason->label(),
                 // `note` can carry an internal remark from an agent, so only
-                // the reason label is shown — a client should not read
+                // the reason label is shown, a client should not read
                 // "geste commercial suite à réclamation, client difficile".
                 'created_at' => $e->created_at?->toIso8601String(),
                 'expires_at' => $e->expires_at?->toIso8601String(),

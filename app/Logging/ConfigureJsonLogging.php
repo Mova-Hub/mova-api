@@ -7,8 +7,8 @@ use Illuminate\Log\Logger;
 /**
  * Tap applied to a log channel to swap in the JSON formatter.
  *
- * A tap rather than a custom driver: it keeps Laravel's own channel handling —
- * daily rotation, permissions, the stack — and changes only the formatting.
+ * A tap rather than a custom driver: it keeps Laravel's own channel handling,
+ * daily rotation, permissions, the stack, and changes only the formatting.
  */
 class ConfigureJsonLogging
 {

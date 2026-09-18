@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  * The development channel, and the default.
  *
  * Writes to the log instead of sending, so a developer clicking through
- * registration does not need Infobip credentials — and, more importantly, does
+ * registration does not need Infobip credentials, and, more importantly, does
  * not text a real person from a seeded fixture.
  *
  * **It masks the destination and never writes the body of an OTP.** That is not
@@ -28,7 +28,7 @@ class LogChannel implements MessagingChannel
 
     public function send(string $to, string $kind, string $body, array $variables = []): SendResult
     {
-        Log::info('Message (log channel — nothing sent)', [
+        Log::info('Message (log channel, nothing sent)', [
             'kind' => $kind,
             'to' => $this->mask($to),
             // A code in a message body is still a code. Length is enough to
@@ -42,7 +42,7 @@ class LogChannel implements MessagingChannel
 
     public function healthCheck(array $credentials): SendResult
     {
-        return SendResult::sent('log', 'Canal de développement — aucun message n’est envoyé.');
+        return SendResult::sent('log', 'Canal de développement, aucun message n’est envoyé.');
     }
 
     private function mask(string $phone): string

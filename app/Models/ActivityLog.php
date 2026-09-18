@@ -64,7 +64,7 @@ class ActivityLog extends Model
     }
 
     /**
-     * Reads only — the sensitive-access half of the log.
+     * Reads only, the sensitive-access half of the log.
      *
      * Kept apart from mutations because it is retained for a shorter period and
      * because mixing the two buries the entries that matter: a hundred invoice

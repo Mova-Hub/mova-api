@@ -9,11 +9,11 @@ return new class extends Migration
     /**
      * Two facts the orders table could not previously hold.
      *
-     * `passengers` — the head count was only ever implied by the vehicle mix,
+     * `passengers`, the head count was only ever implied by the vehicle mix,
      * so ops could not tell "3 Hiaces for 40 people" from "3 Hiaces for 12" and
      * had to phone to find out.
      *
-     * `quoted_total` — the app now shows a price before the order is sent. That
+     * `quoted_total`, the app now shows a price before the order is sent. That
      * number has to be stored, or the client and the team are looking at
      * different figures when the invoice is raised. It is RECOMPUTED server-side
      * at creation (see OrderRequestController), never taken from the request,

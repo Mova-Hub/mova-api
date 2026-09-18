@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
  *     Expo Go  → "Chrome Webview 131"   (looks like a browser)
  *
  * So an audit entry from a passenger using the Mova app was indistinguishable
- * from someone poking the API with curl — which is exactly the distinction an
+ * from someone poking the API with curl, which is exactly the distinction an
  * audit trail exists to make.
  *
  * Rather than guess harder at a string the HTTP stack chose, the apps now
@@ -37,7 +37,7 @@ return new class extends Migration
         }
 
         Schema::table('activity_logs', function (Blueprint $table) {
-            // Stored raw, parsed at read time — the same rule the user agent
+            // Stored raw, parsed at read time, the same rule the user agent
             // follows, so a better reader later improves historical rows too.
             $table->string('declared_client', 255)->nullable()->after('user_agent');
 

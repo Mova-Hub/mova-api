@@ -27,7 +27,7 @@ class ActivityLogResource extends JsonResource
                 'id' => $this->subject_id,
                 'label' => $this->subject_label,
             ],
-            // Already scrubbed on the way in — see Redactor. Nothing here is
+            // Already scrubbed on the way in, see Redactor. Nothing here is
             // re-filtered on the way out, because a secret must never have been
             // written in the first place.
             'before' => $this->before,
@@ -44,7 +44,7 @@ class ActivityLogResource extends JsonResource
              * Parsed here rather than stored, so improving the parser improves
              * every historical entry rather than only new ones. `device()`
              * memoises per request, so a fifty-row page costs one parse per
-             * DISTINCT user agent — typically a handful — with no cache
+             * DISTINCT user agent, typically a handful, with no cache
              * round-trips.
              *
              * Server-side rather than in the browser so the list and the detail
@@ -56,7 +56,7 @@ class ActivityLogResource extends JsonResource
             'route' => $this->route,
             'method' => $this->method,
             // Present for sensitive reads, where the middleware sees the
-            // finished response. Null for mutations — the observer fires while
+            // finished response. Null for mutations, the observer fires while
             // the response is still being built.
             'status_code' => $this->status_code,
             'duration_ms' => $this->duration_ms,

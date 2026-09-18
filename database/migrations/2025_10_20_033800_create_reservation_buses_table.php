@@ -18,7 +18,7 @@ return new class extends Migration
             // Prevent duplicates (same bus twice on one reservation)
             $table->primary(['reservation_id', 'bus_id']);
 
-            // FKs — your buses use UUIDs
+            // FKs, your buses use UUIDs
             $table->foreign('reservation_id')
                   ->references('id')->on('reservations')
                   ->onDelete('cascade');

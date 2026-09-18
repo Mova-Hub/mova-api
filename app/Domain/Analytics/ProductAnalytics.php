@@ -14,14 +14,14 @@ use Throwable;
  * knows when someone starts a booking and where they abandon it; only the
  * server knows that ops converted that order three days later and that the
  * money eventually arrived. Sending those from here is what lets one funnel
- * span both halves — "of the people who started a booking, how many were
+ * span both halves, "of the people who started a booking, how many were
  * ultimately paid for" is otherwise two disconnected numbers.
  *
  * **This is not the audit log, and must not become it.** The audit trail is the
  * authoritative record, retained, queryable and legally meaningful. This is
  * aggregate product behaviour in a third party's store, sampled and eventually
  * expired. When in doubt about which one an event belongs in, it is the audit
- * log — see App\Domain\Audit.
+ * log, see App\Domain\Audit.
  *
  * Every call is wrapped: analytics must never break the transaction it is
  * describing.
@@ -78,7 +78,7 @@ class ProductAnalytics
                 'properties' => $properties + ['source' => 'api'],
             ]);
         } catch (Throwable $e) {
-            // Swallowed on purpose — see the class docblock.
+            // Swallowed on purpose, see the class docblock.
             Log::warning('Analytics capture failed', ['event' => $event, 'error' => $e->getMessage()]);
         }
     }

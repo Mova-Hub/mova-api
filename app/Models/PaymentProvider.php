@@ -28,7 +28,7 @@ class PaymentProvider extends Model
     protected $casts = [
         'enabled' => 'boolean',
         /*
-         * Encrypted at rest by Laravel's cast — the column holds ciphertext,
+         * Encrypted at rest by Laravel's cast, the column holds ciphertext,
          * so a database dump, a read replica or a backup restored on a laptop
          * carries no usable API keys.
          *
@@ -56,7 +56,7 @@ class PaymentProvider extends Model
     /**
      * Payments made through this provider.
      *
-     * Joined on `code`, not on `id` — `payments.provider_code` is a stable
+     * Joined on `code`, not on `id`, `payments.provider_code` is a stable
      * string so that historical payments survive a provider row being
      * recreated, which an integer foreign key would not.
      */
@@ -111,7 +111,7 @@ class PaymentProvider extends Model
      *
      * When the fee is borne by the merchant the client pays the face amount and
      * Mova absorbs the cut; when it is borne by the client the fee is added on
-     * top. Either way the client sees the number before tapping — a surcharge
+     * top. Either way the client sees the number before tapping, a surcharge
      * discovered on the operator's confirmation SMS is a chargeback.
      */
     public function totalFor(int $amount): int

@@ -18,15 +18,15 @@ use function Sentry\configureScope;
  *
  * Mova runs four things that answer four different questions:
  *
- *   · the activity log  — who did what, and can we prove it
- *   · Sentry            — what broke, and on which release
- *   · PostHog           — what people tried and abandoned (client-side)
- *   · Laravel's logs    — what the server did, in order
+ *   · the activity log , who did what, and can we prove it
+ *   · Sentry           , what broke, and on which release
+ *   · PostHog          , what people tried and abandoned (client-side)
+ *   · Laravel's logs   , what the server did, in order
  *
  * Kept separate on purpose; they have different retention, different
  * audiences and different privacy exposure. What makes them ONE system rather
  * than four dashboards is the shared `request_id` this provider pushes into
- * Sentry's scope — the same uuid already carried by every activity row, every
+ * Sentry's scope, the same uuid already carried by every activity row, every
  * log line, and the `X-Request-Id` response header.
  *
  * Given an error in Sentry you can therefore reach the exact mutations that
@@ -38,7 +38,7 @@ class ObservabilityServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if (! class_exists(\Sentry\SentrySdk::class) || empty(config('sentry.dsn'))) {
-            // No DSN in local development — nothing to configure, and calling
+            // No DSN in local development, nothing to configure, and calling
             // into the SDK would be a wasted no-op on every request.
             return;
         }
@@ -54,7 +54,7 @@ class ObservabilityServiceProvider extends ServiceProvider
                  *
                  * Enough to answer "is this happening to one account or all of
                  * them", and to tell a staff bug from a customer bug. Never the
-                 * name, email or phone — `send_default_pii` is off precisely so
+                 * name, email or phone, `send_default_pii` is off precisely so
                  * that is a deliberate decision made here rather than a default
                  * nobody reviewed.
                  */
@@ -73,7 +73,7 @@ class ObservabilityServiceProvider extends ServiceProvider
      *
      * Registered from `config/sentry.php` would be tidier, but the callable has
      * to be a real closure and config files must stay serialisable for
-     * `config:cache` — a closure in one silently breaks caching in production.
+     * `config:cache`, a closure in one silently breaks caching in production.
      *
      * @see bootstrap/app.php, where this is attached
      */

@@ -44,13 +44,13 @@ class ExpireWalletCredit extends Command
 
         foreach ($drift as $row) {
             $this->line(sprintf(
-                '  client #%d — cached %d, derived %d',
+                '  client #%d, cached %d, derived %d',
                 $row['client_id'], $row['cached'], $row['derived'],
             ));
         }
 
         if ($this->option('repair')) {
-            $this->warn('Balances corrected. Investigate the cause — the repair hides it otherwise.');
+            $this->warn('Balances corrected. Investigate the cause. The repair hides it otherwise.');
         }
 
         return self::FAILURE;

@@ -7,7 +7,7 @@ namespace App\Domain\Audit\Support;
  *
  * **This is a hard requirement, not a nicety.** The audit table records the
  * before and after of every mutation in the system, which makes it the single
- * largest concentration of personal data anywhere in the application — and
+ * largest concentration of personal data anywhere in the application, and
  * unlike the tables it mirrors, it is append-only and retained for months. A
  * password hash, a reset OTP or a signing key that lands here is not something
  * you can go back and delete from one row.
@@ -28,7 +28,7 @@ class Redactor
     /**
      * Never stored, in any form.
      *
-     * Matched as a SUBSTRING of the key, case-insensitively — `password`
+     * Matched as a SUBSTRING of the key, case-insensitively, `password`
      * catches `password_confirmation` and `current_password`, and `token`
      * catches `fcm_token` and `remember_token`, without needing every variant
      * enumerated here as somebody adds columns.
@@ -47,7 +47,7 @@ class Redactor
          * recursed into.
          *
          * Recursion catches `api_key` and `client_secret` by substring, but NOT
-         * `subscription_key`, `api_user` or `target_environment` — MTN's four
+         * `subscription_key`, `api_user` or `target_environment`, MTN's four
          * fields would have gone into the audit log half in plaintext. There is
          * no audit value in the values anyway: "who changed which provider's
          * credentials, when" is the whole question.
@@ -98,8 +98,8 @@ class Redactor
                 continue;
             }
 
-            // Guards against a stray blob — a base64 avatar, an encoded
-            // payload — bloating a row that is meant to be a summary.
+            // Guards against a stray blob, a base64 avatar, an encoded
+            // payload, bloating a row that is meant to be a summary.
             $out[$key] = is_string($value) && strlen($value) > 500
                 ? substr($value, 0, 500) . '…[tronqué]'
                 : $value;

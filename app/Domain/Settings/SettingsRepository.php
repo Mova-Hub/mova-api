@@ -18,7 +18,7 @@ use Throwable;
  * cannot half-break pricing.
  *
  * **It never throws.** A settings store that can fail takes the whole
- * application with it — including the pages an operator would use to fix it.
+ * application with it, including the pages an operator would use to fix it.
  * A database error degrades to config defaults and logs.
  */
 class SettingsRepository

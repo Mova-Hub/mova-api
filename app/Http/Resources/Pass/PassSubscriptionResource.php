@@ -18,7 +18,7 @@ class PassSubscriptionResource extends JsonResource
             'plan' => new PassPlanResource($this->whenLoaded('plan')),
 
             /*
-             * Who this belongs to — `whenLoaded`, so the client-facing
+             * Who this belongs to, `whenLoaded`, so the client-facing
              * `/app/v1/pass/*` responses (which never load it, and where the
              * subscriber already knows who they are) are unchanged.
              *
@@ -34,7 +34,7 @@ class PassSubscriptionResource extends JsonResource
             'starts_at' => $this->starts_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
             // Derived server-side so the app never has to reimplement the rule
-            // — and cannot disagree with the inspector about it.
+            //, and cannot disagree with the inspector about it.
             'is_valid' => $this->isCurrentlyValid(),
             'is_expiring_soon' => $this->isExpiringSoon(),
             'days_remaining' => $this->daysRemaining(),

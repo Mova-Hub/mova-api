@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  *
  *  1. **A card leaves the counter unowned.** It is written and verified, then
  *     sits at ENCODED until a real subscriber claims it. That is what makes a
- *     stolen blank batch worthless — the chips carry valid signed payloads, but
+ *     stolen blank batch worthless, the chips carry valid signed payloads, but
  *     the server refuses every one of them.
  *  2. **Failures about someone else's card are indistinguishable.** "Already
  *     activated", "blocked" and "belongs to another account" all return the
@@ -40,7 +40,7 @@ class CardService
      * Registers a blank chip against a client and returns the payload to write.
      *
      * Called by the counter, which then hands the URI to the bridge script. The
-     * private key never leaves this server — the back-office asks for a
+     * private key never leaves this server, the back-office asks for a
      * signature, it does not produce one (PRD §4.1).
      *
      * @return array{card: PassCard, payload: string}
@@ -78,7 +78,7 @@ class CardService
     /**
      * Binds a card to the authenticated client.
      *
-     * Matched by chip UID (tapped) or printed serial (typed — PA-2, the only
+     * Matched by chip UID (tapped) or printed serial (typed, PA-2, the only
      * route in on an iPhone whose owner dismissed Apple's scan sheet).
      *
      * Idempotent: re-activating a card the same client already owns returns it
@@ -102,7 +102,7 @@ class CardService
             }
 
             if ($card->client_id !== null && $card->client_id !== $client->id) {
-                // Deliberately vague — see the class docblock.
+                // Deliberately vague, see the class docblock.
                 throw PassException::cardUnavailable();
             }
 
@@ -215,7 +215,7 @@ class CardService
      * Signs the card's entitlement and records what was written.
      *
      * An unowned card is signed against its own uuid with a zero expiry, so the
-     * chip is never blank — but it entitles nobody until activation replaces
+     * chip is never blank, but it entitles nobody until activation replaces
      * that payload.
      */
     private function writePayload(PassCard $card, ?Client $client): string

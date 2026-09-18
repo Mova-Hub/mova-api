@@ -59,7 +59,7 @@ class ReservationResource extends JsonResource
              *
              * A reservation without its client is a passenger name with no
              * account behind it, and without `order_id` there is no way back to
-             * the lead that produced it — which is the first thing anyone looks
+             * the lead that produced it, which is the first thing anyone looks
              * for when a booking is disputed. Both `whenLoaded`, so list
              * responses that do not eager-load stay the same size.
              */
@@ -79,7 +79,7 @@ class ReservationResource extends JsonResource
              *
              * `coordinator_id` is emitted unconditionally so a form can
              * pre-select the current holder even when the relation was not
-             * eager-loaded — a picker that shows "aucun" for an assigned
+             * eager-loaded, a picker that shows "aucun" for an assigned
              * reservation is how somebody gets assigned twice.
              */
             'coordinator_id' => $this->coordinator_id,

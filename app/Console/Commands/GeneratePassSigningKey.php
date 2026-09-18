@@ -45,13 +45,13 @@ class GeneratePassSigningKey extends Command
 
         $this->warn('The SECRET half must never leave this server:');
         $this->line('  · never commit it, never put it in the back-office, never log it');
-        $this->line('  · never reuse APP_KEY — one key per security domain, or rotation is impossible');
+        $this->line('  · never reuse APP_KEY, one key per security domain, or rotation is impossible');
         $this->newLine();
         $this->line('Public key for Mova Control (safe to distribute):');
         $this->line("  {$keyId} => {$public}");
         $this->newLine();
         $this->info('Rotating? Keep the old entry in PASS_SIGNING_KEYS and only change');
-        $this->info('PASS_ACTIVE_KEY_ID — cards already in circulation carry the id that');
+        $this->info('PASS_ACTIVE_KEY_ID: cards already in circulation carry the id that');
         $this->info('signed them and must keep verifying (criterion A4).');
 
         return self::SUCCESS;

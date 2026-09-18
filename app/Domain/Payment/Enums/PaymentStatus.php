@@ -17,7 +17,7 @@ enum PaymentStatus: string
     /** Money left our side again. */
     case Refunded = 'refunded';
 
-    /** Terminal states — no further callback should change them. */
+    /** Terminal states, no further callback should change them. */
     public function isFinal(): bool
     {
         return in_array($this, [self::Succeeded, self::Failed, self::Cancelled, self::Refunded], true);
