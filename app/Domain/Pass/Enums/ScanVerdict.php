@@ -6,7 +6,7 @@ namespace App\Domain\Pass\Enums;
  * The five outcomes of presenting a card (PRD §5.4).
  *
  * EXPIRED is deliberately separate from BLOCKED and INVALID. It is the common,
- * innocent case — somebody forgot to renew — and showing it as theft to the
+ * innocent case, somebody forgot to renew, and showing it as theft to the
  * rider and the inspector is both wrong and needlessly hostile. The apps
  * colour it amber for that reason.
  */
@@ -34,7 +34,7 @@ enum ScanVerdict: string
         };
     }
 
-    /** Colour intent for clients. Never the ONLY signal — see PRD §7. */
+    /** Colour intent for clients. Never the ONLY signal, see PRD §7. */
     public function tone(): string
     {
         return match ($this) {

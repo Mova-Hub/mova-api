@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * lie about what happened.
  *
  * The entries are the ledger; `wallet_accounts.balance` is a cache of them. A
- * disputed balance has to be reconstructable from these rows alone — without
+ * disputed balance has to be reconstructable from these rows alone, without
  * that, a bug is indistinguishable from fraud and neither can be unwound.
  */
 class WalletEntry extends Model
@@ -45,7 +45,7 @@ class WalletEntry extends Model
         /*
          * The immutability guard, enforced by the model rather than by
          * convention. A future `->update()` on an entry throws instead of
-         * quietly rewriting history — the one thing an audit ledger must never
+         * quietly rewriting history, the one thing an audit ledger must never
          * permit, and the one thing an ORM makes trivially easy.
          */
         static::updating(fn () => throw new \LogicException(

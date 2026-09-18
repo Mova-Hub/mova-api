@@ -9,11 +9,11 @@
     Everything here is tables and blocks on purpose: dompdf supports neither
     flexbox nor grid, silently collapsing both to stacked blocks. A template
     written with `display:flex` looks right in a browser preview and prints as a
-    single ragged column — so the layout is built the way dompdf actually lays
+    single ragged column, so the layout is built the way dompdf actually lays
     out, not the way modern CSS would.
 
     Other constraints this file works within:
-      · `font-family: DejaVu Sans` — the only bundled face with full Latin-1
+      · `font-family: DejaVu Sans`, the only bundled face with full Latin-1
         coverage. Helvetica drops é, è, à and ç, which is unusable in French.
       · No external assets. The logo is drawn with a coloured block and text,
         so the PDF has no network dependency and renders identically offline.
@@ -35,7 +35,7 @@
        WHITE, not the dark green it used to be.
 
        The Mova logo is green-and-orange on transparent. Placed on #064E3B the
-       green wordmark all but disappears and the orange fights the ground —
+       green wordmark all but disappears and the orange fights the ground,
        there is no dark variant of the mark, so the band changed instead. The
        brand colour now arrives as the rule beneath it, which reads as
        deliberate rather than as a logo dropped on the wrong background. */
@@ -84,8 +84,8 @@
 
     /* ── Itinerary ──
        A table, so the marker column and the label column stay aligned when a
-       long address wraps. Absolute-positioned pseudo-elements — the browser
-       approach — are unreliable in dompdf. */
+       long address wraps. Absolute-positioned pseudo-elements, the browser
+       approach, are unreliable in dompdf. */
     .route { width: 100%; border-collapse: collapse; margin-bottom: 18pt; }
     .route td { padding: 3pt 0; vertical-align: top; }
     .route .dot { width: 16pt; }
@@ -141,7 +141,7 @@
         color: #576270;
     }
 
-    /* Pinned to the bottom of every page — dompdf's `fixed` positioning is
+    /* Pinned to the bottom of every page, dompdf's `fixed` positioning is
        page-repeating, which is exactly what a document footer wants. */
     .foot {
         position: fixed;
@@ -163,7 +163,7 @@
                     The real logo, embedded as a base64 data URI by
                     DocumentBranding. dompdf will not fetch a URL with
                     isRemoteEnabled off, and silently drops the image with it
-                    on when the host is slow — which is precisely when an
+                    on when the host is slow, which is precisely when an
                     invoice is generated from a queue worker.
 
                     Falls back to the wordmark: a missing file should produce a
@@ -175,7 +175,7 @@
                 @else
                     <div class="brand-name">MOVA</div>
                 @endif
-                <div class="brand-sub">{{ $branding['legalName'] }} — {{ $branding['address'] }}</div>
+                <div class="brand-sub">{{ $branding['legalName'] }}, {{ $branding['address'] }}</div>
             </td>
             <td align="right">
                 <div class="doc-kind">{{ $isPaid ? 'Facture' : 'Facture proforma' }}</div>

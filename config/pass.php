@@ -19,7 +19,7 @@ return [
     |     one key across unrelated security domains means a leak anywhere is a
     |     leak everywhere, and makes rotation practically impossible.
     |  2. The private key lives ONLY here, on the server. It is never returned
-    |     by any endpoint, never logged, and never reaches the back-office —
+    |     by any endpoint, never logged, and never reaches the back-office,
     |     the counter asks the API for a signature instead.
     |
     | Keys are a JSON map so several can coexist during a rotation. Every card
@@ -57,7 +57,7 @@ return [
     |     https://mova.cg/p#<version>.<keyId>.<subscriberId>.<expiry>.<signature>
     |
     | Everything after `#` is a fragment, so it is never transmitted when an
-    | ordinary phone taps the card — that tap just opens a page explaining what
+    | ordinary phone taps the card, that tap just opens a page explaining what
     | the card is and where to return it.
     |
     | `version` gates the layout. A reader that meets a version it does not know

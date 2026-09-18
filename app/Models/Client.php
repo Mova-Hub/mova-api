@@ -23,7 +23,7 @@ class Client extends Authenticatable implements CanResetPassword
         'last_login_at',
         'avatar',
         // Social sign-in (Google / Apple). `provider_id` is the provider's
-        // subject claim — never the email, which users can change.
+        // subject claim, never the email, which users can change.
         'provider',
         'provider_id',
         'email_verified_at',
@@ -53,7 +53,7 @@ class Client extends Authenticatable implements CanResetPassword
         'blocked_at' => 'datetime',
     ];
 
-    /** Suspended by staff. Tokens are revoked at the same time — see ClientController. */
+    /** Suspended by staff. Tokens are revoked at the same time, see ClientController. */
     public function isBlocked(): bool
     {
         return $this->blocked_at !== null;
@@ -71,7 +71,7 @@ class Client extends Authenticatable implements CanResetPassword
 
     /**
      * Home / work / school shortcuts, plus any custom places.
-     * Cascade-deletes with the client — see the migration.
+     * Cascade-deletes with the client, see the migration.
      */
     public function savedAddresses()
     {
@@ -79,7 +79,7 @@ class Client extends Authenticatable implements CanResetPassword
     }
 
     /**
-     * Mova Pass — cards, subscriptions and scan history.
+     * Mova Pass, cards, subscriptions and scan history.
      *
      * The same person, not a separate "subscriber" record. PRD §6 modelled
      * subscribers as their own table with their own name and phone; collapsing
@@ -147,7 +147,7 @@ class Client extends Authenticatable implements CanResetPassword
      * was keyed to `users` (staff), so every client wallet insert violated the
      * foreign key. WalletAccount is keyed to `clients`.
      *
-     * Closed-loop — spendable on Mova, never cashed out, never topped up.
+     * Closed-loop, spendable on Mova, never cashed out, never topped up.
      * See MOVA-WALLET-AND-PAYMENTS.md §3.
      */
     public function walletAccount(): HasOne

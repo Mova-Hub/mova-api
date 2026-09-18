@@ -21,7 +21,7 @@ class GoogleMapsService
          *
          * This is a real bug, not a style preference. `php artisan config:cache`
          * is standard on any production deploy, and once the config is cached
-         * Laravel stops loading `.env` at all — every `env()` call outside a
+         * Laravel stops loading `.env` at all, every `env()` call outside a
          * config file then returns its default. This constructor would have
          * silently taken `''` as the key, and every Places, geocode and
          * Directions call would come back REQUEST_DENIED with no exception to
@@ -64,7 +64,7 @@ class GoogleMapsService
      * Driving route through an ordered list of points.
      *
      * Returns the road-following geometry, the real driven distance, and the
-     * typical duration — or null when Google cannot route it (no road link,
+     * typical duration, or null when Google cannot route it (no road link,
      * quota exhausted, key misconfigured). Null rather than an exception: a
      * missing route degrades to a straight line on the map and to the client's
      * own distance estimate for pricing, neither of which is fatal.
@@ -137,7 +137,7 @@ class GoogleMapsService
      * Google answers a bad key with HTTP 200 and `status: REQUEST_DENIED`, so
      * nothing throws and nothing appears in the log unless it is looked for.
      * That is how a missing key turns into "autocomplete returns nothing" with
-     * no trail — this logs it once, with the reason Google gave.
+     * no trail, this logs it once, with the reason Google gave.
      *
      * @return array<string, mixed>|null
      */
@@ -165,7 +165,7 @@ class GoogleMapsService
             Log::warning('Google Maps returned an error', [
                 'path' => $path,
                 'status' => $json['status'] ?? 'unknown',
-                // Google puts the actual reason here — "This API project is not
+                // Google puts the actual reason here, "This API project is not
                 // authorized", "The provided API key is expired", and so on.
                 'error' => $json['error_message'] ?? null,
             ]);
@@ -179,7 +179,7 @@ class GoogleMapsService
      *
      * `Cache::remember()` stores whatever the closure returns, INCLUDING null
      * and including Google's REQUEST_DENIED payload. That turns a momentary
-     * failure — an unset key, a quota blip, a network hiccup — into 24 hours of
+     * failure, an unset key, a quota blip, a network hiccup, into 24 hours of
      * the same failure served from cache, so fixing the underlying problem
      * appears to change nothing and the next person goes looking in the wrong
      * place entirely.

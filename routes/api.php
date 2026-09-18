@@ -122,7 +122,7 @@ Route::prefix('app/v1')->group(function () {
 
         // Trip pricing for the app.
         //
-        // A SECOND controller, not a change to the back-office /quote — that
+        // A SECOND controller, not a change to the back-office /quote, that
         // one returns commission and operator payout, which must never reach a
         // customer's phone. Both share App\Domain\Pricing\PricingEngine.
         //
@@ -155,7 +155,7 @@ Route::prefix('app/v1')->group(function () {
          * The initial paint and the reconnect state for the live map; positions
          * themselves arrive over Reverb on `private-trip.{orderId}`. Also the
          * fallback a client on a bad connection polls, which is why the limit is
-         * generous — reading a coordinate costs nobody anything, and a passenger
+         * generous, reading a coordinate costs nobody anything, and a passenger
          * refreshing a stalled map is not abuse.
          */
         Route::get('/orders/{id}/tracking', [ClientOrderController::class, 'tracking'])
@@ -201,12 +201,12 @@ Route::prefix('app/v1')->group(function () {
          *
          * Generic over payables: `{type}` is `order` or `subscription`, so one
          * set of routes collects for a charter booking AND a Mova Pass. The
-         * type is resolved against an allow-list in the controller — never to
+         * type is resolved against an allow-list in the controller, never to
          * a caller-supplied class name.
          *
          * Every handler scopes to $request->user(); an id in the URL is a
          * claim, not an authorisation. The AMOUNT is never accepted from the
-         * request — see App\Domain\Payment\PaymentService.
+         * request, see App\Domain\Payment\PaymentService.
          */
         Route::get('/payment/methods', [PaymentController::class, 'methods']);
         Route::get('/payment/{type}/{id}/options', [PaymentController::class, 'options']);
@@ -216,20 +216,20 @@ Route::prefix('app/v1')->group(function () {
         Route::post('/payment/{type}/{id}', [PaymentController::class, 'store'])
             ->middleware('throttle:10,1');
         // Polled while the prompt sits on the handset, so a looser limit than
-        // the one above — reading a status costs nobody anything.
+        // the one above, reading a status costs nobody anything.
         Route::get('/payments/{uuid}', [PaymentController::class, 'show'])
             ->middleware('throttle:120,1');
 
         // ── Mova Credit ───────────────────────────────────────────────────
         //
         // READ ONLY. There is no top-up route and no cash-out route, and their
-        // absence is the compliance posture, not an omission — see
+        // absence is the compliance posture, not an omission, see
         // MOVA-WALLET-AND-PAYMENTS.md §3.3. Credit is spent through the normal
         // payment routes above, with provider `mova_credit`.
         Route::get('/wallet', [WalletController::class, 'show']);
         Route::get('/wallet/entries', [WalletController::class, 'entries']);
 
-        // Mints a short-lived SIGNED url the system browser can open — a
+        // Mints a short-lived SIGNED url the system browser can open, a
         // browser carries no bearer token. The document itself is public
         // route + signature, never a guessable id.
         Route::get('/orders/{id}/invoice-link', [InvoiceController::class, 'link'])
@@ -307,8 +307,8 @@ Route::prefix('auth')->group(function () {
     /*
      * `POST /auth/register` is GONE.
      *
-     * It was public and unauthenticated, and it created a `User` — a staff
-     * account — from nothing but a name, an email and a password. It happened
+     * It was public and unauthenticated, and it created a `User`, a staff
+     * account, from nothing but a name, an email and a password. It happened
      * to fail at the database (users.role is NOT NULL with no default, and
      * register() never set one), so it 500'd rather than succeeding; that is
      * luck, not a control.
@@ -342,7 +342,7 @@ Route::post('/candidates', [CandidateController::class, 'store']);
  * Invoice PDF.
  *
  * OUTSIDE the Sanctum group on purpose: the download is opened by the system
- * browser, which carries no bearer token. `signed` is what authorises it — the
+ * browser, which carries no bearer token. `signed` is what authorises it, the
  * app calls the authenticated `/orders/{id}/invoice-link` to mint a URL valid
  * for thirty minutes, and without a valid signature this route refuses.
  *
@@ -362,7 +362,7 @@ Route::get('/app/v1/invoices/{order}', [InvoiceController::class, 'download'])
  * the two providers offers no signature on collections:
  *
  *   1. Per-driver signature verification, refusing by default.
- *   2. The body is treated as a HINT — where the driver can poll, the provider
+ *   2. The body is treated as a HINT, where the driver can poll, the provider
  *      is asked directly rather than believed.
  *   3. PaymentService::apply() refuses to move a terminal payment, so even an
  *      accepted forgery cannot flip a refunded payment back to paid.
@@ -387,7 +387,7 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
 
 /*
  * ══════════════════════════════════════════════════════════════════════════
- *  FIELD — mova-control
+ *  FIELD, mova-control
  * ══════════════════════════════════════════════════════════════════════════
  *
  * The inspector's and the coordinator's app, and DELIBERATELY NOT inside the
@@ -396,11 +396,11 @@ Route::prefix('locations')->middleware(['auth:sanctum', 'throttle:60,1'])->group
  * A controller taps Pass cards on a bus. Putting their role in `STAFF_ROLES`
  * would have been one line and would have given them the client list, the
  * payments ledger and the ability to push a payment prompt to a stranger's
- * handset — every route in the next group is gated on that constant and nothing
+ * handset, every route in the next group is gated on that constant and nothing
  * else. Phones get left on buses; the gate has to match the job.
  *
  * `field` answers "may this person use the app at all". It does NOT answer "is
- * this mission theirs" — every mission route scopes to `coordinator_id`,
+ * this mission theirs", every mission route scopes to `coordinator_id`,
  * because an id in a URL is a claim and never a permission.
  */
 /*
@@ -499,7 +499,7 @@ Route::middleware(['auth:sanctum', 'field'])->prefix('field')->group(function ()
  *
  * `auth:sanctum` ALONE IS NOT ENOUGH HERE, and this group ran on it for a long
  * time. `App\Models\Client` also uses `HasApiTokens`, and Sanctum resolves
- * whichever model owns the presented token — so every customer's mobile token
+ * whichever model owns the presented token, so every customer's mobile token
  * authenticated successfully against all of it: the full client list with names
  * and phone numbers, every reservation, the staff directory, and the pricing
  * engine's commission and operator payout.
@@ -551,13 +551,13 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     Route::get('/clients', [ClientController::class, 'index']);
 
     /*
-     * Bulk suspension — NOT bulk deletion.
+     * Bulk suspension, NOT bulk deletion.
      *
      * There is no bulk delete route for clients and there should not be: an
      * account carries orders, payments and invoices that must survive for
      * accounting, so suspension is the only mass action that makes sense.
      *
-     * Declared BEFORE `/clients/{id}` or `bulk-block` gets matched as an id —
+     * Declared BEFORE `/clients/{id}` or `bulk-block` gets matched as an id,
      * and `whereNumber` would then 404 it with no clue why.
      */
     Route::post('/clients/bulk-block', [ClientController::class, 'bulkBlock']);
@@ -569,7 +569,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         ->middleware('audit.read:client');
     // console/ has always called PUT /clients/{id}; it did not exist until now.
     Route::put('/clients/{id}', [ClientController::class, 'update'])->whereNumber('id');
-    // Suspending an account revokes its tokens — see ClientController::block.
+    // Suspending an account revokes its tokens, see ClientController::block.
     Route::post('/clients/{id}/block', [ClientController::class, 'block'])->whereNumber('id');
     Route::post('/clients/{id}/unblock', [ClientController::class, 'unblock'])->whereNumber('id');
 
@@ -599,19 +599,19 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     /*
      * Two ways to take money for a reservation, and they are not the same thing.
      *
-     *  - `payment` RECORDS a collection an agent already holds — cash at a
+     *  - `payment` RECORDS a collection an agent already holds, cash at a
      *    counter, a bank transfer they can see. Written as `succeeded`.
      *  - `charge` STARTS one: a prompt goes to the client's handset and the
      *    provider decides. Written as `pending`, then polled via `payments/{uuid}`.
      *
-     * Both live behind `staff`. `auth:sanctum` alone would not do — Client owns
+     * Both live behind `staff`. `auth:sanctum` alone would not do, Client owns
      * tokens too, and a client must not be able to charge their own booking as
      * though an agent had.
      */
     /*
      * Who is running this trip. Assignment normally happens at conversion; this
      * is for when somebody calls in sick. Both the old and the new holder are
-     * notified — see the controller.
+     * notified, see the controller.
      */
     Route::post('/reservations/{reservation}/coordinator', [ReservationController::class, 'assignCoordinator']);
 
@@ -620,7 +620,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     Route::post('/reservations/{reservation}/charge',       [ReservationController::class, 'charge'])
         ->middleware('throttle:20,1');
     Route::get ('/reservations/{reservation}/payments/{uuid}', [ReservationController::class, 'paymentStatus'])
-        // Polled while the prompt is on the handset — reading a status costs
+        // Polled while the prompt is on the handset, reading a status costs
         // nobody anything, so a looser limit than starting one.
         ->middleware('throttle:120,1');
 
@@ -631,7 +631,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * ── Mova Pass: staff & Mova Control ───────────────────────────────────
      *
      * Sync surface for the inspector app, plus the counter's encoding flow.
-     * Staff-guarded (`auth:sanctum` on the User model) — these expose the whole
+     * Staff-guarded (`auth:sanctum` on the User model), these expose the whole
      * fleet, unlike the /app/v1/pass routes which only ever see one client.
      *
      * Note what is NOT here: any route that returns a private key. The counter
@@ -642,7 +642,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * ── Mova Pass administration ──────────────────────────────────────────
      *
      * The counter and back-office surface. Thin controllers over CardService,
-     * SubscriptionService and PaymentService — no Pass logic lives in HTTP, so
+     * SubscriptionService and PaymentService, no Pass logic lives in HTTP, so
      * the app and the back-office cannot drift apart on what "blocked" or
      * "renewed" means.
      */
@@ -671,7 +671,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * ── Audit trail ───────────────────────────────────────────────────────
      *
      * Read-only, and admin-only: the log records what agents did, so agents are
-     * not the audience for it. There is deliberately NO write or delete route —
+     * not the audience for it. There is deliberately NO write or delete route,
      * an audit log an operator can edit proves nothing. Rows leave only by
      * ageing out through `activity:prune`.
      */
@@ -690,7 +690,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * ── Payments ──────────────────────────────────────────────────────────
      *
      * Settling by hand, which is the other half of ManualPaymentDriver until a
-     * provider contract exists (PRD D3) — and stays useful afterwards for cash
+     * provider contract exists (PRD D3), and stays useful afterwards for cash
      * and bank transfers no provider will cover.
      */
     Route::prefix('admin/payments')->group(function () {
@@ -713,7 +713,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
      * ── Settings ──────────────────────────────────────────────────────────
      *
      * Admin only, not merely staff. These endpoints change what every client
-     * is charged and hold the credentials that move money — an agent who can
+     * is charged and hold the credentials that move money, an agent who can
      * confirm a payment has no business editing the fee that priced it.
      *
      * Secrets go IN and never come back out: reads return a masked tail, and
@@ -753,10 +753,10 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
             Route::post('/{clientId}/status', [WalletAdminController::class, 'setStatus'])->whereNumber('clientId');
         });
 
-        // Runs the real PricingEngine over supplied inputs. Read-only — it
+        // Runs the real PricingEngine over supplied inputs. Read-only, it
         // computes and returns, it never persists. Backs the simulator on the
         // Algorithme tab. `parameters` returns what the engine is ACTUALLY
-        // using, which is config, not settings — see the controller.
+        // using, which is config, not settings, see the controller.
         Route::get('/admin/pricing/parameters', [PricingSimulatorController::class, 'parameters']);
         Route::post('/admin/pricing/simulate', [PricingSimulatorController::class, 'simulate']);
 
@@ -764,7 +764,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
          * ── Analytics ─────────────────────────────────────────────────────
          *
          * One endpoint per dashboard tab, so opening a tab is one request
-         * rather than six. Every figure is a SQL aggregate — see the
+         * rather than six. Every figure is a SQL aggregate, see the
          * controller's docblock for why that is not negotiable here.
          *
          * `/dash/cards` and `/dash/charts` stay: they are live, the overview
@@ -814,7 +814,7 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::post('/candidates/bulk-status', [CandidateController::class, 'bulkStatus']);
         Route::apiResource('candidates', CandidateController::class)->except(['store']);
 
-        // Dashboard — revenue and conversion figures are not agent-level data.
+        // Dashboard, revenue and conversion figures are not agent-level data.
         Route::get('/dash/cards',  [DashboardController::class, 'cards'])
             ->middleware('audit.read:dashboard');   // KPIs
         Route::get('/dash/charts', [DashboardController::class, 'charts']);  // time series
@@ -842,7 +842,7 @@ Route::get('/calendar/{token}.ics', [CalendarFeedController::class, 'feed'])
 /*
  * Removed: `GET /user`, a closure returning `$request->user()` whole.
  *
- * It served no caller — console/ uses `/auth/me`, mobile uses `/app/v1/me` —
+ * It served no caller, console/ uses `/auth/me`, mobile uses `/app/v1/me`,
  * and it serialised the raw model for whichever guard happened to match,
  * exposing every column the model does not explicitly hide. Both real
  * endpoints go through a resource or a formatter that decides what is public.

@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\DB;
  *
  * **Read MOVA-WALLET-AND-PAYMENTS.md §3 before changing this file.**
  *
- * Closed-loop by construction. There is no `topUp()` method — not commented
- * out, not feature-flagged, ABSENT — because a method that accepts customer
+ * Closed-loop by construction. There is no `topUp()` method, not commented
+ * out, not feature-flagged, ABSENT, because a method that accepts customer
  * funds in exchange for balance is electronic money issuance, and under
  * Règlement 04/18/CEMAC/UMAC/COBAC that needs a licence roughly seven
  * organisations in the CEMAC zone hold.
@@ -50,7 +50,7 @@ class WalletService
     /**
      * Adds credit.
      *
-     * @param  WalletReason  $reason  Must be a credit reason — see the enum.
+     * @param  WalletReason  $reason  Must be a credit reason, see the enum.
      * @param  Model|null  $source  What caused it (a Payment, an Order…).
      *
      * @throws WalletException
@@ -87,7 +87,7 @@ class WalletService
     /**
      * Spends credit.
      *
-     * Called by MovaCreditDriver, never straight from a controller — spending
+     * Called by MovaCreditDriver, never straight from a controller, spending
      * has to go through the payment state machine so it appears in the one
      * ledger like any other payment.
      *
@@ -247,7 +247,7 @@ class WalletService
      * Re-derives balances from entries and reports drift.
      *
      * The entries are the truth; this is what proves the cache still agrees
-     * with them. Reports rather than silently repairing — a mismatch is a bug
+     * with them. Reports rather than silently repairing, a mismatch is a bug
      * worth reading before it is papered over.
      *
      * @return array<int, array{client_id:int, cached:int, derived:int}>

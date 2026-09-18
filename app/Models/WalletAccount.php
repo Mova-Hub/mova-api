@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * truth. WalletService::reconcile() re-derives it; if the two disagree, the
  * entries win.
  *
- * @see MOVA-WALLET-AND-PAYMENTS.md §3 — closed-loop, and why there is no top-up.
+ * @see MOVA-WALLET-AND-PAYMENTS.md §3, closed-loop, and why there is no top-up.
  */
 class WalletAccount extends Model
 {

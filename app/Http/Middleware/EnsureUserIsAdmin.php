@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Narrows a route to administrators.
  *
  * Stacks ON TOP of `staff`, which has already established that the caller is an
- * active back-office `User` — but the instanceof and status checks are repeated
+ * active back-office `User`, but the instanceof and status checks are repeated
  * here rather than assumed. Middleware that is only safe in a particular order
  * is a trap for whoever adds the next route.
  */

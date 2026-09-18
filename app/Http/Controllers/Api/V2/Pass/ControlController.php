@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Everything here is designed around one constraint: **the inspector's phone is
  * offline when it matters.** These endpoints are what it downloads at the depot
- * in the morning and what it uploads when a signal comes back — nothing here is
+ * in the morning and what it uploads when a signal comes back, nothing here is
  * on the critical path of a fare decision.
  */
 class ControlController extends Controller
@@ -36,7 +36,7 @@ class ControlController extends Controller
      * publicly and an attacker gains nothing. With the HMAC scheme the source
      * brief proposed, this endpoint could not exist at all.
      *
-     * All keys, not just the active one — cards signed under a retired key must
+     * All keys, not just the active one, cards signed under a retired key must
      * keep verifying until they age out (criterion A4).
      */
     public function keys()
@@ -54,7 +54,7 @@ class ControlController extends Controller
      * Cards that must be refused on sight.
      *
      * Derived from `pass_cards.status`, not a second table. Two stores that
-     * must agree about whether a card is usable is one too many — the moment
+     * must agree about whether a card is usable is one too many, the moment
      * they diverge, one of them is telling an inspector the wrong thing.
      *
      * Supports `since` so a phone with a recent sync downloads a delta rather
@@ -65,7 +65,7 @@ class ControlController extends Controller
     {
         $request->validate(['since' => 'nullable|date']);
 
-        // The scope is the single definition of "blacklisted" — the model and
+        // The scope is the single definition of "blacklisted", the model and
         // this export must never be able to disagree about it.
         $query = PassCard::query()
             ->blacklisted()
@@ -80,7 +80,7 @@ class ControlController extends Controller
         return response()->json([
             'status' => true,
             // The device stores this and refuses to operate if its own clock
-            // reads earlier (PRD §4.4) — a monotonic check against tampering.
+            // reads earlier (PRD §4.4), a monotonic check against tampering.
             'synced_at' => CarbonImmutable::now()->toIso8601String(),
             'max_age_hours' => (int) config('pass.control.max_sync_age_hours', 24),
             'count' => $cards->count(),
@@ -134,7 +134,7 @@ class ControlController extends Controller
             'data' => $rows->map(fn ($row) => [
                 'chip_uid' => $row->chip_uid,
                 'expires_at' => CarbonImmutable::parse($row->expires_at)->toIso8601String(),
-                // Present but NOT offline-decrementable — see PRD §6. A bundle
+                // Present but NOT offline-decrementable, see PRD §6. A bundle
                 // needs shared state, so two buses would each accept the last
                 // trip. Control must treat this as advisory until that is
                 // resolved.

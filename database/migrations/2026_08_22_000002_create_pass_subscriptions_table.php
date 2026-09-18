@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * A client's entitlement to travel over a period.
      *
-     * The subscription — not the card — is the authority on whether someone may
+     * The subscription, not the card, is the authority on whether someone may
      * board. That resolves PRD open decision D2 in favour of option (b), the
      * server snapshot: renewing extends this row, and Mova Control validates
      * against a downloaded snapshot of it. Otherwise renewal online would leave
@@ -56,7 +56,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            // "Is this client entitled right now?" — the hottest query here.
+            // "Is this client entitled right now?", the hottest query here.
             $table->index(['client_id', 'status', 'expires_at']);
             // The nightly sweep that moves lapsed rows to `expired`.
             $table->index(['status', 'expires_at']);

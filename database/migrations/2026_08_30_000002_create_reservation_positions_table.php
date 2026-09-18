@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
  * Where the convoy is, so a client can watch it come.
  *
  * The coordinator's phone reports this while the trip runs. One stream per
- * reservation — the convoy as a whole, not a dot per vehicle — because the
+ * reservation, the convoy as a whole, not a dot per vehicle, because the
  * coordinator is the one person guaranteed to be travelling with it and already
  * holding an authenticated device. Drivers are `FLEET_ROLES`: they have no
  * login and no app.
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * **`bus_id` is nullable from day one, and that is the point.** Null means "the
  * convoy, as reported by the coordinator", which is every row today. When
  * driver devices eventually exist, per-bus rows drop straight in beside them
- * with no migration and no backfill — the shape already allows for it.
+ * with no migration and no backfill, the shape already allows for it.
  *
  * This is personal location data about an employee. Three things follow, and
  * all three are enforced elsewhere in this change rather than being left as
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Schema;
  *
  *  - it is only ever written between `start` and `complete`;
  *  - the passenger endpoint only serves a position while the reservation is
- *    `in_progress` — where a coordinator went after the trip is their own
+ *    `in_progress`, where a coordinator went after the trip is their own
  *    business;
  *  - `positions:prune` deletes the trail once the trip is a week old.
  */
@@ -48,7 +48,7 @@ return new class extends Migration
             // Null = the convoy. See the class docblock.
             $table->foreignId('bus_id')->nullable()->constrained('buses')->nullOnDelete();
 
-            // Who reported it. Not decorative — it is the difference between a
+            // Who reported it. Not decorative, it is the difference between a
             // position and an attributable one.
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
 

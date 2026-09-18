@@ -9,7 +9,7 @@ namespace App\Domain\Payment\DTOs;
  * cannot be polled, the card stub cannot refund, and Mova Credit settles
  * synchronously so it has no webhook to verify. Asking a driver instead of
  * branching on its class name is what keeps `PaymentService` free of a `match`
- * over provider codes — the exact thing that made adding a provider a code
+ * over provider codes, the exact thing that made adding a provider a code
  * change before.
  */
 final class DriverCapabilities
@@ -23,7 +23,7 @@ final class DriverCapabilities
         /** Delivers callbacks, so a webhook route should exist for it. */
         public readonly bool $webhook = false,
         /**
-         * Settles immediately — no prompt on a handset, no waiting state.
+         * Settles immediately, no prompt on a handset, no waiting state.
          *
          * Only Mova Credit and manual back-office entries. The payment sheet
          * uses this to skip its "confirmez sur votre téléphone" screen, which

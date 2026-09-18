@@ -26,7 +26,7 @@ use Throwable;
  * when one of the providers does not offer signatures:
  *
  *  1. **Signature**, per driver, refusing by default.
- *  2. **Re-read from the provider** where the driver can poll — the callback is
+ *  2. **Re-read from the provider** where the driver can poll, the callback is
  *     treated as a hint to go and check, not as a statement of fact. This is
  *     what makes MTN safe despite having no signature on Collections.
  *  3. **Terminal-state guard** in PaymentService::apply(), so even an accepted
@@ -64,7 +64,7 @@ class PaymentWebhookController extends Controller
              * Logged at warning, not error: an unverified callback is a normal
              * event on a public endpoint, and paging on it would train people
              * to ignore the alert. The payload is recorded so a genuine
-             * misconfiguration is diagnosable — and so is an attack.
+             * misconfiguration is diagnosable, and so is an attack.
              */
             Log::warning('Rejected payment webhook signature', [
                 'provider' => $provider,
@@ -117,7 +117,7 @@ class PaymentWebhookController extends Controller
         try {
             /*
              * Layer 2. Where the driver can poll, we ask the provider directly
-             * rather than believing the body — which is what makes an
+             * rather than believing the body, which is what makes an
              * unsigned MTN callback harmless: at worst a forgery costs us one
              * outbound request and learns nothing.
              */
@@ -128,7 +128,7 @@ class PaymentWebhookController extends Controller
             $this->payments->apply($payment, $result);
         } catch (Throwable $e) {
             report($e);
-            // Reconciliation will pick it up. Still 200 — see the class note.
+            // Reconciliation will pick it up. Still 200, see the class note.
         }
 
         return response()->json(['received' => true]);

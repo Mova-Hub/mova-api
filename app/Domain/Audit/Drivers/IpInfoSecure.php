@@ -19,7 +19,7 @@ use Stevebauman\Location\Position;
  *     lookup whose entire subject matter is somebody's IP address, plain HTTP
  *     is not a defensible default.
  *
- *  2. **`org` is kept.** The carrier — "AS37559 MTN CONGO S.A" — is frequently
+ *  2. **`org` is kept.** The carrier, "AS37559 MTN CONGO S.A", is frequently
  *     the most informative field on the response, and the base driver drops it.
  *
  *  3. **A readable country.** ipinfo returns a two-letter code; `intl` turns

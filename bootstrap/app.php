@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     /*
      * Broadcast auth on the API guard, not on `web`.
      *
-     * `withRouting(channels: ...)` — which is where this file pointed — registers
+     * `withRouting(channels: ...)`, which is where this file pointed, registers
      * /broadcasting/auth with the `web` middleware and its session cookie. No
      * client in this system has one: the passenger app, manager and control all
      * present a Sanctum bearer token, so every private-channel subscription
@@ -34,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         /*
          * A MAP, not a list.
          *
-         * This was `['admin', EnsureUserIsAdmin::class]` — an array literal, so
+         * This was `['admin', EnsureUserIsAdmin::class]`, an array literal, so
          * Laravel registered two aliases named `0` and `1`, and `->middleware('admin')`
          * would have thrown "Target class [admin] does not exist". Nothing ever
          * called it, which is why the mistake survived: every back-office route
@@ -79,7 +79,7 @@ return Application::configure(basePath: dirname(__DIR__))
          *
          * `Integration::handles()` respects `ignore_exceptions` in
          * config/sentry.php, so validation failures, 404s and refused logins
-         * stay out of the feed — they are the application working correctly,
+         * stay out of the feed, they are the application working correctly,
          * and burying real exceptions under them is how a team learns to
          * ignore the alerts.
          */
@@ -93,7 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * "It failed around 2pm" is otherwise the whole bug report. With the id
          * in the body, a screenshot from an agent is enough to find the exact
          * Sentry event, the exact log lines, and the exact rows in
-         * `activity_logs` — the header alone is invisible to anyone not looking
+         * `activity_logs`, the header alone is invisible to anyone not looking
          * at devtools.
          *
          * Only for genuine faults. A 422 already carries the field errors that

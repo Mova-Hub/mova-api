@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
  * `client_fcm_tokens` exists (inside the clients migration) and
  * `Client::routeNotificationForFcm()` reads it, which is why a passenger gets a
  * push when their trip is confirmed. `User` had no equivalent, so a coordinator
- * assigned a convoy could only be reached by e-mail — and nobody checks e-mail
+ * assigned a convoy could only be reached by e-mail, and nobody checks e-mail
  * on a bus at six in the morning.
  *
  * A deliberate mirror of the client table, down to the column names, so the two

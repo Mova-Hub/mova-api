@@ -29,7 +29,7 @@ class StaffResource extends JsonResource
              * These two were missing, and the back-office had columns for both.
              *
              * `staff.ts` maps them and renders a 2FA shield and a "dernière
-             * connexion" cell — which showed `false` and `—` on every row
+             * connexion" cell, which showed `false` and `—` on every row
              * because nothing here ever emitted them. Both columns exist on
              * `users` (the 2FA one was added 2026-08-23); this was purely a
              * Resource omission.

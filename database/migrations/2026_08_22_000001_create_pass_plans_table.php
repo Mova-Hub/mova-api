@@ -14,8 +14,8 @@ return new class extends Migration
      * of deployable: a two-week student pass or a ten-day pilgrimage pass is a
      * row, not a migration.
      *
-     * `price` is an UNSIGNED INTEGER in whole francs. XAF has no subunit — the
-     * smallest coin is one franc — so decimals here would only invite the
+     * `price` is an UNSIGNED INTEGER in whole francs. XAF has no subunit, the
+     * smallest coin is one franc, so decimals here would only invite the
      * rounding bugs that money-as-float is famous for, for a fractional part
      * that cannot exist.
      */
@@ -36,14 +36,14 @@ return new class extends Migration
             $table->unsignedSmallInteger('interval_count')->default(1);
 
             // NULL = unlimited travel. A number turns this into a trip bundle,
-            // which PRD §6 flags as NOT offline-verifiable — decrementing a
+            // which PRD §6 flags as NOT offline-verifiable, decrementing a
             // counter needs shared state, so bundles require an online check.
             $table->unsignedInteger('trips')->nullable();
 
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
 
-            // Zones, lines, perks — anything the catalogue grows later without
+            // Zones, lines, perks, anything the catalogue grows later without
             // another migration.
             $table->json('metadata')->nullable();
 

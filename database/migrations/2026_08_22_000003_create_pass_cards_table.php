@@ -10,7 +10,7 @@ return new class extends Migration
      * One physical chip.
      *
      * A subscriber may hold several over time (lost, damaged, replaced), so
-     * this is a history, not a single current card — `status` and
+     * this is a history, not a single current card, `status` and
      * `replaced_by_id` carry which is which.
      *
      * The blacklist PRD §6 modelled as its own table lives here instead, as
@@ -36,7 +36,7 @@ return new class extends Migration
 
             // Printed on the card for the no-NFC / iOS-declined-sheet path
             // (PA-2). This is an ACTIVATION CREDENTIAL, so it is random and
-            // long — see config/pass.php.
+            // long, see config/pass.php.
             $table->string('printed_serial')->unique();
 
             $table->string('status')->default('encoded');

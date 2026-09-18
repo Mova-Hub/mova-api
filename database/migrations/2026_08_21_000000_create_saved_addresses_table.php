@@ -18,7 +18,7 @@ return new class extends Migration
              */
             $table->enum('kind', ['home', 'work', 'school', 'custom'])->default('custom');
 
-            /** Only used for `custom` — the fixed kinds get their label from the app. */
+            /** Only used for `custom`, the fixed kinds get their label from the app. */
             $table->string('label')->nullable();
 
             /** Human-readable address, as chosen from the Places result. */
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->timestamps();
 
             /**
-             * One home, one work, one school per client — but any number of
+             * One home, one work, one school per client, but any number of
              * custom entries, so `custom` rows are excluded from the constraint
              * by using a partial-style guard in the controller instead of a
              * DB-level unique index (MySQL has no partial indexes).

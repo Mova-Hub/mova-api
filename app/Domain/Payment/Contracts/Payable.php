@@ -12,7 +12,7 @@ use App\Models\Client;
  * subscription without a branch anywhere: PaymentService never asks what it is
  * collecting for, only what it costs and whether it may be collected yet.
  *
- * The alternative — a foreign key to `orders` — is what the schema had, and it
+ * The alternative, a foreign key to `orders`, is what the schema had, and it
  * meant a subscription could never be paid for at all without a second payment
  * system. Two payment systems is how a codebase ends up with three ledgers that
  * disagree about revenue.
@@ -23,7 +23,7 @@ interface Payable
      * What is owed, in whole francs.
      *
      * **Server-derived, always.** Never a value that has been through a
-     * client — a request carrying its own `amount` is a client naming its own
+     * client, a request carrying its own `amount` is a client naming its own
      * price. Returns 0 when nothing is owed yet, which the service treats as
      * not-yet-payable rather than free.
      */

@@ -9,7 +9,7 @@ use App\Models\Payment;
 use Illuminate\Support\Str;
 
 /**
- * Money collected by a human — cash, bank transfer, cheque.
+ * Money collected by a human, cash, bank transfer, cheque.
  *
  * Not a stub. This is how the business already collects most of its money, and
  * it is worth having in the app because a client who has pressed "payer" and
@@ -74,6 +74,6 @@ class ManualPaymentDriver extends BaseDriver
 
     public function healthCheck(array $credentials): HealthResult
     {
-        return HealthResult::ok('Paiement manuel — aucun service externe à joindre.');
+        return HealthResult::ok('Paiement manuel, aucun service externe à joindre.');
     }
 }

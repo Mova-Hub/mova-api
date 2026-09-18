@@ -47,7 +47,7 @@ class QuoteController extends Controller
             vehicleTypes: $vehicleTypes,
             /*
              * Doubled for a return leg, exactly as `TripQuoteService` does it
-             * before calling this same engine — "a return leg is the same road
+             * before calling this same engine, "a return leg is the same road
              * driven twice".
              *
              * Without this the back-office quoted a round trip at the one-way
@@ -66,7 +66,7 @@ class QuoteController extends Controller
          * `config('pricing.vehicles')` holds only `hiace` and `coaster`, while
          * a `Bus` may be any of seven types. Selecting a Sprinter in the
          * back-office therefore threw `InvalidArgumentException` out of the
-         * engine and surfaced as a server error with no usable message — the
+         * engine and surfaced as a server error with no usable message, the
          * price simply never appeared and nothing said why.
          *
          * The type list is echoed back so the client can name the problem

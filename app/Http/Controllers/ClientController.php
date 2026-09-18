@@ -12,7 +12,7 @@ class ClientController extends Controller
     /**
      * List clients.
      *
-     * The search used to be `where(name)->orWhere(phone)`, ungrouped — so the
+     * The search used to be `where(name)->orWhere(phone)`, ungrouped, so the
      * `orWhere` escaped any constraint added before it. There is none today,
      * but the moment a filter is added above (status, date range) the search
      * would silently discard it and return the whole table. Grouped now.
@@ -49,13 +49,13 @@ class ClientController extends Controller
      * Correct a client's contact details.
      *
      * `console/src/api/client.ts` has always called `PUT /clients/{id}`, which
-     * did not exist — the controller was read-only, so every edit from the
+     * did not exist, the controller was read-only, so every edit from the
      * back-office 404'd.
      *
      * Contact fields only. A client's password, phone verification state and
      * social provider bindings are theirs; staff correcting a misspelt name
      * must not be able to reach an account takeover through the same endpoint.
-     * Changing `phone` here does NOT mark it verified — see the migration note
+     * Changing `phone` here does NOT mark it verified, see the migration note
      * on `phone_verified_at`.
      */
     public function update(Request $request, int|string $id)
@@ -66,7 +66,7 @@ class ClientController extends Controller
             'name'  => ['sometimes', 'required', 'string', 'max:120'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('clients', 'email')->ignore($client->id)],
             // E.164, matching ClientAuthController. Unique, because the phone is
-            // the login identifier — two clients sharing one locks somebody out.
+            // the login identifier, two clients sharing one locks somebody out.
             'phone' => ['sometimes', 'required', 'string', 'regex:/^\+[1-9]\d{7,14}$/', Rule::unique('clients', 'phone')->ignore($client->id)],
         ], [
             'phone.regex' => 'Numéro invalide. Format attendu : +242061234567.',
@@ -87,7 +87,7 @@ class ClientController extends Controller
      *
      * Revokes every token, so the block takes effect on the next request rather
      * than whenever their session happens to expire. Reversible, unlike a Pass
-     * card block — a customer account is suspended pending a dispute, not
+     * card block, a customer account is suspended pending a dispute, not
      * destroyed, and their order history has to survive for accounting.
      */
     public function block(Request $request, int|string $id)
@@ -121,7 +121,7 @@ class ClientController extends Controller
      * Suspends several accounts at once.
      *
      * Deliberately NOT a bulk delete. A customer account is suspended pending a
-     * dispute, never destroyed — their orders, payments and invoices have to
+     * dispute, never destroyed, their orders, payments and invoices have to
      * survive for accounting, and a cascade would take all of it. There is no
      * bulk delete route for clients and there should not be one.
      *

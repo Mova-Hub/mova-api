@@ -13,8 +13,8 @@ return new class extends Migration
      * Brings an ALREADY-CREATED `payments` table up to the polymorphic shape.
      *
      * The create migration (2026_08_23_000000) was edited in place on the
-     * assumption that it had not yet run anywhere. It had — on the production
-     * MySQL database — so that table exists with `order_id` and no
+     * assumption that it had not yet run anywhere. It had, on the production
+     * MySQL database, so that table exists with `order_id` and no
      * `payable_type`, and an edited create migration never re-runs. This is the
      * migration that should have been written in the first place.
      *
@@ -36,7 +36,7 @@ return new class extends Migration
             return;
         }
 
-        // Already the target shape — a fresh database, or this has run before.
+        // Already the target shape, a fresh database, or this has run before.
         if (Schema::hasColumn('payments', 'payable_type')) {
             return;
         }
@@ -127,7 +127,7 @@ return new class extends Migration
 
     private function backfill(): void
     {
-        // Every existing payment was against an order — that was the only thing
+        // Every existing payment was against an order, that was the only thing
         // the old schema could point at.
         DB::table('payments')
             ->whereNull('payable_type')
@@ -189,7 +189,7 @@ return new class extends Migration
      * The foreign key is DROPPED and re-added around the change. MySQL will
      * usually permit MODIFY on a column that a constraint references, but
      * "usually" is not a basis on which to run a one-way migration against a
-     * money table — and the failure mode is a half-migrated schema at the point
+     * money table, and the failure mode is a half-migrated schema at the point
      * where `order_id` has yet to be dropped. Dropping first makes the
      * behaviour the same on every engine and version.
      */
@@ -200,7 +200,7 @@ return new class extends Migration
                 $table->dropForeign(['client_id']);
             });
         } catch (Throwable) {
-            // Already absent — nothing to restore below either, but re-adding
+            // Already absent, nothing to restore below either, but re-adding
             // it is harmless and leaves the schema in the intended shape.
         }
 
@@ -256,7 +256,7 @@ return new class extends Migration
      * Deliberately not reversible.
      *
      * Going back means choosing an `order_id` for payments that point at a
-     * subscription or a reservation, and there is no honest answer — the rows
+     * subscription or a reservation, and there is no honest answer, the rows
      * would have to be dropped. Restore from a backup instead; that is the only
      * safe way to reverse a migration that widened what a table can describe.
      */

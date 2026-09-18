@@ -11,12 +11,12 @@ use Symfony\Component\HttpFoundation\Response;
  * Records a READ of something sensitive.
  *
  * Mutations are covered by the model observer; this exists for the questions an
- * observer can never answer — "who looked up this customer's phone number?",
+ * observer can never answer, "who looked up this customer's phone number?",
  * "who downloaded the blacklist?", "who pulled the revenue figures?".
  *
  * Applied to a NAMED SUBSET, not to every GET. Logging all reads would bury one
  * price change under a hundred list views, multiply the table by an order of
- * magnitude, and copy far more personal data into an append-only store — which
+ * magnitude, and copy far more personal data into an append-only store, which
  * is the opposite of what an audit trail is for.
  *
  *     Route::get(...)->middleware('audit.read:client');
@@ -42,7 +42,7 @@ class RecordSensitiveAccess
             action: $subject . '.accessed',
             context: [
                 // The route parameters identify WHICH record was read, without
-                // storing the response body — which would duplicate the very
+                // storing the response body, which would duplicate the very
                 // data the log is meant to police access to.
                 'parameters' => $request->route()?->parameters() ?? [],
                 'query' => $request->query(),

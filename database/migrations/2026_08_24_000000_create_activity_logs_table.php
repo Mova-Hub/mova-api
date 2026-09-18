@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Who did what, when, and from where.
      *
-     * There was no audit trail of any kind before this — no package, no
+     * There was no audit trail of any kind before this, no package, no
      * observers, no `created_by` on a single table. The only persisted history
      * was the `notifications` table, which records deliveries, not decisions.
      *
@@ -17,14 +17,14 @@ return new class extends Migration
      *
      *  1. **`actor_label` and `subject_label` are denormalised snapshots.**
      *     Joining to `users` to render a log breaks the moment a staff member
-     *     is deleted — and the entries you most want to read are the ones
+     *     is deleted, and the entries you most want to read are the ones
      *     belonging to someone who has since left. The morph columns stay for
      *     linking when the record still exists; the labels are what the log
      *     actually displays.
      *  2. **`before`/`after`/`changed` are separate.** `changed` is the key
      *     list, so filtering "who ever touched a price" is an index scan rather
      *     than a JSON diff across the table.
-     *  3. **`request_id` is the join key across four systems** — this table,
+     *  3. **`request_id` is the join key across four systems**, this table,
      *     Laravel's logs, Sentry, and the HTTP response. Without it they are
      *     four dashboards; with it they are one trail.
      */
@@ -62,7 +62,7 @@ return new class extends Migration
             $table->json('context')->nullable();
 
             // No `updated_at`. An audit row that can be edited is not an audit
-            // row — nothing in the application ever writes to one twice.
+            // row, nothing in the application ever writes to one twice.
             $table->timestamp('created_at')->useCurrent();
 
             $table->index(['action', 'created_at']);

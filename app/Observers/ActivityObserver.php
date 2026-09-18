@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  * start logging itself by accident.
  *
  * **Know what this does NOT catch.** Eloquent events fire on model saves only.
- * Every `Builder::update()` and `Builder::delete()` bypasses them completely —
+ * Every `Builder::update()` and `Builder::delete()` bypasses them completely,
  * which in this codebase means all five bulk endpoints
  * (`Reservation@bulkStatus`, `Staff@bulkStatus`, `Person@bulkStatus`,
  * `Bus@bulkStatus`, `Bus@bulkDestroy`) plus `SubscriptionService::expireLapsed()`.
@@ -32,7 +32,7 @@ class ActivityObserver
             $model,
             null,
             // On a create the "dirty" set is everything, so the whole row IS
-            // the change — but it goes through the redactor like anything else.
+            // the change, but it goes through the redactor like anything else.
             $model->getAttributes(),
         );
     }

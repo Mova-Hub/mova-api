@@ -126,7 +126,7 @@ class ReservationController extends Controller
             $reservation->buses()->sync(array_values($busIds));
             // The pivot wins. An edit that changes the vehicles and leaves the
             // old capacity behind is how "3 places" ends up on a booking with
-            // two coaches attached — and nobody notices until boarding.
+            // two coaches attached, and nobody notices until boarding.
             $this->recomputeSeats($reservation);
         }
         Log::info('UpdateReservation validated payload', [
@@ -206,7 +206,7 @@ class ReservationController extends Controller
     /*
      * These three validated bus ids as `uuid`.
      *
-     * `reservations` uses HasUuids, `buses` does not — `buses.id` is a plain
+     * `reservations` uses HasUuids, `buses` does not, `buses.id` is a plain
      * auto-increment bigint (2025_10_20_023855_create_buses_table). So the rule
      * could never pass and all three endpoints have been permanently broken:
      * assigning a bus to a reservation was impossible through the API.
@@ -255,7 +255,7 @@ class ReservationController extends Controller
      * logic" that was never written; attaching or detaching a vehicle afterwards
      * left the figure exactly as stale.
      *
-     * Called from all three attribution endpoints and from `update()` — one
+     * Called from all three attribution endpoints and from `update()`, one
      * helper rather than four copies, because the copy that gets forgotten is
      * the one that silently reintroduces the drift.
      *
@@ -310,7 +310,7 @@ class ReservationController extends Controller
                      * The SAME state machine setStatus() enforces.
                      *
                      * A bulk endpoint that skips it is how a reservation
-                     * reaches `completed` without ever having started — and the
+                     * reaches `completed` without ever having started, and the
                      * trip timestamps below would then be nonsense. Illegal
                      * transitions are reported back rather than silently
                      * dropped, so an operator knows which rows did not move.
@@ -352,7 +352,7 @@ class ReservationController extends Controller
             'message' => $skipped === []
                 ? "{$updated} réservation(s) mise(s) à jour."
                 : sprintf(
-                    '%d mise(s) à jour. %d ignorée(s) — transition impossible depuis leur statut actuel : %s.',
+                    '%d mise(s) à jour. %d ignorée(s), transition impossible depuis leur statut actuel : %s.',
                     $updated,
                     count($skipped),
                     implode(', ', array_slice($skipped, 0, 5)),
@@ -445,9 +445,9 @@ class ReservationController extends Controller
      * What this reservation still owes, and which providers can collect it.
      *
      * The back-office counterpart of the app's `/payments/{type}/{id}/options`.
-     * Staff needs the same three answers before it can offer a button — how much
+     * Staff needs the same three answers before it can offer a button, how much
      * is left, which methods accept that amount, and whether a prompt is already
-     * sitting on somebody's phone — and had no endpoint that gave any of them.
+     * sitting on somebody's phone, and had no endpoint that gave any of them.
      *
      * Deliberately NOT `admin/payment-providers`: that route is admin-only and
      * returns provider configuration, credentials tail included. An agent taking
@@ -462,7 +462,7 @@ class ReservationController extends Controller
             /*
              * Only providers that can actually REACH the client.
              *
-             * `manual` drivers — cash, cheque, bank transfer — settle when a
+             * `manual` drivers, cash, cheque, bank transfer, settle when a
              * human says so, which is precisely what the other endpoint
              * (`payment`) is for. Offering them here would let an agent
              * "request" cash: a pending payment against a provider that will
@@ -500,7 +500,7 @@ class ReservationController extends Controller
     }
 
     /**
-     * Asks the client to pay — a real provider charge, initiated by staff.
+     * Asks the client to pay, a real provider charge, initiated by staff.
      *
      * POST /api/reservations/{reservation}/charge
      *
@@ -511,13 +511,13 @@ class ReservationController extends Controller
      * Conflating the two would let a phone call become a paid booking.
      *
      * Not the client-facing `Api/V2/Payment/PaymentController`, which scopes
-     * every lookup by `client_id` — correct for the app, and wrong here, where
+     * every lookup by `client_id`, correct for the app, and wrong here, where
      * the whole point is that staff acts for someone else. The amount still
      * comes from the payable, never from the request.
      */
     public function charge(Request $request, Reservation $reservation)
     {
-        // Spaces out, country code in, before the regex ever sees it — the
+        // Spaces out, country code in, before the regex ever sees it, the
         // same normalisation the app-facing endpoint applies. See PhoneNumber.
         if ($request->has('phone')) {
             $request->merge(['phone' => PhoneNumber::toE164($request->input('phone'))]);
@@ -528,7 +528,7 @@ class ReservationController extends Controller
             // usable this morning without a deploy.
             'provider' => ['required', 'string', Rule::exists('payment_providers', 'code')->where('enabled', true)],
             'kind'     => ['nullable', Rule::in(['full', 'deposit', 'balance'])],
-            // E.164. Often not the account's number — a company pays for its
+            // E.164. Often not the account's number, a company pays for its
             // staff, a parent for a school trip.
             'phone'    => ['nullable', 'string', 'regex:/^\+[1-9]\d{7,14}$/'],
             // Which rail, when the provider aggregates several. Validated
@@ -566,7 +566,7 @@ class ReservationController extends Controller
                 payable: $reservation,
                 client: $reservation->client,
                 providerCode: $data['provider'],
-                // The booking's own number as the fallback, normalised too —
+                // The booking's own number as the fallback, normalised too,
                 // it was typed by an agent into a free-text field years before
                 // anyone specified a format.
                 fields: array_filter([
@@ -599,7 +599,7 @@ class ReservationController extends Controller
      *
      * Polled while the prompt sits on the handset. Goes through
      * `PaymentService::refresh()`, which re-asks the provider only while there
-     * is something to learn and expires the attempt once its window closes —
+     * is something to learn and expires the attempt once its window closes,
      * webhooks get lost, and an agent watching "en cours" forever with no way to
      * refresh is how a client gets charged twice.
      *
@@ -642,7 +642,7 @@ class ReservationController extends Controller
      * POST /reservations/{reservation}/coordinator  { coordinator_id: int|null }
      *
      * Assignment normally happens at conversion; this exists because people call
-     * in sick. Both sides are notified — the new holder because they have work
+     * in sick. Both sides are notified, the new holder because they have work
      * to do, and the previous one because otherwise two coordinators arrive at
      * six in the morning, or neither does.
      *
@@ -655,7 +655,7 @@ class ReservationController extends Controller
         $data = $request->validate([
             'coordinator_id' => [
                 'present', 'nullable', 'integer',
-                // Must be able to log in AND be active — see the same rule on
+                // Must be able to log in AND be active, see the same rule on
                 // the conversion path. Handing a convoy to a suspended account
                 // produces a mission nobody can open.
                 Rule::exists('users', 'id')
@@ -734,8 +734,8 @@ class ReservationController extends Controller
      * The back-office's payment methods, mapped to provider codes.
      *
      * These four are what an agent can actually record by hand. `mobile_money`
-     * here is a MANUAL entry — money the client sent by MoMo and an agent
-     * confirmed — which is a different thing from the `mtn_momo` provider that
+     * here is a MANUAL entry, money the client sent by MoMo and an agent
+     * confirmed, which is a different thing from the `mtn_momo` provider that
      * pushes a prompt to a handset, and must not share its code or the two
      * would be indistinguishable in reconciliation.
      */

@@ -116,7 +116,7 @@ class StoreReservationRequest extends FormRequest
             'passenger_email' => ['nullable','email','max:190'],
 
             'seats'           => ['required','integer','min:1','max:500'],
-            // Head count, distinct from capacity — see the migration that added
+            // Head count, distinct from capacity, see the migration that added
             // the column. Nullable: a reservation opened at a counter may not
             // know it yet, and inventing a number would be worse than a null.
             'passengers'      => ['nullable','integer','min:1','max:300'],

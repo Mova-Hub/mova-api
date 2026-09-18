@@ -48,8 +48,8 @@ return new class extends Migration
 
                 foreach ($rows as $row) {
                     // `reservations` uses HasUuids, so this is a UUID string.
-                    // Casting it to int — the obvious-looking thing to do with
-                    // a column named *_id — would collapse every row onto 0.
+                    // Casting it to int, the obvious-looking thing to do with
+                    // a column named *_id, would collapse every row onto 0.
                     $reservationId = (string) $row->reservation_id;
 
                     $reservation = DB::table('reservations')->where('id', $reservationId)->first();
@@ -63,7 +63,7 @@ return new class extends Migration
                     $succeeded = $status === PaymentStatus::Succeeded->value;
 
                     // Amounts were decimal(10,2); XAF has no subunit, so this
-                    // rounds rather than truncates — a stored 4999.99 is a
+                    // rounds rather than truncates, a stored 4999.99 is a
                     // 5000 franc payment, not 4999.
                     $amount = (int) round((float) $row->amount);
 
@@ -74,7 +74,7 @@ return new class extends Migration
                      * and uniquely indexed, so re-running after a partial
                      * failure skips what already landed instead of aborting on
                      * a duplicate. This migration failed once mid-flight
-                     * already — a backfill that cannot be resumed makes the
+                     * already, a backfill that cannot be resumed makes the
                      * first failure the expensive one.
                      */
                     DB::table('payments')->insertOrIgnore([
@@ -91,7 +91,7 @@ return new class extends Migration
                         'net_amount' => $amount,
                         'currency' => 'XAF',
                         // Deterministic, so re-running this migration cannot
-                        // duplicate a row — the unique index refuses it.
+                        // duplicate a row, the unique index refuses it.
                         'idempotency_key' => 'legacy-txn-' . $row->id,
                         'provider_reference' => $row->reference ?: null,
                         'paid_at' => $succeeded ? $row->created_at : null,

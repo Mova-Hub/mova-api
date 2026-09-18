@@ -109,7 +109,7 @@ abstract class BaseDriver implements PaymentDriver
      * Normalises a Congolese number to what the operators expect.
      *
      * MTN and Airtel both want a national MSISDN without `+` and without the
-     * country code — `066123456`, not `+242066123456`. Sending E.164 is the
+     * country code, `066123456`, not `+242066123456`. Sending E.164 is the
      * single most common reason a first integration returns "payee not found".
      */
     protected function msisdn(?string $phone): string

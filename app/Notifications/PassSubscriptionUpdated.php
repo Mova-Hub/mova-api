@@ -149,7 +149,7 @@ class PassSubscriptionUpdated extends Notification implements ShouldQueue
         $plan = $this->planName();
 
         return match ($this->event) {
-            self::ACTIVATED => "{$plan} — " . $this->validityLine(),
+            self::ACTIVATED => "{$plan}, " . $this->validityLine(),
             self::EXPIRING => "{$plan} expire {$this->whenExpires()}. Renouvelez pour continuer.",
             self::EXPIRED => "{$plan} a expiré. Votre carte n'est plus acceptée à bord.",
             self::CANCELLED => "{$plan} a été annulé.",

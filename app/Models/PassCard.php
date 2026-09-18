@@ -67,7 +67,7 @@ class PassCard extends Model
      * The downloadable blacklist (PRD §6.3), derived rather than duplicated.
      *
      * REPLACED counts, not only BLOCKED. A card reported lost is blocked and
-     * then replaced, and the replacement overwrites its status — so a scope
+     * then replaced, and the replacement overwrites its status, so a scope
      * matching `blocked` alone would quietly drop every lost card from the
      * export the moment a new one was issued, which is exactly the card most
      * likely to be presented by somebody who should not have it.

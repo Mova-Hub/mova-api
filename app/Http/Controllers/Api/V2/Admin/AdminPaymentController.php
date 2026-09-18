@@ -19,8 +19,8 @@ use Illuminate\Validation\Rule;
  *
  * This is the other half of `ManualPaymentDriver`: the driver records that a
  * client intends to pay and hands ops a reference; this is where ops says the
- * money arrived. It exists because PRD decision D3 — the mobile-money provider
- * contract — is still open, and it stays useful afterwards for the cash and
+ * money arrived. It exists because PRD decision D3, the mobile-money provider
+ * contract, is still open, and it stays useful afterwards for the cash and
  * bank-transfer cases a provider will never cover.
  *
  * **Every write goes through `PaymentService::apply()`.** Setting
@@ -36,7 +36,7 @@ class AdminPaymentController extends Controller
     {
         $request->validate([
             'status' => ['nullable', Rule::in(array_column(PaymentStatus::cases(), 'value'))],
-            // Against the TABLE, not an enum — providers are rows now, so a
+            // Against the TABLE, not an enum, providers are rows now, so a
             // method added this morning is filterable this morning.
             'provider' => ['nullable', 'string', Rule::exists('payment_providers', 'code')],
             'payable_type' => ['nullable', Rule::in(['order', 'subscription', 'reservation'])],
@@ -193,7 +193,7 @@ class AdminPaymentController extends Controller
         ]);
     }
 
-    /** Marks an attempt failed — the client abandoned it, or the transfer bounced. */
+    /** Marks an attempt failed, the client abandoned it, or the transfer bounced. */
     public function fail(Request $request, int $id)
     {
         $payment = Payment::findOrFail($id);
@@ -224,7 +224,7 @@ class AdminPaymentController extends Controller
     /**
      * Refunds a settled payment.
      *
-     * Two paths, and the response says which one ran — an ops user who believes
+     * Two paths, and the response says which one ran, an ops user who believes
      * this moved money will not then go and actually move it.
      *
      *  • **Driver supports refunds** (Airtel, Mova Credit): the money really
@@ -263,7 +263,7 @@ class AdminPaymentController extends Controller
             /*
              * No automatic path. Record the decision so the ledger reflects
              * reality, and say plainly that a person still has to send the
-             * money — silence here is how a customer never gets refunded.
+             * money, silence here is how a customer never gets refunded.
              *
              * Written with forceFill rather than apply(): Succeeded is
              * terminal, and that guard is exactly what protects against a

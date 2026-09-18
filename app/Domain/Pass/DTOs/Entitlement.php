@@ -20,7 +20,7 @@ final class Entitlement
     public function __construct(
         public readonly string $version,
         public readonly string $keyId,
-        /** base64url of the subscriber's 16 raw UUID bytes — 22 chars. */
+        /** base64url of the subscriber's 16 raw UUID bytes, 22 chars. */
         public readonly string $subscriberId,
         /** Whole days since the Unix epoch, UTC. */
         public readonly int $expiryDays,

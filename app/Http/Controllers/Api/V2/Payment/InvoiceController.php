@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\URL;
  *  - `link()` is Sanctum-authenticated and scoped to the caller's own orders.
  *    It mints a SIGNED, short-lived URL.
  *  - `show()` is reachable without a token, because a browser opened from the
- *    app sends no Authorization header — but only with a valid signature that
+ *    app sends no Authorization header, but only with a valid signature that
  *    has not expired.
  *
  * The alternative, putting the order id on a public route, would let anyone
@@ -37,7 +37,7 @@ class InvoiceController extends Controller
      */
     public function link(Request $request, int $id)
     {
-        // Scoped, not `findOrFail($id)` — an id in the URL is not authorisation.
+        // Scoped, not `findOrFail($id)`, an id in the URL is not authorisation.
         $order = Order::where('client_id', $request->user()->id)->findOrFail($id);
 
         return response()->json([
@@ -61,7 +61,7 @@ class InvoiceController extends Controller
      * Streams the invoice as a PDF download.
      *
      * A file, not a page. `Content-Disposition: attachment` is what makes both
-     * mobile browsers offer "save" rather than rendering it inline — which is
+     * mobile browsers offer "save" rather than rendering it inline, which is
      * the difference between a document the client keeps and one they have to
      * screenshot.
      *
@@ -160,7 +160,7 @@ class InvoiceController extends Controller
             'isPaid' => $isPaid,
             // Logo, colours and company identity. The logo arrives as an
             // embedded data URI, so the PDF has no network dependency and
-            // renders identically offline — see DocumentBranding.
+            // renders identically offline, see DocumentBranding.
             'branding' => app(DocumentBranding::class)->forDocument(),
         ])->setPaper('a4');
 

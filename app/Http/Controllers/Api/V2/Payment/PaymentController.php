@@ -24,12 +24,12 @@ use Illuminate\Validation\ValidationException;
  * Paying, from the app.
  *
  * **Generic over payables.** One controller serves charter orders and Pass
- * subscriptions, because both implement Payable — the routes carry a `type`
+ * subscriptions, because both implement Payable, the routes carry a `type`
  * and an `id` rather than being duplicated per product. Adding a third payable
  * is a line in `resolvePayable()`.
  *
  * Every lookup scopes to `$request->user()`. An id in a URL is a claim by the
- * caller, never an authorisation — without the scope, any authenticated client
+ * caller, never an authorisation, without the scope, any authenticated client
  * could pay for, or read the price of, a stranger's booking.
  */
 class PaymentController extends Controller
@@ -56,7 +56,7 @@ class PaymentController extends Controller
      *
      * The app asks before showing the sheet rather than deciding locally,
      * because "may this be paid yet" depends on state the client does not hold
-     * — and a "Payer" button that fails on tap is worse than one that was
+     *, and a "Payer" button that fails on tap is worse than one that was
      * never offered.
      */
     public function options(Request $request, string $type, string $id)
@@ -99,7 +99,7 @@ class PaymentController extends Controller
 
                 // An attempt already running, so the sheet resumes it instead
                 // of starting a second prompt on the same handset.
-                // `maybe`, not `make`: `make(null)` fatals on serialization —
+                // `maybe`, not `make`: `make(null)` fatals on serialization,
                 // see PaymentResource. This endpoint threw a 500 for every
                 // payable with nothing in flight, which is the normal case.
                 'pending' => PaymentResource::maybe($this->payments->inFlightFor($payable)),
@@ -130,7 +130,7 @@ class PaymentController extends Controller
         ]);
     }
 
-    /** Starts a payment. Idempotent while one is in flight — see PaymentService. */
+    /** Starts a payment. Idempotent while one is in flight, see PaymentService. */
     public function store(Request $request, string $type, string $id)
     {
         /** @var Client $client */
@@ -142,7 +142,7 @@ class PaymentController extends Controller
          *
          * `06 407 4926` is the same number as `+242064074926`, and rejecting
          * the first tells a client their own phone number is wrong. The regex
-         * below is unchanged and just as strict — it now judges a string whose
+         * below is unchanged and just as strict, it now judges a string whose
          * spaces have been removed and whose country code has been restored.
          */
         if ($request->has('phone')) {
@@ -151,11 +151,11 @@ class PaymentController extends Controller
 
         $data = $request->validate([
             // Validated against the providers TABLE, so a method enabled five
-            // minutes ago is accepted without a deploy — the whole point.
+            // minutes ago is accepted without a deploy, the whole point.
             'provider' => ['required', 'string', Rule::exists('payment_providers', 'code')->where('enabled', true)],
             'kind' => ['nullable', Rule::in(['full', 'deposit', 'balance'])],
             // E.164. The prompt is pushed to this number, which is often not
-            // the account's — people pay from a spouse's or employer's wallet.
+            // the account's, people pay from a spouse's or employer's wallet.
             'phone' => ['nullable', 'string', 'regex:/^\+[1-9]\d{7,14}$/'],
             /*
              * Which rail, when the provider is an aggregator.
@@ -174,7 +174,7 @@ class PaymentController extends Controller
 
         $operator = $this->resolveOperator($data['provider'], $data['operator'] ?? null);
 
-        // NOTE: no amount is accepted. See PaymentService — the payable owns it.
+        // NOTE: no amount is accepted. See PaymentService, the payable owns it.
         try {
             $payment = $this->payments->start(
                 payable: $payable,
@@ -270,7 +270,7 @@ class PaymentController extends Controller
      *
      * The `client_id` scope is the authorisation. `findOrFail` on the id alone
      * would let any signed-in client read the price of, and pay for, anyone's
-     * booking — an id in a URL is a claim, not a permission.
+     * booking, an id in a URL is a claim, not a permission.
      */
     private function resolvePayable(Client $client, string $type, string $id): Payable&Model
     {

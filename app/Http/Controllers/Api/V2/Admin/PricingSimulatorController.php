@@ -51,7 +51,7 @@ class PricingSimulatorController extends Controller
         }
 
         // Expanded to one entry per vehicle, which is the shape the engine
-        // takes — `['hiace' => 2]` becomes `['hiace', 'hiace']`.
+        // takes, `['hiace' => 2]` becomes `['hiace', 'hiace']`.
         $expanded = [];
         foreach ($data['fleet'] as $type => $count) {
             $expanded = array_merge($expanded, array_fill(0, (int) $count, $type));
@@ -89,7 +89,7 @@ class PricingSimulatorController extends Controller
      *
      * Read from config, which is what PricingEngine reads. The Algorithme tab
      * renders these as the live values next to whatever has been typed into
-     * the settings form — so the gap between the two is visible rather than
+     * the settings form, so the gap between the two is visible rather than
      * something an operator discovers from a customer complaint.
      */
     public function parameters()
@@ -113,7 +113,7 @@ class PricingSimulatorController extends Controller
                  * The Settings page can write pricing values, but PricingEngine
                  * still reads config/pricing.php. A page that silently
                  * half-drives the engine is worse than one that says which
-                 * half — so the API says it too, and any future consumer
+                 * half, so the API says it too, and any future consumer
                  * inherits the warning rather than the misconception.
                  */
                 'source' => 'config',

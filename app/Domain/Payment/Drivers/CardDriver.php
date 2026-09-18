@@ -8,7 +8,7 @@ use App\Domain\Payment\DTOs\HealthResult;
 use App\Models\Payment;
 
 /**
- * Bank cards — for the diaspora.
+ * Bank cards, for the diaspora.
  *
  * **A complete contract with no acquirer behind it yet**, and that is a
  * deliberate decision rather than unfinished work.
@@ -16,7 +16,7 @@ use App\Models\Payment;
  * Neither MTN nor Airtel does cards: their APIs debit a wallet held in-country,
  * and a French card is not that. Acceptance therefore needs a separate
  * acquirer, and choosing one is a commercial and regulatory decision, not a
- * technical one — see MOVA-WALLET-AND-PAYMENTS.md §2 for the three routes and
+ * technical one, see MOVA-WALLET-AND-PAYMENTS.md §2 for the three routes and
  * why a pan-African aggregator is the realistic one.
  *
  * The slot exists now because building it costs a day and retrofitting it costs

@@ -35,12 +35,12 @@ class SocialAuthService
      * This is deliberately server-side rather than generated on the device:
      *   - randomness comes from random_bytes(), not a JS PRNG
      *   - the nonce can be enforced SINGLE-USE, which a client-generated one
-     *     cannot be — the server has nothing to compare a replay against
+     *     cannot be, the server has nothing to compare a replay against
      *   - the app needs no crypto library at all
      *
      * DEPLOYMENT NOTE: this relies on the cache being shared and persistent.
      * The `array` driver loses nonces between requests, and `file` is per-server
-     * — behind more than one app server that means a nonce issued by one node
+     *, behind more than one app server that means a nonce issued by one node
      * cannot be redeemed on another, and Apple sign-in fails intermittently.
      * Use redis/database in production.
      *
@@ -85,7 +85,7 @@ class SocialAuthService
      * Both calls verify the JWT signature against the provider's published keys
      * and check the audience against the configured client id.
      *
-     * IMPORTANT: services.google.client_id must be the WEB client id — that is
+     * IMPORTANT: services.google.client_id must be the WEB client id, that is
      * the audience the mobile SDK requests its idToken against on both
      * platforms. Socialite compares against a single value, so a mismatch here
      * rejects every Google sign-in.
@@ -107,7 +107,7 @@ class SocialAuthService
      *
      * Socialite only accepts a nonce for Facebook; neither its Google driver
      * nor the community Apple driver check one. Without this, a stolen but
-     * still-valid identity token is replayable for its whole lifetime — the
+     * still-valid identity token is replayable for its whole lifetime, the
      * audience check only blocks tokens minted for a *different* app.
      *
      * Apple hashes the nonce it receives, so the token carries sha256(raw). The
@@ -152,7 +152,7 @@ class SocialAuthService
     }
 
     /**
-     * Reads the JWT payload WITHOUT verifying it — safe only because this runs
+     * Reads the JWT payload WITHOUT verifying it, safe only because this runs
      * after verifyToken() has already validated the signature. Never call it
      * before that.
      */
@@ -173,8 +173,8 @@ class SocialAuthService
      * Find the existing account or create one.
      *
      * Matching order matters:
-     *   1. provider + provider id — the only fully trustworthy identifier
-     *   2. VERIFIED email — links a sign-in to an account they already have
+     *   1. provider + provider id, the only fully trustworthy identifier
+     *   2. VERIFIED email, links a sign-in to an account they already have
      *
      * An unverified email is never used to match. Doing so would let anyone
      * register a provider account claiming someone else's address and take over
@@ -220,7 +220,7 @@ class SocialAuthService
             // provider until the user sets one. A random value keeps the column
             // non-null and unguessable rather than leaving an empty hash.
             'password'          => Str::random(64),
-            // Phone is collected later — the app asks for it when a booking
+            // Phone is collected later, the app asks for it when a booking
             // actually needs a contact number, rather than blocking sign-up.
             'phone'             => null,
         ]);
@@ -231,7 +231,7 @@ class SocialAuthService
      * `email_verified` claim, so it is read from the raw payload.
      *
      * Apple only issues an email once the user consents, and it is always
-     * verified by Apple, so absence of the claim counts as verified there — but
+     * verified by Apple, so absence of the claim counts as verified there, but
      * NOT for Google, where an unverified address is possible.
      */
     private function emailIsVerified(string $provider, SocialiteUser $socialUser): bool

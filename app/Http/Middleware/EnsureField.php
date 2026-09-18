@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Restricts a route to the field team — `control/`, and nothing else.
+ * Restricts a route to the field team, `control/`, and nothing else.
  *
  * A second gate rather than two more entries in `EnsureStaff::STAFF_ROLES`, and
  * the distinction is the whole point of the role split.
@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
  * `STAFF_ROLES` would have been one line and would have handed every inspector
  * `GET /clients` (every customer's name, phone and email), `GET /admin/payments`
  * (the ledger), and `POST /reservations/{id}/charge` (the ability to push a
- * payment prompt to a stranger's handset) — because those routes are gated on
+ * payment prompt to a stranger's handset), because those routes are gated on
  * that constant and on nothing else. Phones get left on buses. The gate has to
  * match the job.
  *
@@ -26,12 +26,12 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *  1. **The token belongs to a `User`.** An instanceof check, not a role check.
  *     `Client` also uses `HasApiTokens` and has no `role` column at all, so a
- *     role comparison alone reads `null` — which is not equal to any allowed
+ *     role comparison alone reads `null`, which is not equal to any allowed
  *     value today, and is exactly the kind of accident that starts passing when
  *     somebody later writes `!== 'x'`.
  *  2. **The role is a field or staff role.** Staff pass deliberately: an admin
  *     needs to open the field app to reproduce what an inspector is reporting.
- *     Fleet roles (`driver`, `conductor`, `owner`) do not — they are records of
+ *     Fleet roles (`driver`, `conductor`, `owner`) do not, they are records of
  *     people, not accounts.
  *  3. **The account is active.** A token issued before somebody was suspended
  *     keeps working until it is revoked; without this, suspending an inspector

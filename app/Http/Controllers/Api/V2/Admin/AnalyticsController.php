@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * Everything the dashboard shows.
  *
  * **One endpoint per tab**, so opening a tab is one request rather than six.
- * The alternative — one fat `/analytics` returning everything — makes the first
+ * The alternative, one fat `/analytics` returning everything, makes the first
  * paint wait on the slowest query in the system, and most sessions only ever
  * look at the overview.
  *
@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\DB;
  * these tables grow, and a dashboard that loads ten thousand rows to display
  * one number is a dashboard that stops working right when the business starts
  * working. The one deliberate exception is the fleet tab, which joins in PHP
- * over a bounded set — see the note there.
+ * over a bounded set, see the note there.
  *
  * `DashboardController` stays as it is: `/dash/cards` and `/dash/charts` are
  * live and the overview here supersedes them, but breaking a working endpoint
@@ -127,7 +127,7 @@ class AnalyticsController extends Controller
                 ]),
 
             /*
-             * Attempt outcomes — the number that says whether a provider is
+             * Attempt outcomes, the number that says whether a provider is
              * healthy. A success rate sliding from 94% to 60% is the earliest
              * signal that something is wrong with an integration, and it is
              * invisible in a revenue total.
@@ -185,7 +185,7 @@ class AnalyticsController extends Controller
             /*
              * The funnel, in the only order that means anything: every stage
              * counts orders CREATED in the window, so a lead received on the
-             * 1st and converted on the 20th appears in both — which is what
+             * 1st and converted on the 20th appears in both, which is what
              * makes the ratio a conversion rate rather than two unrelated
              * counts divided by each other.
              */
@@ -266,7 +266,7 @@ class AnalyticsController extends Controller
 
             /*
              * Compliance. `expired` and `expiring` are separated because they
-             * are different actions — one grounds a vehicle today, the other
+             * are different actions, one grounds a vehicle today, the other
              * is a renewal to book. A single "problem" count merges an
              * emergency with a reminder.
              */
@@ -321,7 +321,7 @@ class AnalyticsController extends Controller
             ),
 
             /*
-             * Boardings by verdict. `accepted` alone is a vanity metric — the
+             * Boardings by verdict. `accepted` alone is a vanity metric, the
              * refusals are what say whether the blacklist is syncing and
              * whether people are travelling on expired passes.
              */
@@ -562,7 +562,7 @@ class AnalyticsController extends Controller
         return (int) Payment::succeededBetween($start, $end)->sum('amount');
     }
 
-    /** Money still owed on confirmed work — the receivables figure. */
+    /** Money still owed on confirmed work, the receivables figure. */
     private function outstanding(): int
     {
         return (int) Reservation::whereNull('deleted_at')
@@ -631,7 +631,7 @@ class AnalyticsController extends Controller
     /**
      * Demand per vehicle type, summing QUANTITIES not orders.
      *
-     * An order for four Coasters is four Coasters of demand, not one — which is
+     * An order for four Coasters is four Coasters of demand, not one, which is
      * what `DashboardController`'s original card counted, and why it was noise.
      * Every configured type, not just hiace vs coaster.
      *

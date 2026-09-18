@@ -32,7 +32,7 @@ class ReservationPosition extends Model
          * `float`, deliberately, even though the column is `decimal`.
          *
          * Laravel's `decimal:7` cast returns a STRING, and a string reaches the
-         * broadcast payload as `"-4.2634000"` — which a map library will happily
+         * broadcast payload as `"-4.2634000"`, which a map library will happily
          * plot as NaN. The column stays decimal so the database does not drift;
          * the cast makes the JSON a number.
          */

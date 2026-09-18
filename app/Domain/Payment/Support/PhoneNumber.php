@@ -12,7 +12,7 @@ namespace App\Domain\Payment\Support;
  * two of the three tells someone their own phone number is wrong.
  *
  * So the shape is normalised BEFORE validation rather than demanded of every
- * caller. The regex stays exactly as strict — it just now judges a string that
+ * caller. The regex stays exactly as strict, it just now judges a string that
  * has had its spaces, dots and dashes removed and its country code restored.
  *
  * **Not the same as `BaseDriver::msisdn()`, and deliberately its inverse.**
@@ -24,7 +24,7 @@ final class PhoneNumber
 {
     /**
      * Congo-Brazzaville. The only market Mova operates in, and the assumption
-     * is applied ONLY when the caller supplied no country code at all — an
+     * is applied ONLY when the caller supplied no country code at all, an
      * explicit `+` or `00` prefix always wins.
      */
     private const DEFAULT_DIAL_CODE = '242';
@@ -66,7 +66,7 @@ final class PhoneNumber
 
         if (str_starts_with($digits, $defaultDialCode)
             && strlen($digits) === strlen($defaultDialCode) + self::NATIONAL_LENGTH) {
-            // E.164 with the `+` lost somewhere in transit — a very common
+            // E.164 with the `+` lost somewhere in transit, a very common
             // shape when a number has been through a spreadsheet or a form.
             return '+' . $digits;
         }
@@ -80,7 +80,7 @@ final class PhoneNumber
         /*
          * Anything else is returned with a leading `+` and left to the
          * validator. Guessing at a length we do not recognise would be worse
-         * than a clear "numéro invalide" — this is money.
+         * than a clear "numéro invalide", this is money.
          */
         return '+' . $digits;
     }

@@ -23,7 +23,7 @@ return new class extends Migration
      * clients only ever charter a bus and will never own a card.
      *
      * PRD §6 modelled subscribers as their own table with their own name and
-     * phone. Collapsed into `clients` deliberately — one identity means the
+     * phone. Collapsed into `clients` deliberately, one identity means the
      * counter cannot create a second, divergent record for someone who already
      * has an app account.
      */

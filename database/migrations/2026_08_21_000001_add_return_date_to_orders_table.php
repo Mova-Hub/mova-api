@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Charters are frequently return trips — a wedding shuttle brings guests
+     * Charters are frequently return trips, a wedding shuttle brings guests
      * back, a school trip returns the same evening. The orders table only had
      * a single `pickup_date`, so a return leg could not be expressed at all and
      * had to be agreed by phone afterwards.

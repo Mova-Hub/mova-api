@@ -127,7 +127,7 @@ class UpdateReservationRequest extends FormRequest
              * detached has no capacity, and `convertToReservation` wrote a
              * literal 0 for every booking made before capacity was computed
              * from the pivot. With `min:1` the API refused to accept the value
-             * it had written itself — editing an untouched converted booking
+             * it had written itself, editing an untouched converted booking
              * failed validation on a field the agent never touched.
              */
             'seats'           => ['sometimes','required','integer','min:0','max:500'],

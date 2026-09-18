@@ -40,12 +40,12 @@ return [
     ],
 
     /*
-     * PostHog — server-side product events only.
+     * PostHog, server-side product events only.
      *
      * EU region by default: the data concerns Congolese customers, and keeping
      * it in one jurisdiction is a simpler position to defend than two.
      *
-     * Unset disables it entirely, which is the right default locally — a
+     * Unset disables it entirely, which is the right default locally, a
      * developer clicking through a flow should not appear in the funnel.
      */
     'posthog' => [
@@ -65,7 +65,7 @@ return [
          * `webClientId` does). Putting the iOS id here rejects every sign-in.
          */
         'client_id'     => env('GOOGLE_WEB_CLIENT_ID'),
-        // Unused by the native flow — Socialite requires the keys to exist.
+        // Unused by the native flow, Socialite requires the keys to exist.
         'client_secret' => env('GOOGLE_CLIENT_SECRET', ''),
         'redirect'      => env('GOOGLE_REDIRECT_URI', ''),
     ],

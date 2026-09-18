@@ -50,7 +50,7 @@ class SocialAuthController extends Controller
             // Opaque id from POST /auth/social/nonce. Apple only.
             'nonce_id'    => ['nullable', 'string', 'max:64'],
             // Apple returns the name only on FIRST authorisation, so the client
-            // forwards it once. Display only — never used to identify anyone.
+            // forwards it once. Display only, never used to identify anyone.
             'full_name'   => ['nullable', 'string', 'max:80'],
             'email'       => ['nullable', 'email', 'max:255'],
             'device_name' => ['nullable', 'string', 'max:100'],
