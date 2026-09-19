@@ -139,7 +139,7 @@ class CardController extends Controller
      */
     public function history(Request $request)
     {
-        $perPage = min(max((int) $request->input('per_page', 25), 1), 100);
+        $perPage = $this->perPage($request, 25);
 
         $scans = \App\Models\PassScan::where('client_id', $request->user()->id)
             // `scanned_at` is when the passenger boarded; `id` breaks ties for

@@ -64,7 +64,7 @@ class MissionController extends Controller
             ->with('buses')
             ->orderByRaw("CASE WHEN status = 'in_progress' THEN 0 ELSE 1 END")
             ->orderBy('trip_date')
-            ->paginate((int) $request->input('per_page', 25));
+            ->paginate($this->perPage($request, 25));
 
         return MissionResource::collection($missions);
     }

@@ -24,7 +24,10 @@ class TripRatingController extends Controller
             'with_comment' => ['nullable', 'boolean'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
-            'per_page' => ['nullable', 'integer', 'between:1,100'],
+            // No upper bound here: `perPage()` clamps. Validating it instead
+            // would 422 a caller asking for 200 while every other list endpoint
+            // quietly gives them 200, which is two behaviours for one parameter.
+            'per_page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $query = TripRating::query()
@@ -41,7 +44,7 @@ class TripRatingController extends Controller
                 fn ($q) => $q->whereDate('created_at', '<=', $request->date('date_to')))
             ->latest();
 
-        $ratings = $query->paginate((int) $request->input('per_page', 25));
+        $ratings = $query->paginate($this->perPage($request, 25));
 
         /*
          * `->items()`, not the paginator itself.

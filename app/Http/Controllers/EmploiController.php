@@ -33,7 +33,7 @@ class EmploiController extends Controller
         // 3. Tri (Du plus récent au plus ancien)
         $query->orderBy('created_at', 'desc');
 
-        $perPage = max((int) $request->query('per_page', 15), 1);
+        $perPage = $this->perPage($request, 15);
 
         return EmploiResource::collection($query->paginate($perPage));
     }
@@ -62,7 +62,7 @@ class EmploiController extends Controller
         // 3. Tri (Du plus récent au plus ancien)
         $query->orderBy('created_at', 'desc');
 
-        $perPage = max((int) $request->query('per_page', 15), 1);
+        $perPage = $this->perPage($request, 15);
 
         return EmploiResource::collection($query->paginate($perPage));
     }

@@ -51,7 +51,7 @@ class PassSubscriptionController extends Controller
         }
 
         return PassSubscriptionResource::collection(
-            $query->paginate((int) $request->input('per_page', 25))
+            $query->paginate($this->perPage($request, 25))
         );
     }
 

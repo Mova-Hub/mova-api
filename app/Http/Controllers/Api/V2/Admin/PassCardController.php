@@ -57,7 +57,7 @@ class PassCardController extends Controller
         }
 
         return AdminPassCardResource::collection(
-            $query->paginate((int) $request->input('per_page', 25))
+            $query->paginate($this->perPage($request, 25))
         );
     }
 

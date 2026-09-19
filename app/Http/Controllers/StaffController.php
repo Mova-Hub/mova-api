@@ -57,7 +57,7 @@ class StaffController extends Controller
             $q->whereIn('role', array_values(array_intersect(User::LOGIN_ROLES, $requested)));
         }
 
-        $perPage = max((int) $request->input('per_page', 50), 1);
+        $perPage = $this->perPage($request, 50);
 
         return StaffResource::collection($q->latest()->paginate($perPage));
     }

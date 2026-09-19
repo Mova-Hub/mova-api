@@ -87,7 +87,7 @@ class ReservationController extends Controller
         $orderDir = $request->query('order_dir') === 'asc' ? 'asc' : 'desc';
         $q->orderBy($orderBy, $orderDir);
 
-        $perPage = max((int) $request->query('per_page', 15), 1);
+        $perPage = $this->perPage($request, 15);
 
         return ReservationResource::collection($q->paginate($perPage));
     }

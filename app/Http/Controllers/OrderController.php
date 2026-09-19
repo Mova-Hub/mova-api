@@ -53,7 +53,7 @@ class OrderController extends Controller
                     ->orWhere('destination', 'like', $term));
             })
             ->latest()
-            ->paginate((int) $request->input('per_page', 25));
+            ->paginate($this->perPage($request, 25));
 
         return OrderResource::collection($orders);
     }
