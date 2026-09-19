@@ -17,6 +17,7 @@ use App\Http\Controllers\Field\MissionMessageController;
 use App\Http\Controllers\Api\V2\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V2\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\V2\Admin\AnalyticsController;
+use App\Http\Controllers\Api\V2\Admin\ExpenseController;
 use App\Http\Controllers\Api\V2\Admin\PassCardController as AdminPassCardController;
 use App\Http\Controllers\Api\V2\Admin\PassPlanController as AdminPassPlanController;
 use App\Http\Controllers\Api\V2\Admin\PassSubscriptionController as AdminPassSubscriptionController;
@@ -763,6 +764,36 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::post('/{id}/confirm', [AdminPaymentController::class, 'confirm'])->whereNumber('id');
         Route::post('/{id}/fail', [AdminPaymentController::class, 'fail'])->whereNumber('id');
         Route::post('/{id}/refund', [AdminPaymentController::class, 'refund'])->whereNumber('id');
+    });
+
+    /*
+     * Expenses: the money-out half of the ledger.
+     *
+     * `admin`, unlike the payments group directly above, and the difference is
+     * deliberate. Confirming that a client's payment arrived is agent work.
+     * What the company spends, on whom, and what that leaves is not, and this
+     * is the gate that actually enforces it: the sidebar only hides doors.
+     *
+     * There is NO PUT and NO DELETE here. A recorded expense is corrected by
+     * POSTing a reversal against it, so both the mistake and its correction
+     * survive in the ledger. See ExpenseService and the Expense model.
+     */
+    Route::middleware('admin')->prefix('admin/expenses')->group(function () {
+        Route::get('/', [ExpenseController::class, 'index']);
+
+        /*
+         * Both declared BEFORE `/{id}`, or `options` and `per-bus` are read as
+         * ids and the numeric constraint is the only thing between them and a
+         * confusing 404. The same trap is documented on the payments and
+         * support groups.
+         */
+        Route::get('/options', [ExpenseController::class, 'options']);
+        Route::get('/per-bus', [ExpenseController::class, 'perBus']);
+
+        Route::get('/{id}', [ExpenseController::class, 'show'])->whereNumber('id');
+        Route::post('/', [ExpenseController::class, 'store']);
+        Route::post('/{id}/reverse', [ExpenseController::class, 'reverse'])->whereNumber('id');
+        Route::post('/{id}/receipt', [ExpenseController::class, 'receipt'])->whereNumber('id');
     });
 
     /*
