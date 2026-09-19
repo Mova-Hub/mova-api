@@ -91,6 +91,13 @@ class AppServiceProvider extends ServiceProvider
              * as attributable as any other payment.
              */
             \App\Models\WalletEntry::class,
+            /*
+             * An expense is money leaving the company, so it deserves the same
+             * attributability as a refund. The ledger is append-only, so what
+             * the observer records is creations and the one permitted update,
+             * attaching a receipt.
+             */
+            \App\Models\Expense::class,
         ] as $model) {
             $model::observe(\App\Observers\ActivityObserver::class);
         }
