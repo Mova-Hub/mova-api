@@ -7,12 +7,13 @@ use App\Domain\Finance\Enums\ExpenseMethod;
 use App\Domain\Finance\ExpenseService;
 use App\Domain\Settings\Facades\Settings;
 use App\Models\Expense;
+use App\Models\Reservation;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -271,5 +272,55 @@ class ExpenseLedgerTest extends TestCase
             'paid_at' => CarbonImmutable::now()->addWeek()->toDateString(),
             'note' => 'Plein',
         ])->assertStatus(422)->assertJsonValidationErrors('paid_at');
+    }
+
+    /* Schema, see issue #26 */
+
+    /**
+     * The regression guard for the foreign key that broke the first deploy.
+     *
+     * `reservations.id` is a uuid, and the original migration declared
+     * `reservation_id` with `foreignId()`, which is an unsigned bigint. MySQL
+     * rejects a foreign key whose types do not match, with errno 150.
+     *
+     * This assertion works on sqlite even though sqlite does not enforce the
+     * constraint itself, because the two declarations still produce different
+     * COLUMN TYPES: `foreignId` gives an integer, `uuid` gives a varchar.
+     * Comparing them is therefore a real guard here rather than something that
+     * only fails on the production driver.
+     */
+    public function test_the_reservation_foreign_key_matches_the_key_it_references(): void
+    {
+        $this->assertSame(
+            Schema::getColumnType('reservations', 'id'),
+            Schema::getColumnType('expenses', 'reservation_id'),
+        );
+    }
+
+    public function test_an_expense_can_be_attached_to_a_reservation(): void
+    {
+        $reservation = Reservation::create([
+            'trip_date' => CarbonImmutable::now()->addDays(2),
+            'from_location' => 'Brazzaville',
+            'to_location' => 'Pointe-Noire',
+            'passenger_name' => 'Client',
+            'passenger_phone' => '+242060000000',
+            'price_total' => 500_000,
+            'status' => 'confirmed',
+            'seats' => 0,
+        ]);
+
+        $expense = $this->service()->record(
+            category: ExpenseCategory::Fuel,
+            amount: 25_000,
+            method: ExpenseMethod::Cash,
+            paidAt: CarbonImmutable::parse('today'),
+            note: 'Plein pour la mission',
+            reservationId: $reservation->id,
+        );
+
+        // A uuid survives the round trip, which an integer column would have
+        // silently truncated to 0 long before MySQL ever complained.
+        $this->assertSame($reservation->id, $expense->refresh()->reservation_id);
     }
 }

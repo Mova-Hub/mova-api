@@ -73,7 +73,12 @@ class ExpenseService
         CarbonImmutable $paidAt,
         string $note,
         ?int $busId = null,
-        ?int $reservationId = null,
+        /*
+         * A string, not an int: `reservations.id` is a uuid. Typed `?int` here
+         * originally, which made attaching a cost to a trip throw a TypeError
+         * on the one path that mattered. Part of issue #26.
+         */
+        ?string $reservationId = null,
         ?string $supplierName = null,
         ?string $reference = null,
         ?int $recordedBy = null,
