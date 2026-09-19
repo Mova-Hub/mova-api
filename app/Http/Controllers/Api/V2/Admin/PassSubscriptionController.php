@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Pass\PassSubscriptionResource;
 use App\Models\Client;
 use App\Models\PassPlan;
+use App\Models\PassScan;
 use App\Models\PassSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -60,6 +61,57 @@ class PassSubscriptionController extends Controller
         return new PassSubscriptionResource(
             PassSubscription::with(['plan', 'client'])->findOrFail($id)
         );
+    }
+
+    /**
+     * Where this subscription has actually been used.
+     *
+     * The scans table already records every tap against a subscription id, and
+     * nothing exposed them to staff: the only reader was the subscriber's own
+     * `/app/v1/pass/scans`. So an agent investigating "my card was refused this
+     * morning" had the evidence in the database and no way to look at it.
+     *
+     * **Refusals are the point.** A list of accepted taps says the product
+     * works; the verdict and its reason are what explain a complaint, which is
+     * why they are the two fields that always come back in full.
+     */
+    public function scans(Request $request, int $id)
+    {
+        $subscription = PassSubscription::findOrFail($id);
+
+        $scans = PassScan::where('pass_subscription_id', $subscription->id)
+            ->with(['inspector:id,name'])
+            ->latest('scanned_at')
+            ->paginate($this->perPage($request, 25));
+
+        return response()->json([
+            'status' => true,
+            'data' => $scans->through(fn (PassScan $scan) => [
+                'id' => $scan->id,
+                'verdict' => $scan->verdict?->value,
+                'verdict_label' => $scan->verdict?->label(),
+                'reason' => $scan->reason,
+                'source' => $scan->source?->value,
+                'bus_line' => $scan->bus_line,
+                // The inspector's NAME only. A scan record is not a reason to
+                // hand a staff directory to whoever opens the page.
+                'inspector' => $scan->inspector?->name,
+                'scanned_at' => $scan->scanned_at?->toIso8601String(),
+                /*
+                 * How long the device held this before syncing.
+                 *
+                 * A tap recorded offline and uploaded six hours later is not
+                 * the same evidence as a live one, and a dispute about "when"
+                 * turns on exactly that.
+                 */
+                'offline_duration_minutes' => $scan->offline_duration_minutes,
+            ])->items(),
+            'meta' => [
+                'current_page' => $scans->currentPage(),
+                'last_page' => $scans->lastPage(),
+                'total' => $scans->total(),
+            ],
+        ]);
     }
 
     /**
