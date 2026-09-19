@@ -70,7 +70,7 @@ class BusController extends Controller
         $orderDir = $request->query('order_dir') === 'asc' ? 'asc' : 'desc';
         $q->orderBy($orderBy, $orderDir);
 
-        $perPage = max((int)$request->query('per_page', 15), 1);
+        $perPage = $this->perPage($request, 15);
 
         return BusResource::collection($q->paginate($perPage));
     }

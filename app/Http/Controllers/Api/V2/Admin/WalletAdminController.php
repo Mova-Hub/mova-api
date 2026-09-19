@@ -43,7 +43,7 @@ class WalletAdminController extends Controller
             })
             ->when($request->boolean('with_balance'), fn ($q) => $q->where('balance', '>', 0))
             ->orderByDesc('balance')
-            ->paginate($request->integer('per_page', 25));
+            ->paginate($this->perPage($request, 25));
 
         return response()->json([
             'status' => true,

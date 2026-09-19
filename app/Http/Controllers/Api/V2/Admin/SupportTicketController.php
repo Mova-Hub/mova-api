@@ -45,7 +45,8 @@ class SupportTicketController extends Controller
             'category' => ['nullable', 'string', 'in:' . implode(',', SupportTicket::CATEGORIES)],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'search' => ['nullable', 'string', 'max:120'],
-            'per_page' => ['nullable', 'integer', 'between:1,100'],
+            // No upper bound here: `perPage()` clamps. See TripRatingController.
+            'per_page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $tickets = SupportTicket::query()
@@ -70,7 +71,7 @@ class SupportTicketController extends Controller
             })
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
-            ->paginate((int) $request->input('per_page', 25));
+            ->paginate($this->perPage($request, 25));
 
         /*
          * `->items()`, not the paginator itself.

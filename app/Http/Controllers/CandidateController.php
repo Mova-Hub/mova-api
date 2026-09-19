@@ -36,7 +36,7 @@ class CandidateController extends Controller
         }
 
         $query->orderBy('created_at', 'desc');
-        $perPage = max((int) $request->query('per_page', 15), 1);
+        $perPage = $this->perPage($request, 15);
 
         return CandidateResource::collection($query->paginate($perPage));
     }

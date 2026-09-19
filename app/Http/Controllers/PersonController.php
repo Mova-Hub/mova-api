@@ -37,7 +37,7 @@ class PersonController extends Controller
             $q->whereIn('role', array_intersect(['driver', 'conductor', 'owner'], [$role]));
         }
 
-        $perPage = max((int) $request->input('per_page', 50), 1);
+        $perPage = $this->perPage($request, 50);
 
         return PersonResource::collection($q->latest()->paginate($perPage));
     }

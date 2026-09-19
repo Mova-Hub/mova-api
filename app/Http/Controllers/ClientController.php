@@ -35,7 +35,7 @@ class ClientController extends Controller
                 : $query->whereNull('blocked_at');
         }
 
-        return ClientResource::collection($query->paginate((int) $request->input('per_page', 20)));
+        return ClientResource::collection($query->paginate($this->perPage($request, 20)));
     }
 
     public function show(int|string $id)

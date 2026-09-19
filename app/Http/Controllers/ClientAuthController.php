@@ -8,22 +8,26 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\ClientResource;
 use App\Models\Client;
 use App\Models\ClientFcmToken;
-use App\Services\SmsService;
+use App\Domain\Messaging\OtpService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
-use Twilio\Rest\Client as TwilioClient;
 
 class ClientAuthController extends Controller
 {
-    public function __construct(protected SmsService $smsService)
+    /**
+     * `OtpService`, not `SmsService`.
+     *
+     * The bare Twilio wrapper is gone from this controller. Every code now goes
+     * through the failover chain, which is the entire reason that chain exists.
+     * See App\Domain\Messaging\OtpService.
+     */
+    public function __construct(protected OtpService $otp)
     {
     }
 
@@ -318,42 +322,27 @@ class ClientAuthController extends Controller
         $request->validate(['phone' => 'required|string|exists:clients,phone']);
 
         $phone = $request->phone;
-        $otp = rand(1000, 9999);
-
-        // 1. Cache the OTP
-        Cache::put('password_reset_' . $phone, $otp, 600);
-
-        // 2. Attempt to send
-        $smsSent = $this->smsService->sendOtp($phone, $otp);
-
-        // 3. Handle failure safely
-        if (!$smsSent && !app()->isLocal()) {
-            Cache::forget('password_reset_' . $phone); // Clean up the cache
-
-            return response()->json([
-                'status'  => false,
-                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier que le numéro inclut l\'indicatif du pays (ex: +242...).'
-            ], 500);
-        }
 
         /*
-         * The OTP is NOT logged.
-         *
-         * This line used to be `Log::info("PASSWORD RESET OTP for {$phone}: {$otp}")`.
-         * With LOG_LEVEL=debug and a single unrotated file, every password-reset
-         * code in the system was sitting in plaintext in storage/logs alongside
-         * the phone number it belonged to, enough, on its own, to take over any
-         * account. Anyone who can read the log can reset any password.
-         *
-         * The phone is recorded so the flow is still traceable; the code is not.
+         * Issuing, storing, sending and logging all happen in OtpService, which
+         * walks the WhatsApp then SMS chain rather than going straight to
+         * Twilio. It also refuses to leave a code live that could not be
+         * delivered, and never writes the code to the log.
          */
-        Log::info('Password reset OTP issued', ['phone' => $this->maskPhone($phone)]);
+        $issued = $this->otp->issue('password_reset', $phone, $phone);
+
+        if (! $issued['sent'] && ! app()->isLocal()) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Impossible d\'envoyer le code. Vérifiez que le numéro inclut l\'indicatif du pays (ex: +242...).'
+            ], 500);
+        }
 
         return response()->json([
             'status'  => true,
             'message' => 'Code OTP envoyé sur votre téléphone.',
             // Local only, and `isLocal()` reads APP_ENV, never true in production.
-            'debug_otp' => app()->isLocal() ? $otp : null
+            'debug_otp' => app()->isLocal() ? $issued['code'] : null
         ]);
     }
 
@@ -368,10 +357,14 @@ class ClientAuthController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
         ]);
 
-        // Verify OTP
-        $cachedOtp = Cache::get('password_reset_' . $request->phone);
-
-        if (! $cachedOtp || (int)$cachedOtp !== (int)$request->otp) {
+        /*
+         * One call verifies, counts the attempt and consumes the code.
+         *
+         * The old check compared with `(int)` on both sides, which made "0123"
+         * and "123" the same code and silently dropped a leading zero, so one
+         * in ten issued codes had a second value that also worked.
+         */
+        if ($this->otp->verify('password_reset', $request->phone, (string) $request->otp) === null) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Code OTP invalide ou expiré.'
@@ -386,9 +379,6 @@ class ClientAuthController extends Controller
         ])->setRememberToken(Str::random(60));
 
         $client->save();
-
-        // Clear OTP
-        Cache::forget('password_reset_' . $request->phone);
 
         return response()->json([
             'status'  => true,
@@ -422,31 +412,26 @@ class ClientAuthController extends Controller
         $phone = $request->phone;
         $user = $request->user();
 
-        $otp = rand(100000, 999999);
+        /*
+         * Keyed on the USER, and the pending number rides in the payload.
+         *
+         * The number being confirmed must come back out of the store rather
+         * than off the verify request, or a caller could request a code for
+         * their own phone and then submit somebody else's number with it.
+         */
+        $issued = $this->otp->issue('phone_update', (string) $user->id, $phone, ['phone' => $phone]);
 
-        // 1. Cache the data
-        Cache::put('phone_update_' . $user->id, ['phone' => $phone, 'otp' => $otp], 600);
-
-        // 2. Attempt to send
-        $smsSent = $this->smsService->sendOtp($phone, $otp);
-
-        // 3. Handle failure safely
-        if (!$smsSent && !app()->isLocal()) {
-            Cache::forget('phone_update_' . $user->id); // Clean up the cache
-
+        if (! $issued['sent'] && ! app()->isLocal()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Impossible d\'envoyer le SMS. Veuillez vérifier que le numéro inclut l\'indicatif du pays (ex: +242...).'
+                'message' => 'Impossible d\'envoyer le code. Vérifiez que le numéro inclut l\'indicatif du pays (ex: +242...).'
             ], 500);
         }
 
-        // Never the code itself, see the note on the password-reset OTP above.
-        Log::info('Phone update OTP issued', ['phone' => $this->maskPhone($phone)]);
-
         return response()->json([
             'status'  => true,
-            'message' => 'Code de vérification envoyé par SMS.',
-            'debug_otp' => app()->isLocal() ? $otp : null
+            'message' => 'Code de vérification envoyé.',
+            'debug_otp' => app()->isLocal() ? $issued['code'] : null
         ]);
     }
 
@@ -460,10 +445,10 @@ class ClientAuthController extends Controller
         ]);
 
         $user = $request->user();
-        $cachedData = Cache::get('phone_update_' . $user->id);
 
-        // 1. Verify OTP
-        if (!$cachedData || (int)$cachedData['otp'] !== (int)$request->otp) {
+        $verified = $this->otp->verify('phone_update', (string) $user->id, (string) $request->otp);
+
+        if ($verified === null || ! isset($verified['phone'])) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Code invalide ou expiré.'
@@ -477,12 +462,9 @@ class ClientAuthController extends Controller
         // an OTP-verified phone was indistinguishable from an unverified one,
         // and social sign-ups arrive with no phone at all.
         $user->forceFill([
-            'phone'             => $cachedData['phone'],
+            'phone'             => $verified['phone'],
             'phone_verified_at' => now(),
         ])->save();
-
-        // 3. Clear Cache
-        Cache::forget('phone_update_' . $user->id);
 
         return response()->json([
             'status'  => true,
@@ -522,18 +504,10 @@ class ClientAuthController extends Controller
     }
 
     /**
-     * Masks a phone number for logging.
+     * Masking moved to OtpService.
      *
-     * Keeps the last four digits, which is enough to correlate a log line with
-     * a support call without writing the full number into a file that has a far
-     * longer life and a much wider readership than the request that produced it.
+     * This controller no longer logs a phone number: every line that did
+     * belonged to an OTP flow, and those now log from one place that owns both
+     * the masking and the rule that the code itself is never written down.
      */
-    private function maskPhone(?string $phone): string
-    {
-        if (! is_string($phone) || strlen($phone) < 4) {
-            return '****';
-        }
-
-        return str_repeat('*', max(0, strlen($phone) - 4)) . substr($phone, -4);
-    }
 }

@@ -60,7 +60,7 @@ class WalletController extends Controller
 
         $entries = WalletEntry::where('wallet_account_id', $account->id)
             ->orderByDesc('created_at')
-            ->paginate($request->integer('per_page', 30));
+            ->paginate($this->perPage($request, 30));
 
         return response()->json([
             'status' => true,

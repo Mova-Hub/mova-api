@@ -70,7 +70,7 @@ class ActivityLogController extends Controller
         }
 
         return ActivityLogResource::collection(
-            $query->paginate((int) $request->input('per_page', 50))
+            $query->paginate($this->perPage($request, 50))
         );
     }
 
