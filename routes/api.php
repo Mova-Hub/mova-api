@@ -706,6 +706,16 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     Route::prefix('admin/pass')->group(function () {
         Route::get('/plans', [AdminPassPlanController::class, 'index']);
         Route::post('/plans', [AdminPassPlanController::class, 'store']);
+        /*
+         * `/plans/{id}/stats` BEFORE `/plans/{id}`.
+         *
+         * Not strictly required here, since `whereNumber` would stop `stats`
+         * matching the wildcard, but the ordering is the habit that keeps this
+         * group correct the day somebody adds a non-numeric segment. The same
+         * note is on the payments and support groups.
+         */
+        Route::get('/plans/{id}/stats', [AdminPassPlanController::class, 'stats'])->whereNumber('id');
+        Route::get('/plans/{id}', [AdminPassPlanController::class, 'show'])->whereNumber('id');
         Route::put('/plans/{id}', [AdminPassPlanController::class, 'update'])->whereNumber('id');
         Route::delete('/plans/{id}', [AdminPassPlanController::class, 'destroy'])->whereNumber('id');
 
@@ -720,6 +730,10 @@ Route::middleware(['auth:sanctum', 'staff'])->group(function () {
         Route::get('/subscriptions', [AdminPassSubscriptionController::class, 'index']);
         Route::post('/subscriptions', [AdminPassSubscriptionController::class, 'store']);
         Route::get('/subscriptions/{id}', [AdminPassSubscriptionController::class, 'show'])->whereNumber('id');
+        // Where the subscription has been used, refusals included. See the
+        // controller for why refusals are the reason this exists.
+        Route::get('/subscriptions/{id}/scans', [AdminPassSubscriptionController::class, 'scans'])
+            ->whereNumber('id');
         Route::post('/subscriptions/{id}/activate', [AdminPassSubscriptionController::class, 'activate'])->whereNumber('id');
         Route::post('/subscriptions/{id}/cancel', [AdminPassSubscriptionController::class, 'cancel'])->whereNumber('id');
     });
