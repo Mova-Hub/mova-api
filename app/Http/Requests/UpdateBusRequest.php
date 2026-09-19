@@ -34,6 +34,13 @@ class UpdateBusRequest extends FormRequest
             'year'    => ['sometimes','nullable','integer','min:1970'],
             'mileage_km' => ['sometimes','nullable','integer','min:0'],
             'last_service_date' => ['sometimes','nullable','date'],
+
+            // Fillable on the model, validated nowhere, therefore silently
+            // dropped by `validated()` on every edit. See StoreBusRequest.
+            'brand'                   => ['sometimes','nullable','string','max:100'],
+            'energy_type'             => ['sometimes','nullable','string','max:50'],
+            'first_registration_year' => ['sometimes','nullable','integer','min:1970'],
+            'chassis_number'          => ['sometimes','nullable','string','max:100'],
             'insurance_provider'       => ['sometimes','nullable','string','max:150'],
             'insurance_policy_number'  => ['sometimes','nullable','string','max:100'],
             'insurance_valid_until'    => ['sometimes','nullable','date','after_or_equal:last_service_date'],

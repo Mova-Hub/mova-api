@@ -34,6 +34,25 @@ class StoreBusRequest extends FormRequest
             'mileage_km' => ['nullable','integer','min:0'],
             'last_service_date' => ['nullable','date'],
 
+            /*
+             * Four columns that were fillable on the model and validated
+             * nowhere.
+             *
+             * `validated()` returns only keys that have a rule, so every one of
+             * these was accepted by the request, dropped before `Bus::create()`,
+             * and lost without an error. `brand` is the visible one: the fleet
+             * list has a Marque column, so a bus added through the back office
+             * would have shown a blank there forever.
+             *
+             * This is the same failure the `seats` / `capacity` rename already
+             * hit, and it stayed hidden for the same reason, nothing had wired a
+             * bus form yet.
+             */
+            'brand'                   => ['nullable','string','max:100'],
+            'energy_type'             => ['nullable','string','max:50'],
+            'first_registration_year' => ['nullable','integer','min:1970'],
+            'chassis_number'          => ['nullable','string','max:100'],
+
             'insurance_provider'       => ['nullable','string','max:150'],
             'insurance_policy_number'  => ['nullable','string','max:100'],
             'insurance_valid_until'    => ['nullable','date','after_or_equal:last_service_date'],
