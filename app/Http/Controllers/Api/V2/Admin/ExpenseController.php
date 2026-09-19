@@ -46,7 +46,8 @@ class ExpenseController extends Controller
             'category' => ['nullable', Rule::enum(ExpenseCategory::class)],
             'method' => ['nullable', Rule::enum(ExpenseMethod::class)],
             'bus_id' => ['nullable', 'integer', 'exists:buses,id'],
-            'reservation_id' => ['nullable', 'integer'],
+            // A uuid, like `reservations.id`. See issue #26.
+            'reservation_id' => ['nullable', 'uuid'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'search' => ['nullable', 'string', 'max:120'],
@@ -128,7 +129,7 @@ class ExpenseController extends Controller
              */
             'paid_at' => ['required', 'date', 'before_or_equal:today'],
             'bus_id' => ['nullable', 'integer', 'exists:buses,id'],
-            'reservation_id' => ['nullable', 'integer', 'exists:reservations,id'],
+            'reservation_id' => ['nullable', 'uuid', 'exists:reservations,id'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:120'],
             // Required, same reasoning as a wallet grant: an unexplained

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -35,6 +36,26 @@ return new class extends Migration
      */
     public function up(): void
     {
+        /*
+         * Clears the wreckage of the first attempt at this migration.
+         *
+         * MySQL has no transactional DDL, so when the reservation foreign key
+         * below was rejected (issue #26) the statements before it were NOT
+         * rolled back. That leaves an `expenses` table that exists and is
+         * missing a constraint, with no row in `migrations` recording it,
+         * because the migration never finished. A plain retry would then fail
+         * again, this time on "table already exists", which is a confusing
+         * second error for what is really the first one.
+         *
+         * Guarded on the row count, so this can only ever discard a table that
+         * has nothing in it. If a real ledger is somehow present, the create
+         * below fails loudly rather than deleting anybody's accounts, which is
+         * the only acceptable failure mode for this table.
+         */
+        if (Schema::hasTable('expenses') && DB::table('expenses')->count() === 0) {
+            Schema::drop('expenses');
+        }
+
         Schema::create('expenses', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
@@ -77,7 +98,22 @@ return new class extends Migration
              * quietly rewrites the year's fuel total.
              */
             $table->foreignId('bus_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('reservation_id')->nullable()->constrained()->nullOnDelete();
+
+            /*
+             * `uuid`, NOT `foreignId`, because `reservations.id` is a uuid.
+             *
+             * `foreignId()` creates an unsigned bigint, and MySQL refuses a
+             * foreign key whose column type does not match the one it
+             * references: "errno 150, Foreign key constraint is incorrectly
+             * formed". This is the shape `reservation_buses` has always used.
+             *
+             * SQLite does not enforce that match, so the original version of
+             * this migration created cleanly in the test suite and failed on
+             * the first real deploy. See issue #26.
+             */
+            $table->uuid('reservation_id')->nullable();
+            $table->foreign('reservation_id')->references('id')->on('reservations')
+                ->nullOnDelete();
 
             /*
              * Who was paid, as text.
